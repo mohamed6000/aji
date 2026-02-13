@@ -1,0 +1,10 @@
+.vs
+test.cpp
+*.exe
+*.ilk
+*.obj
+*.pdb
+*.lib
+*.exp
+.build
+bin

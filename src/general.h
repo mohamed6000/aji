@@ -12,6 +12,9 @@
 
     Control:
 
+    #define NB_STRIP_GENERAL_PREFIX to remove 
+    some of the nb_/NB_ prefixes.
+
     #define NB_ENABLE_ASSERTS 1 (0 by default, 1 for debug build)
     #define NB_ENABLE_DEFERS 1 (0 by default)
 
@@ -225,9 +228,11 @@ typedef u8  b8;   // For consistency.
 #if LANGUAGE_CPP
 #define null 0
 #define NB_EXTERN extern "C"
+#define NB_DEFAULT_VALUE(x, y) x = y
 #else
 #define null ((void *)0)
 #define NB_EXTERN
+#define NB_DEFAULT_VALUE(x, y) x
 #endif
 
 #if COMPILER_CL
@@ -589,7 +594,8 @@ typedef struct NB_String {
 #define S(s) (NB_String){size_of(s)-1, (u8 *)(s)}
 #endif
 
-inline NB_String nb_make_string(u8 *data, s64 count) {
+NB_INLINE NB_String 
+nb_make_string(u8 *data, s64 count) {
     NB_String result;
     result.count = count;
     result.data  = data;
@@ -604,7 +610,7 @@ typedef enum NB_Log_Mode {
     NB_LOG_NONE,
     NB_LOG_ERROR,
     NB_LOG_WARNING,
-} Log_Mode;
+} NB_Log_Mode;
 
 typedef void NB_Logger_Proc(NB_Log_Mode mode, const char *ident, const char *message, ...) NB_IS_PRINTF_LIKE(3, 4);
 
@@ -624,10 +630,13 @@ extern NB_Logger_Proc *nb_current_logger;
 #define NB_GET_LOGGER() (nb_current_logger)
 
 // Cross-platform write string functions.
-void nb_write_string(const char *s, bool to_standard_error = false);
-void nb_write_string_count(const char *s, u32 count, bool to_standard_error = false);
+void nb_write_string(const char *s, 
+                     bool NB_DEFAULT_VALUE(to_standard_error, false));
+void nb_write_string_count(const char *s, u32 count, 
+                           bool NB_DEFAULT_VALUE(to_standard_error, false));
 
-void nb_write_new_string(NB_String s, bool to_standard_error = false);
+void nb_write_new_string(NB_String s, 
+                         bool NB_DEFAULT_VALUE(to_standard_error, false));
 
 NB_EXTERN bool 
 nb_abort_error_message(const char *title, 
@@ -657,23 +666,23 @@ typedef enum NB_System_Console_Text_Color {
 
 NB_EXTERN void 
 nb_set_console_text_color(NB_System_Console_Text_Color color, 
-                          bool to_standard_error = false);
+                          bool NB_DEFAULT_VALUE(to_standard_error, false));
 NB_EXTERN void 
 nb_set_console_text_color_ansi(NB_System_Console_Text_Color color, 
-                               bool to_standard_error = false);
+                               bool NB_DEFAULT_VALUE(to_standard_error, false));
 
 // Temporary storage helpers.
-inline s64 nb_get_temporary_storage_mark(void) {
+NB_INLINE s64 nb_get_temporary_storage_mark(void) {
     return nb_temporary_storage.occupied;
 }
 
-inline void nb_set_temporary_storage_mark(s64 mark) {
+NB_INLINE void nb_set_temporary_storage_mark(s64 mark) {
     assert(mark >= 0);
     assert(mark <= nb_temporary_storage.size);
     nb_temporary_storage.occupied = mark;
 }
 
-inline void nb_reset_temporary_storage(void) {
+NB_INLINE void nb_reset_temporary_storage(void) {
     nb_set_temporary_storage_mark(0);
     nb_temporary_storage.high_water_mark = 0;
 }
@@ -703,64 +712,19 @@ NB_EXTERN char *tprint_valist(const char *fmt, va_list arg_list);
 
 NB_EXTERN void print(const char *fmt, ...) NB_IS_PRINTF_LIKE(1, 2);
 
-inline void 
+NB_EXTERN void 
 nb_default_logger(NB_Log_Mode mode, 
                   const char *ident, 
-                  const char *message, ...) {
-    UNUSED(mode);
+                  const char *message, ...);
 
-    if (ident) {
-        nb_write_string("[");
-        nb_write_string(ident);
-        nb_write_string("] ");
-    }
-
-#if 0
-    nb_write_string(message);
-#else
-    s64 mark = nb_get_temporary_storage_mark();
-    va_list args;
-    va_start(args, message);
-
-    char *s = tprint_valist(message, args);
-    va_end(args);
-
-    nb_write_string(s);
-    nb_set_temporary_storage_mark(mark);
-#endif
-
-    nb_write_string("\n");
-}
-
-inline void nb_error_logger(NB_Log_Mode mode, const char *ident, const char *message, ...) {
-    UNUSED(mode);
-
-    if (ident) {
-        nb_write_string("[", true);
-        nb_write_string(ident, true);
-        nb_write_string("] ", true);
-    }
-
-#if 0
-    nb_write_string(message, true);
-#else
-    s64 mark = nb_get_temporary_storage_mark();
-    va_list args;
-    va_start(args, message);
-
-    char *s = tprint_valist(message, args);
-    va_end(args);
-
-    nb_write_string(s, true);
-    nb_set_temporary_storage_mark(mark);
-#endif
-
-    nb_write_string("\n", true);
-}
+NB_EXTERN void 
+nb_error_logger(NB_Log_Mode mode, 
+                const char *ident, 
+                const char *message, ...);
 
 
 
-inline u32 nb_safe_truncate_u64(u64 value) {
+NB_INLINE u32 nb_safe_truncate_u64(u64 value) {
     assert(value <= NB_MAX_U32);
     u32 result = (u32)value;
     return result;
@@ -768,24 +732,24 @@ inline u32 nb_safe_truncate_u64(u64 value) {
 
 
 
-inline void *
+NB_INLINE void *
 nb_new_alloc(s64 size, 
-             NB_Allocator a = NB_GET_ALLOCATOR()) {
+             NB_Allocator NB_DEFAULT_VALUE(a, NB_GET_ALLOCATOR())) {
     assert(a.proc != null);
     return a.proc(NB_ALLOCATOR_ALLOCATE, size, 0, null, a.data);
 }
 
-inline void *
+NB_INLINE void *
 nb_mem_realloc(void *mem, 
                s64 new_size, s64 old_size, 
-               NB_Allocator a = NB_GET_ALLOCATOR()) {
+               NB_Allocator NB_DEFAULT_VALUE(a, NB_GET_ALLOCATOR())) {
     assert(a.proc != null);
     return a.proc(NB_ALLOCATOR_RESIZE, new_size, old_size, mem, a.data);
 }
 
-inline void 
+NB_INLINE void 
 nb_mem_free(void *mem, 
-            NB_Allocator a = NB_GET_ALLOCATOR()) {
+            NB_Allocator NB_DEFAULT_VALUE(a, NB_GET_ALLOCATOR())) {
     assert(a.proc != null);
     a.proc(NB_ALLOCATOR_FREE, 0, 0, mem, a.data);
 }
@@ -799,7 +763,7 @@ NB_EXTERN void nb_qsort_it(void *data, s64 count, s64 stride, s64 (*qsort_compar
 
 /******** Utility functions ********/
 
-inline u16 nb_swap2(u16 mem) {
+NB_INLINE u16 nb_swap2(u16 mem) {
     u16 a = mem >> 8;
     u16 b = (mem & 0xFF) << 8;
     
@@ -807,7 +771,7 @@ inline u16 nb_swap2(u16 mem) {
     return result;
 }
 
-inline u32 nb_swap4(u32 mem) {
+NB_INLINE u32 nb_swap4(u32 mem) {
     u32 a = (mem >> 24);
     u32 b = (mem >> 16) & 0xFF;
     u32 c = (mem >>  8) & 0xFF;
@@ -817,7 +781,7 @@ inline u32 nb_swap4(u32 mem) {
     return result;
 }
 
-inline u32 nb_find_least_significant_set_bit(u32 value) {
+NB_INLINE u32 nb_find_least_significant_set_bit(u32 value) {
 #if COMPILER_CL
     unsigned long result = 0;
     _BitScanForward(&result, value);
@@ -835,7 +799,7 @@ inline u32 nb_find_least_significant_set_bit(u32 value) {
 #endif
 }
 
-inline void nb_swap_two_memory_blocks(u8 *a_, u8 *b_, s64 count) {
+NB_INLINE void nb_swap_two_memory_blocks(u8 *a_, u8 *b_, s64 count) {
     u8 *a = a_;
     u8 *b = b_;
 
@@ -849,12 +813,12 @@ inline void nb_swap_two_memory_blocks(u8 *a_, u8 *b_, s64 count) {
 #define nb_get_clamped(v, l, h) (((v) < (l)) ? (l) : (((v) > (h)) ? (h) : (v)))
 
 #if LANGUAGE_CPP
-inline void nb_clamp(int *pointer, int low, int high) {
+NB_INLINE void nb_clamp(int *pointer, int low, int high) {
     if (*pointer < low) { *pointer = low; }
     if (*pointer > high) { *pointer = high; }
 }
 
-inline void nb_clamp(float *pointer, float low, float high) {
+NB_INLINE void nb_clamp(float *pointer, float low, float high) {
     if (*pointer < low) { *pointer = low; }
     if (*pointer > high) { *pointer = high; }
 }
@@ -864,7 +828,7 @@ inline void nb_clamp(float *pointer, float low, float high) {
 #define Clamp nb_clamp
 #endif
 
-inline NB_OS_Type nb_get_current_os(void) {
+NB_INLINE NB_OS_Type nb_get_current_os(void) {
     NB_OS_Type result = NB_OS_NONE;
 #if OS_WINDOWS
     result = NB_OS_WINDOWS;
@@ -877,7 +841,7 @@ inline NB_OS_Type nb_get_current_os(void) {
     return result;
 }
 
-inline NB_Arch_Type nb_get_current_arch(void) {
+NB_INLINE NB_Arch_Type nb_get_current_arch(void) {
     NB_Arch_Type result = NB_ARCH_NONE;
 #if ARCH_X64
     result = NB_ARCH_X64;
@@ -892,7 +856,7 @@ inline NB_Arch_Type nb_get_current_arch(void) {
     return result;
 }
 
-inline const char *nb_os_to_string(NB_OS_Type os) {
+NB_INLINE const char *nb_os_to_string(NB_OS_Type os) {
     const char *result = null;
     switch (os) {
         case NB_OS_WINDOWS:
@@ -913,7 +877,7 @@ inline const char *nb_os_to_string(NB_OS_Type os) {
     return result;
 }
 
-inline const char *nb_arch_to_string(NB_Arch_Type arch) {
+NB_INLINE const char *nb_arch_to_string(NB_Arch_Type arch) {
     const char *result = null;
     switch (arch) {
         case NB_ARCH_X64:
@@ -938,8 +902,8 @@ inline const char *nb_arch_to_string(NB_Arch_Type arch) {
     return result;
 }
 
-inline void nb_panic(void) {
-    nb_write_new_string(S("Panic.\n"));
+NB_INLINE void nb_panic(void) {
+    nb_write_new_string(S("Panic.\n"), true);
 #if NB_DEBUG
     nb_debug_break();
 #else
@@ -949,7 +913,7 @@ inline void nb_panic(void) {
 
 // Ratio helpers.
 
-inline float nb_safe_ratio_0(float n, float d) {
+NB_INLINE float nb_safe_ratio_0(float n, float d) {
     float result = 0;
 
     if (d != 0) {
@@ -959,7 +923,7 @@ inline float nb_safe_ratio_0(float n, float d) {
     return result;
 }
 
-inline float nb_safe_ratio_1(float n, float d) {
+NB_INLINE float nb_safe_ratio_1(float n, float d) {
     float result = 1;
 
     if (d != 0) {
@@ -969,7 +933,7 @@ inline float nb_safe_ratio_1(float n, float d) {
     return result;
 }
 
-inline float nb_safe_ratio_n(float a, float b, float n) {
+NB_INLINE float nb_safe_ratio_n(float a, float b, float n) {
     float result = n;
 
     if (b != 0) {
@@ -981,7 +945,7 @@ inline float nb_safe_ratio_n(float a, float b, float n) {
 
 // String helpers.
 
-inline bool nb_strings_are_equal(NB_String a, NB_String b) {
+NB_INLINE bool nb_strings_are_equal(NB_String a, NB_String b) {
     if (a.count != b.count) return false;
 
     for (s64 index = 0; index < a.count; ++index) {
@@ -993,7 +957,7 @@ inline bool nb_strings_are_equal(NB_String a, NB_String b) {
     return true;
 }
 
-inline bool nb_cstrings_are_equal(char *a, char *b) {
+NB_INLINE bool nb_cstrings_are_equal(char *a, char *b) {
     bool result = (a == b);
 
     if (a && b) {
@@ -1008,7 +972,7 @@ inline bool nb_cstrings_are_equal(char *a, char *b) {
     return result;
 }
 
-inline bool nb_strings_are_equal_length(s64 length_a, char *a, s64 length_b, char *b) {
+NB_INLINE bool nb_strings_are_equal_length(s64 length_a, char *a, s64 length_b, char *b) {
     if (length_a != length_b) return false;
 
     for (s64 index = 0; index < length_a; ++index) {
@@ -1018,7 +982,7 @@ inline bool nb_strings_are_equal_length(s64 length_a, char *a, s64 length_b, cha
     return true;
 }
 
-inline bool nb_strings_are_equal_first_length(s64 length_a, char *a, char *b) {
+NB_INLINE bool nb_strings_are_equal_first_length(s64 length_a, char *a, char *b) {
     char *it = b;
     for (s64 index = 0; index < length_a; ++index, ++it) {
         if ((*it == 0) || (a[index] != *it)) {
@@ -1030,12 +994,12 @@ inline bool nb_strings_are_equal_first_length(s64 length_a, char *a, char *b) {
     return result;
 }
 
-inline bool nb_is_end_of_line(int c) {
+NB_INLINE bool nb_is_end_of_line(int c) {
     bool result = ((c == '\n') || (c == '\r'));
     return result;
 }
 
-inline bool nb_is_white_space(int c) {
+NB_INLINE bool nb_is_white_space(int c) {
     bool result = ((c == ' ')  || 
                    (c == '\t') ||
                    (c == '\v') || 
@@ -1046,12 +1010,12 @@ inline bool nb_is_white_space(int c) {
     return result;
 }
 
-inline bool nb_is_digit(int c) {
+NB_INLINE bool nb_is_digit(int c) {
     bool result = (c >= '0') && (c <= '9');
     return result;
 }
 
-inline s64 nb_string_length(const char *s) {
+NB_INLINE s64 nb_string_length(const char *s) {
     if (!s) return 0;
 
     const char *it = s;
@@ -1060,7 +1024,7 @@ inline s64 nb_string_length(const char *s) {
     return (s64)(it-1 - s);
 }
 
-inline char *nb_eat_spaces(char *s) {
+NB_INLINE char *nb_eat_spaces(char *s) {
     char *it = s;
     while (*it == ' ') {
         it++;
@@ -1069,7 +1033,7 @@ inline char *nb_eat_spaces(char *s) {
     return it;
 }
 
-inline char *nb_get_extension(char *s) {
+NB_INLINE char *nb_get_extension(char *s) {
     char *result = null;
 
     char *it = s;
@@ -1082,7 +1046,7 @@ inline char *nb_get_extension(char *s) {
     return result;
 }
 
-inline char *nb_find_character_from_right(char *s, u8 c) {
+NB_INLINE char *nb_find_character_from_right(char *s, u8 c) {
     s64 length = nb_string_length(s);
 
     for (s64 i = length - 1; i >= 0; --i) {
@@ -1094,7 +1058,7 @@ inline char *nb_find_character_from_right(char *s, u8 c) {
     return null;
 }
 
-inline char *nb_path_cleanup(char *s) {
+NB_INLINE char *nb_path_cleanup(char *s) {
     char *it = s;
     while (*it) {
         if (*it == '\\') *it = '/';
@@ -1105,7 +1069,7 @@ inline char *nb_path_cleanup(char *s) {
     return s;
 }
 
-inline void nb_advance(NB_String *s, s64 amount) {
+NB_INLINE void nb_advance(NB_String *s, s64 amount) {
     s->data  += amount;
     s->count -= amount;
 }
@@ -1238,7 +1202,7 @@ char *mprint(const char *fmt, ...) {
     int size = NB_PRINT_INITIAL_GUESS;
 
     while (1) {
-        result = nb_new_array(char, size);
+        result = nb_new_array(char, size, NB_GET_ALLOCATOR());
         if (!result) return null;
         
         va_list args;
@@ -1252,7 +1216,7 @@ char *mprint(const char *fmt, ...) {
             break;
         }
 
-        nb_free(result);
+        nb_free(result, NB_GET_ALLOCATOR());
         size *= 2;
     }
 
@@ -1265,7 +1229,7 @@ char *mprint_guess(int size, const char *fmt, ...) {
     char *result = null;
 
     while (1) {
-        result = nb_new_array(char, size);
+        result = nb_new_array(char, size, NB_GET_ALLOCATOR());
         if (!result) return null;
         
         va_list args;
@@ -1279,7 +1243,7 @@ char *mprint_guess(int size, const char *fmt, ...) {
             break;
         }
 
-        nb_free(result);
+        nb_free(result, NB_GET_ALLOCATOR());
         size *= 2;
     }
 
@@ -1291,7 +1255,7 @@ NB_EXTERN char *mprint_valist(const char *fmt, va_list arg_list) {
     int size = NB_PRINT_INITIAL_GUESS;
 
     while (1) {
-        result = nb_new_array(char, size);
+        result = nb_new_array(char, size, NB_GET_ALLOCATOR());
         if (!result) return null;
         
         va_list args;
@@ -1305,7 +1269,7 @@ NB_EXTERN char *mprint_valist(const char *fmt, va_list arg_list) {
             break;
         }
 
-        nb_free(result);
+        nb_free(result, NB_GET_ALLOCATOR());
         size *= 2;
     }
 
@@ -1381,7 +1345,7 @@ NB_EXTERN void print(const char *fmt, ...) {
     char *s = tprint_valist(fmt, args);
     va_end(args);
 
-    nb_write_string(s);
+    nb_write_string(s, false);
 }
 
 NB_EXTERN bool 
@@ -1407,6 +1371,10 @@ nb_abort_error_message(const char *title,
 
 #include <inttypes.h>
 
+// Windows Server 2003 and Windows XP: The sum of the FramesToSkip and FramesToCapture parameters must be less than 63.
+#define NB_MAX_STACK_FRAMES 63
+#define NB_MAX_SYMBOL_NAME 255
+
 NB_EXTERN char *nb_get_stacktrace(void) {
     char *result = null;
     HANDLE process = GetCurrentProcess();
@@ -1418,21 +1386,18 @@ NB_EXTERN char *nb_get_stacktrace(void) {
     }
 
     if (initted == TRUE) {
-        // Windows Server 2003 and Windows XP: The sum of the FramesToSkip and FramesToCapture parameters must be less than 63.
-        const int MAX_STACK_FRAMES = 63;
-        void *stack[MAX_STACK_FRAMES];
+        void *stack[NB_MAX_STACK_FRAMES];
 
-        const int MAX_SYMBOL_NAME = 255;
-        u8 buf[size_of(SYMBOL_INFO) + (MAX_SYMBOL_NAME+1)];
+        u8 buf[size_of(SYMBOL_INFO) + (NB_MAX_SYMBOL_NAME+1)];
 
         SYMBOL_INFO *symbol_info = (SYMBOL_INFO *)buf;
-        symbol_info->MaxNameLen = MAX_SYMBOL_NAME;
+        symbol_info->MaxNameLen = NB_MAX_SYMBOL_NAME;
         symbol_info->SizeOfStruct = size_of(SYMBOL_INFO);
 
         IMAGEHLP_LINEW64 line64 = {};
         line64.SizeOfStruct = size_of(IMAGEHLP_LINEW64);
 
-        u16 frames = CaptureStackBackTrace(0, MAX_STACK_FRAMES, stack, null);
+        u16 frames = CaptureStackBackTrace(0, NB_MAX_STACK_FRAMES, stack, null);
         if (frames > 0) {
             result = tprint("Caller stack:\n");
             for (u16 index = 0; index < frames; ++index) {
@@ -1481,6 +1446,10 @@ NB_EXTERN char *nb_get_stacktrace(void) {
 
     return result;
 }
+
+#undef NB_MAX_STACK_FRAMES
+#undef NB_MAX_SYMBOL_NAME
+
 #endif  // NB_ENABLE_ASSERTS
 
 WCHAR *w32_utf8_to_wide(const char *s, NB_Allocator allocator) {
@@ -1609,7 +1578,7 @@ char *mprint(const char *fmt, ...) {
     int size = NB_PRINT_INITIAL_GUESS;
 
     while (1) {
-        result = nb_new_array(char, size);
+        result = nb_new_array(char, size, NB_GET_ALLOCATOR());
         if (!result) return null;
         
         va_list args;
@@ -1623,7 +1592,7 @@ char *mprint(const char *fmt, ...) {
             break;
         }
 
-        nb_free(result);
+        nb_free(result, NB_GET_ALLOCATOR());
         size *= 2;
     }
 
@@ -1636,7 +1605,7 @@ char *mprint_guess(int size, const char *fmt, ...) {
     char *result = null;
 
     while (1) {
-        result = nb_new_array(char, size);
+        result = nb_new_array(char, size, NB_GET_ALLOCATOR());
         if (!result) return null;
         
         va_list args;
@@ -1650,7 +1619,7 @@ char *mprint_guess(int size, const char *fmt, ...) {
             break;
         }
 
-        nb_free(result);
+        nb_free(result, NB_GET_ALLOCATOR());
         size *= 2;
     }
 
@@ -1662,7 +1631,7 @@ NB_EXTERN char *mprint_valist(const char *fmt, va_list arg_list) {
     int size = NB_PRINT_INITIAL_GUESS;
 
     while (1) {
-        result = nb_new_array(char, size);
+        result = nb_new_array(char, size, NB_GET_ALLOCATOR());
         if (!result) return null;
         
         va_list args;
@@ -1677,7 +1646,7 @@ NB_EXTERN char *mprint_valist(const char *fmt, va_list arg_list) {
             break;
         }
 
-        nb_free(result);
+        nb_free(result, NB_GET_ALLOCATOR());
         size *= 2;
     }
 
@@ -1754,7 +1723,7 @@ NB_EXTERN void print(const char *fmt, ...) {
     char *s = tprint_valist(fmt, args);
     va_end(args);
 
-    nb_write_string(s);
+    nb_write_string(s, false);
 }
 
 NB_EXTERN bool 
@@ -2063,11 +2032,75 @@ void nb_qsort_it(void *data, s64 count,
     }
 }
 
+NB_EXTERN void 
+nb_default_logger(NB_Log_Mode mode, 
+                  const char *ident, 
+                  const char *message, ...) {
+    UNUSED(mode);
+
+    if (ident) {
+        nb_write_string("[",   false);
+        nb_write_string(ident, false);
+        nb_write_string("] ",  false);
+    }
+
+#if 0
+    nb_write_string(message);
+#else
+    s64 mark = nb_get_temporary_storage_mark();
+    va_list args;
+    va_start(args, message);
+
+    char *s = tprint_valist(message, args);
+    va_end(args);
+
+    nb_write_string(s, false);
+    nb_set_temporary_storage_mark(mark);
+#endif
+
+    nb_write_string("\n", false);
+}
+
+NB_EXTERN void 
+nb_error_logger(NB_Log_Mode mode, 
+                const char *ident, 
+                const char *message, ...) {
+    UNUSED(mode);
+
+    if (ident) {
+        nb_write_string("[",   true);
+        nb_write_string(ident, true);
+        nb_write_string("] ",  true);
+    }
+
+#if 0
+    nb_write_string(message, true);
+#else
+    s64 mark = nb_get_temporary_storage_mark();
+    va_list args;
+    va_start(args, message);
+
+    char *s = tprint_valist(message, args);
+    va_end(args);
+
+    nb_write_string(s, true);
+    nb_set_temporary_storage_mark(mark);
+#endif
+
+    nb_write_string("\n", true);
+}
+
 #endif  // NB_IMPLEMENTATION
 
 
 
 #ifdef NB_STRIP_GENERAL_PREFIX
+
+//
+// I didn't add some of the terms we us, because I felt they were too general
+// to be defined as macros and can cause conflict in the user's code,
+// like swap2, advance, ...
+//
 
 #define offset_of             nb_offset_of
 #define array_count           nb_array_count

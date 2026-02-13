@@ -10,7 +10,7 @@ int main(int argc, char **argv) {
     UNUSED(argc);
     UNUSED(argv);
 
-    write_string("Hello friend!\n");
+    write_string("Hello friend!\n", false);
 
     return 0;
 }
