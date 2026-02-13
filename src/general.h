@@ -177,7 +177,7 @@
 
 // Arch cracking.
 #if ARCH_X86 || ARCH_X64 || ARCH_ARM || ARCH_ARM64
-#define ARCH_LITTLE_ENDIAN 1
+#define NB_LITTLE_ENDIAN 1
 #else
 #error Unknown architecture endianness
 #endif
@@ -276,19 +276,23 @@ typedef u8  b8;   // For consistency.
 #error Undefined NB_SHARED_EXPORT for this compiler
 #endif
 
+
+#define UNUSED(x) (void)(x)
+#define size_of(x) sizeof(x)
+
+
 #if LANGUAGE_CPP
-#define offset_of(Type, member) offsetof(Type, member)
+#define nb_offset_of(Type, member) offsetof(Type, member)
 #else
-#define offset_of(Type, member) ((umm)(&((Type *)0)->member))
+#define nb_offset_of(Type, member) ((umm)(&((Type *)0)->member))
 #endif
 
-#define size_of(x) sizeof(x)
-#define array_count(a) (size_of(a) / size_of((a)[0]))
+#define nb_array_count(a) (size_of(a) / size_of((a)[0]))
 
-#define align_forward_offset(s, a) (((s) & ((a)-1)) ? ((a) - ((s) & ((a)-1))) : 0)
-#define align_forward(s, a) (((s) + ((a)-1)) & ~((a)-1))
+#define nb_align_forward_offset(s, a) (((s) & ((a)-1)) ? ((a) - ((s) & ((a)-1))) : 0)
+#define nb_align_forward(s, a) (((s) + ((a)-1)) & ~((a)-1))
 
-#define align_forward_pointer(p, a) ((u8 *)(((umm)(p) + ((a)-1)) & ~((a)-1)))
+#define nb_align_forward_pointer(p, a) ((u8 *)(((umm)(p) + ((a)-1)) & ~((a)-1)))
 
 
 #if COMPILER_GCC || COMPILER_CLANG
@@ -299,23 +303,30 @@ typedef u8  b8;   // For consistency.
 
 
 // Assuming the input is non-zero.
-#define is_power_of_2(x) (((x) & ((x)-1)) == 0)
+#define nb_is_power_of_2(x) (((x) & ((x)-1)) == 0)
 
-#define UNUSED(x) (void)(x)
-#define CONCAT_INTERNAL(x, y) x##y
-#define CONCAT(x, y) CONCAT_INTERNAL(x, y)
+#define NB_CONCAT_INTERNAL(x, y) x##y
+#define NB_CONCAT(x, y) NB_CONCAT_INTERNAL(x, y)
 
-#define STRINGIFY2(s) #s
-#define STRINGIFY(s) STRINGIFY2(s)
+#define NB_STRINGIFY2(s) #s
+#define NB_STRINGIFY(s) NB_STRINGIFY2(s)
 
-#define Min(a, b) (((a) < (b)) ? (a) : (b))
-#define Max(a, b) (((a) > (b)) ? (a) : (b))
+#define nb_min(a, b) (((a) < (b)) ? (a) : (b))
+#define nb_max(a, b) (((a) > (b)) ? (a) : (b))
 
-#define pointer_to_int(ptr) (u64)((uintptr_t)(ptr))
-#define pointer_to_type(Type, ptr) (Type)((uintptr_t)(ptr))
+#ifndef Min
+#define Min nb_min
+#endif
 
-#define u32_to_pointer(Type, n) (Type *)((uintptr_t)(n))
-#define int_to_pointer(Type, n) (Type *)((uintptr_t)(n))
+#ifndef Max
+#define Max nb_max
+#endif
+
+#define nb_pointer_to_int(ptr) (u64)((uintptr_t)(ptr))
+#define nb_pointer_to_type(Type, ptr) (Type)((uintptr_t)(ptr))
+
+#define nb_u32_to_pointer(Type, n) (Type *)((uintptr_t)(n))
+#define nb_int_to_pointer(Type, n) (Type *)((uintptr_t)(n))
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -352,11 +363,11 @@ NB_EXTERN char *nb_get_stacktrace(void);
 do { \
     if (!(expression)) { \
         nb_set_console_text_color(NB_TEXT_RED, true); \
-        nb_write_string("Assertion Failure: " STRINGIFY(expression) " at " __FILE__ ":" STRINGIFY(__LINE__) "\n", true); \
+        nb_write_string("Assertion Failure: " NB_STRINGIFY(expression) " at " __FILE__ ":" NB_STRINGIFY(__LINE__) "\n", true); \
         nb_set_console_text_color(NB_TEXT_LIGHT_GRAY, true); \
         char *stack_trace_details = nb_get_stacktrace();  \
         nb_write_string(stack_trace_details, true);  \
-        if (nb_abort_error_message("Assertion Failed", "Assert Failed\n" STRINGIFY(expression) "\nAt: " __FILE__ ":" STRINGIFY(__LINE__) "\n", /*char *details=*/stack_trace_details)) { \
+        if (nb_abort_error_message("Assertion Failed", "Assert Failed\n" NB_STRINGIFY(expression) "\nAt: " __FILE__ ":" NB_STRINGIFY(__LINE__) "\n", /*char *details=*/stack_trace_details)) { \
             nb_debug_break(); \
         } \
         nb_set_console_text_color(NB_TEXT_WHITE, true); \
@@ -373,21 +384,21 @@ do { \
 #if NB_ENABLE_DEFERS
 #if LANGUAGE_CPP
 template<typename T>
-struct ExitScope {
+struct NB_ExitScope {
     T lambda;
-    ExitScope(T lambda):lambda(lambda){}
-    ~ExitScope(void){lambda();}
-    ExitScope(const ExitScope &);
+    NB_ExitScope(T lambda):lambda(lambda){}
+    ~NB_ExitScope(void){lambda();}
+    NB_ExitScope(const NB_ExitScope &);
 private:
-    ExitScope &operator =(const ExitScope &);
+    NB_ExitScope &operator =(const NB_ExitScope &);
 };
 
-struct ExitScopeHelp {
+struct NB_ExitScopeHelp {
     template<typename T>
-    ExitScope<T> operator+(T t){ return t; }
+    NB_ExitScope<T> operator+(T t){ return t; }
 };
 
-#define defer const auto& CONCAT(defer__, __LINE__) = ExitScopeHelp() + [&]()
+#define defer const auto& NB_CONCAT(defer__, __LINE__) = NB_ExitScopeHelp() + [&]()
 #endif  // LANGUAGE_CPP
 #endif  // NB_ENABLE_DEFERS
 
@@ -398,7 +409,7 @@ struct ExitScopeHelp {
 #if LANGUAGE_C
 #include <stdbool.h>
 
-#define nb_static_assert(c, m) typedef char CONCAT(static_assertion,__LINE__)[(c)?1:-1]
+#define nb_static_assert(c, m) typedef char NB_CONCAT(static_assertion,__LINE__)[(c)?1:-1]
 #else
 #define nb_static_assert(c, m) static_assert(c, m)
 #endif
@@ -426,34 +437,34 @@ nb_static_assert(size_of(b64) == 8, "size_of(b64) == 8");
 
 /******** Min/Max type sizes ********/
 
-#define MIN_S8  0x80 // -128
-#define MAX_S8  0x7f // 127
+#define NB_MIN_S8  0x80 // -128
+#define NB_MAX_S8  0x7f // 127
 
-#define MIN_S16  0x8000 // -32768
-#define MAX_S16  0x7fff // 32767
+#define NB_MIN_S16  0x8000 // -32768
+#define NB_MAX_S16  0x7fff // 32767
 
-#define MIN_S32  0x80000000 // -2147483648
-#define MAX_S32  0x7fffffff // 2147483647
+#define NB_MIN_S32  0x80000000 // -2147483648
+#define NB_MAX_S32  0x7fffffff // 2147483647
 
-#define MIN_S64  ((s64)0x8000000000000000ull) // -2^63
-#define MAX_S64  ((s64)0x7fffffffffffffffull) // 2^63 - 1
+#define NB_MIN_S64  ((s64)0x8000000000000000ull) // -2^63
+#define NB_MAX_S64  ((s64)0x7fffffffffffffffull) // 2^63 - 1
 
-#define MAX_U8   0xff               // 255
-#define MAX_U16  0xffff             // 65535
-#define MAX_U32  0xffffffff         // 4294967295
-#define MAX_U64  0xffffffffffffffff // 2^64 - 1
+#define NB_MAX_U8   0xff               // 255
+#define NB_MAX_U16  0xffff             // 65535
+#define NB_MAX_U32  0xffffffff         // 4294967295
+#define NB_MAX_U64  0xffffffffffffffff // 2^64 - 1
 
-#define F32_MIN  1.17549435e-38f
-#define F32_MAX  3.40282347e+38f
+#define NB_MIN_FLOAT32 1.17549435e-38f
+#define NB_MAX_FLOAT32 3.40282347e+38f
 
-#define F64_MIN   2.2250738585072014e-308
-#define F64_MAX   1.7976931348623157e+308
+#define NB_MIN_FLOAT64 2.2250738585072014e-308
+#define NB_MAX_FLOAT64 1.7976931348623157e+308
 
 
-#define BIT(x) (1 << (x))
-#define KB(x) ((u64)(x) << 10ull)
-#define MB(x) ((u64)(x) << 20ull)
-#define GB(x) ((u64)(x) << 30ull)
+#define NB_BIT(x) (1 << (x))
+#define NB_KB(x) ((u64)(x) << 10ull)
+#define NB_MB(x) ((u64)(x) << 20ull)
+#define NB_GB(x) ((u64)(x) << 30ull)
 
 
 // Memory.
@@ -498,7 +509,7 @@ typedef NB_ALLOCATOR_PROC(NB_Allocator_Proc);
 typedef struct NB_Allocator {
     NB_Allocator_Proc *proc;
     void *data;
-} Allocator;
+} NB_Allocator;
 
 extern nb_thread_local NB_Allocator nb_current_allocator;
 
@@ -506,7 +517,11 @@ extern nb_thread_local NB_Allocator nb_current_allocator;
 #define NB_GET_ALLOCATOR() (nb_current_allocator)
 
 // Heap allocator.
-NB_EXTERN void *nb_heap_allocator(NB_Allocator_Mode mode, s64 size, s64 old_size, void *old_memory, void *allocator_data);
+NB_EXTERN void *
+nb_heap_allocator(NB_Allocator_Mode mode, 
+                  s64 size, s64 old_size, 
+                  void *old_memory, 
+                  void *allocator_data);
 
 #define nb_heap_alloc(s) nb_heap_allocator(NB_ALLOCATOR_ALLOCATE, (s), 0, null, null)
 #define nb_heap_realloc(mem, size, old_size) nb_heap_allocator(NB_ALLOCATOR_RESIZE, (size), (old_size), (mem), null)
@@ -543,7 +558,7 @@ NB_EXTERN void *nb_heap_allocator(NB_Allocator_Mode mode, s64 size, s64 old_size
 
 
 /******** Temporary Storage ********/
-#define NB_TS_SIZE_DEFAULT KB(40)
+#define NB_TS_SIZE_DEFAULT NB_KB(40)
 
 typedef struct NB_Temporary_Storage {
     s64 size;
@@ -552,7 +567,7 @@ typedef struct NB_Temporary_Storage {
     s64 occupied;
     s64 high_water_mark;
 
-    Allocator allocator;
+    NB_Allocator allocator;
 } NB_Temporary_Storage;
 
 extern nb_thread_local NB_Temporary_Storage nb_temporary_storage;
@@ -563,19 +578,19 @@ NB_EXTERN NB_ALLOCATOR_PROC(nb_temporary_storage_proc);
 
 /******** String ********/
 
-typedef struct String {
+typedef struct NB_String {
     s64 count;
     u8 *data;
-} String;
+} NB_String;
 
 #if LANGUAGE_CPP
-#define S(s) String{size_of(s)-1, (u8 *)(s)}
+#define S(s) NB_String{size_of(s)-1, (u8 *)(s)}
 #else
-#define S(s) (String){size_of(s)-1, (u8 *)(s)}
+#define S(s) (NB_String){size_of(s)-1, (u8 *)(s)}
 #endif
 
-inline String make_string(u8 *data, s64 count) {
-    String result;
+inline NB_String nb_make_string(u8 *data, s64 count) {
+    NB_String result;
     result.count = count;
     result.data  = data;
     return result;
@@ -593,7 +608,7 @@ typedef enum NB_Log_Mode {
 
 typedef void NB_Logger_Proc(NB_Log_Mode mode, const char *ident, const char *message, ...) NB_IS_PRINTF_LIKE(3, 4);
 
-extern nb_thread_local NB_Logger_Proc *nb_current_logger;
+extern NB_Logger_Proc *nb_current_logger;
 
 #if COMPILER_CL
 #define nb_log(mode, ident, message, ...) nb_current_logger((mode), (ident), (message), __VA_ARGS__)
@@ -612,9 +627,12 @@ extern nb_thread_local NB_Logger_Proc *nb_current_logger;
 void nb_write_string(const char *s, bool to_standard_error = false);
 void nb_write_string_count(const char *s, u32 count, bool to_standard_error = false);
 
-void nb_write_new_string(String s, bool to_standard_error = false);
+void nb_write_new_string(NB_String s, bool to_standard_error = false);
 
-NB_EXTERN bool nb_abort_error_message(const char *title, const char *message, const char *details);
+NB_EXTERN bool 
+nb_abort_error_message(const char *title, 
+                       const char *message, 
+                       const char *details);
 
 typedef enum NB_System_Console_Text_Color {
     NB_TEXT_BLACK,
@@ -637,8 +655,12 @@ typedef enum NB_System_Console_Text_Color {
     NB_TEXT_COUNT
 } NB_System_Console_Text_Color;
 
-NB_EXTERN void nb_set_console_text_color(NB_System_Console_Text_Color color, bool to_standard_error = false);
-NB_EXTERN void nb_set_console_text_color_ansi(NB_System_Console_Text_Color color, bool to_standard_error = false);
+NB_EXTERN void 
+nb_set_console_text_color(NB_System_Console_Text_Color color, 
+                          bool to_standard_error = false);
+NB_EXTERN void 
+nb_set_console_text_color_ansi(NB_System_Console_Text_Color color, 
+                               bool to_standard_error = false);
 
 // Temporary storage helpers.
 inline s64 nb_get_temporary_storage_mark(void) {
@@ -661,7 +683,7 @@ inline void nb_reset_temporary_storage(void) {
 
 mprint():
   
-  allocates the string on the fly,
+  Allocates the string on the fly,
   providing an initial guess for the string is possible,
   requires calling nb_free for the result,
   in case of failure it returns null.
@@ -681,7 +703,10 @@ NB_EXTERN char *tprint_valist(const char *fmt, va_list arg_list);
 
 NB_EXTERN void print(const char *fmt, ...) NB_IS_PRINTF_LIKE(1, 2);
 
-inline void nb_default_logger(NB_Log_Mode mode, const char *ident, const char *message, ...) {
+inline void 
+nb_default_logger(NB_Log_Mode mode, 
+                  const char *ident, 
+                  const char *message, ...) {
     UNUSED(mode);
 
     if (ident) {
@@ -716,31 +741,51 @@ inline void nb_error_logger(NB_Log_Mode mode, const char *ident, const char *mes
         nb_write_string("] ", true);
     }
 
+#if 0
     nb_write_string(message, true);
+#else
+    s64 mark = nb_get_temporary_storage_mark();
+    va_list args;
+    va_start(args, message);
+
+    char *s = tprint_valist(message, args);
+    va_end(args);
+
+    nb_write_string(s, true);
+    nb_set_temporary_storage_mark(mark);
+#endif
+
     nb_write_string("\n", true);
 }
 
 
 
 inline u32 nb_safe_truncate_u64(u64 value) {
-    assert(value <= MAX_U32);
+    assert(value <= NB_MAX_U32);
     u32 result = (u32)value;
     return result;
 }
 
 
 
-inline void *nb_new_alloc(s64 size, NB_Allocator a = NB_GET_ALLOCATOR()) {
+inline void *
+nb_new_alloc(s64 size, 
+             NB_Allocator a = NB_GET_ALLOCATOR()) {
     assert(a.proc != null);
     return a.proc(NB_ALLOCATOR_ALLOCATE, size, 0, null, a.data);
 }
 
-inline void *nb_mem_realloc(void *mem, s64 new_size, s64 old_size, NB_Allocator a = NB_GET_ALLOCATOR()) {
+inline void *
+nb_mem_realloc(void *mem, 
+               s64 new_size, s64 old_size, 
+               NB_Allocator a = NB_GET_ALLOCATOR()) {
     assert(a.proc != null);
     return a.proc(NB_ALLOCATOR_RESIZE, new_size, old_size, mem, a.data);
 }
 
-inline void nb_mem_free(void *mem, NB_Allocator a = NB_GET_ALLOCATOR()) {
+inline void 
+nb_mem_free(void *mem, 
+            NB_Allocator a = NB_GET_ALLOCATOR()) {
     assert(a.proc != null);
     a.proc(NB_ALLOCATOR_FREE, 0, 0, mem, a.data);
 }
@@ -898,7 +943,7 @@ inline void nb_panic(void) {
 #if NB_DEBUG
     nb_debug_break();
 #else
-    // abort();
+    // nb_abort();
 #endif
 }
 
@@ -936,7 +981,7 @@ inline float nb_safe_ratio_n(float a, float b, float n) {
 
 // String helpers.
 
-inline bool nb_strings_are_equal(String a, String b) {
+inline bool nb_strings_are_equal(NB_String a, NB_String b) {
     if (a.count != b.count) return false;
 
     for (s64 index = 0; index < a.count; ++index) {
@@ -991,7 +1036,7 @@ inline bool nb_is_end_of_line(int c) {
 }
 
 inline bool nb_is_white_space(int c) {
-    bool result = ((c == ' ') || 
+    bool result = ((c == ' ')  || 
                    (c == '\t') ||
                    (c == '\v') || 
                    (c == '\f') || 
@@ -1060,7 +1105,7 @@ inline char *nb_path_cleanup(char *s) {
     return s;
 }
 
-inline void nb_advance(String *s, s64 amount) {
+inline void nb_advance(NB_String *s, s64 amount) {
     s->data  += amount;
     s->count -= amount;
 }
@@ -1083,7 +1128,7 @@ inline void nb_advance(String *s, s64 amount) {
 
 #ifdef NB_IMPLEMENTATION
 
-nb_thread_local NB_Logger_Proc *nb_current_logger = nb_default_logger;
+NB_Logger_Proc *nb_current_logger = nb_default_logger;
 nb_thread_local NB_Allocator nb_current_allocator = {nb_heap_allocator, null};
 
 // @Cleanup:
@@ -1124,7 +1169,7 @@ void nb_write_string_count(const char *s, u32 count, bool to_standard_error) {
     UNUSED(status);
 }
 
-void nb_write_new_string(String s, bool to_standard_error) {
+void nb_write_new_string(NB_String s, bool to_standard_error) {
     DWORD written = 0;
     HANDLE handle = to_standard_error ? GetStdHandle(STD_ERROR_HANDLE) : GetStdHandle(STD_OUTPUT_HANDLE);
     s32 status = WriteFile(handle, s.data, (DWORD)s.count, &written, null);
@@ -1169,7 +1214,9 @@ static u8 w32_system_console_text_colors[NB_TEXT_COUNT] = {
     15,  // NB_TEXT_WHITE
 };
 
-NB_EXTERN void nb_set_console_text_color(NB_System_Console_Text_Color color, bool to_standard_error) {
+NB_EXTERN void 
+nb_set_console_text_color(NB_System_Console_Text_Color color, 
+                          bool to_standard_error) {
 #ifdef NB_WINDOWS_CONSOLE_USE_ANSI
     nb_write_string(ansi_system_console_text_colors[color], to_standard_error);
 #else
@@ -1178,7 +1225,9 @@ NB_EXTERN void nb_set_console_text_color(NB_System_Console_Text_Color color, boo
 #endif
 }
 
-NB_EXTERN void nb_set_console_text_color_ansi(NB_System_Console_Text_Color color, bool to_standard_error) {
+NB_EXTERN void 
+nb_set_console_text_color_ansi(NB_System_Console_Text_Color color, 
+                               bool to_standard_error) {
     nb_write_string(ansi_system_console_text_colors[color], to_standard_error);
 }
 
@@ -1335,10 +1384,14 @@ NB_EXTERN void print(const char *fmt, ...) {
     nb_write_string(s);
 }
 
-NB_EXTERN bool nb_abort_error_message(const char *title, const char *message, const char *details) {
+NB_EXTERN bool 
+nb_abort_error_message(const char *title, 
+                       const char *message, 
+                       const char *details) {
     char *full_message = tprint("%s%s", message, details);
 
-    int id = MessageBoxA(null, full_message, title, MB_ABORTRETRYIGNORE | MB_ICONERROR | MB_SYSTEMMODAL | MB_DEFBUTTON3);
+    int id = MessageBoxA(null, full_message, title, 
+                         MB_ABORTRETRYIGNORE|MB_ICONERROR|MB_SYSTEMMODAL|MB_DEFBUTTON3);
     if (id == IDABORT) {
         ExitProcess(0);
     }
@@ -1509,7 +1562,7 @@ void nb_write_string_count(const char *s, u32 count, bool to_standard_error) {
     UNUSED(written);
 }
 
-void nb_write_new_string(String s, bool to_standard_error) {
+void nb_write_new_string(NB_String s, bool to_standard_error) {
     int handle = to_standard_error ? STDERR_FILENO : STDOUT_FILENO;
     ssize_t written = write(handle, s.data, s.count);
     UNUSED(written);
@@ -1899,7 +1952,7 @@ NB_EXTERN NB_ALLOCATOR_PROC(nb_temporary_storage_proc) {
             ts->occupied += nbytes;
 
             if (old_memory && (old_size > 0)) {
-                memcpy(result, old_memory, (umm)Min(old_size, nbytes));
+                memcpy(result, old_memory, (umm)nb_min(old_size, nbytes));
             }
 
             return result;
@@ -2011,3 +2064,79 @@ void nb_qsort_it(void *data, s64 count,
 }
 
 #endif  // NB_IMPLEMENTATION
+
+
+
+#ifdef NB_STRIP_GENERAL_PREFIX
+
+#define offset_of             nb_offset_of
+#define array_count           nb_array_count
+#define align_forward_offset  nb_align_forward_offset
+#define align_forward         nb_align_forward
+#define align_forward_pointer nb_align_forward_pointer
+#define is_power_of_2         nb_is_power_of_2
+#define pointer_to_int        nb_pointer_to_int
+#define pointer_to_type       nb_pointer_to_type
+#define u32_to_pointer        nb_u32_to_pointer
+#define int_to_pointer        nb_int_to_pointer
+
+#define BIT NB_BIT
+#define KB  NB_KB
+#define MB  NB_MB
+#define GB  NB_GB
+
+#define memory_zero        nb_memory_zero
+#define memory_zero_struct nb_memory_zero_struct
+#define memory_zero_array  nb_memory_zero_array
+
+#define ALLOCATOR_ALLOCATE NB_ALLOCATOR_ALLOCATE
+#define ALLOCATOR_RESIZE   NB_ALLOCATOR_RESIZE
+#define ALLOCATOR_FREE     NB_ALLOCATOR_FREE
+#define ALLOCATOR_FREE_ALL NB_ALLOCATOR_FREE_ALL
+
+#define new_array nb_new_array
+
+#define String NB_String
+#define make_string nb_make_string
+
+#define Log_Mode    NB_Log_Mode
+#define LOG_NONE    NB_LOG_NONE
+#define LOG_ERROR   NB_LOG_ERROR
+#define LOG_WARNING NB_LOG_WARNING
+
+#define SET_LOGGER NB_SET_LOGGER
+#define GET_LOGGER NB_GET_LOGGER
+
+#define write_string       nb_write_string
+#define write_string_count nb_write_string_count
+#define write_new_string   nb_write_new_string
+
+#define set_console_text_color      nb_set_console_text_color
+#define set_console_text_color_ansi nb_set_console_text_color_ansi
+
+#define get_temporary_storage_mark nb_get_temporary_storage_mark
+#define set_temporary_storage_mark nb_set_temporary_storage_mark
+#define reset_temporary_storage nb_reset_temporary_storage
+
+#define safe_truncate_u64 nb_safe_truncate_u64
+#define new_alloc   nb_new_alloc
+#define mem_realloc nb_mem_realloc
+#define mem_free    nb_mem_free
+
+#define find_least_significant_set_bit nb_find_least_significant_set_bit
+#define swap_two_memory_blocks         nb_swap_two_memory_blocks
+
+#define get_current_os   nb_get_current_os
+#define get_current_arch nb_get_current_arch
+#define os_to_string     nb_os_to_string
+#define arch_to_string   nb_arch_to_string
+
+#define safe_ratio_0 nb_safe_ratio_0
+#define safe_ratio_1 nb_safe_ratio_1
+#define safe_ratio_n nb_safe_ratio_n
+#define nb_strings_are_equal nb_strings_are_equal
+#define cstrings_are_equal nb_cstrings_are_equal
+#define strings_are_equal_length nb_strings_are_equal_length
+#define strings_are_equal_first_length nb_strings_are_equal_first_length
+
+#endif  // NB_STRIP_GENERAL_PREFIX

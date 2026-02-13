@@ -1,3 +1,4 @@
+#define NB_STRIP_GENERAL_PREFIX
 #include "general.h"
 
 //
@@ -9,7 +10,8 @@ int main(int argc, char **argv) {
     UNUSED(argc);
     UNUSED(argv);
 
-    print("Hello friend!\n");
+    write_string("Hello friend!\n");
+
     return 0;
 }
 
