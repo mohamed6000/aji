@@ -229,10 +229,12 @@ typedef u8  b8;   // For consistency.
 #define null 0
 #define NB_EXTERN extern "C"
 #define NB_DEFAULT_VALUE(x, y) x = y
+#define NB_ENUM_TYPE(T) : T
 #else
 #define null ((void *)0)
 #define NB_EXTERN
 #define NB_DEFAULT_VALUE(x, y) x
+#define NB_ENUM_TYPE(T)
 #endif
 
 #if COMPILER_CL
