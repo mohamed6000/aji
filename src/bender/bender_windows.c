@@ -470,7 +470,7 @@ NB_INLINE void
 b_w32_send_keyboard_event(BKey_Code key_code, 
                           bool is_down, 
                           bool repeat, 
-                          u32 key_current_state) {
+                          u32  key_current_state) {
     if (!is_down && !repeat) return; // Redundant key release.
 
     BEvent event;
@@ -481,7 +481,7 @@ b_w32_send_keyboard_event(BKey_Code key_code,
     event.utf32 = 0;
 
     event.key_code    = key_code;
-    event.key_pressed = (u32)is_down;
+    event.key_pressed = is_down;
     event.repeat      = repeat;
     
     event.alt_pressed   = b_alt_state;
@@ -718,7 +718,6 @@ b_w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
                     event.type  = B_EVENT_TEXT_INPUT;
                     event.utf32 = codepoint;
 
-                    //array_add(&events_this_frame, event);
                     b_push_event(event);
                 }
             }
@@ -736,7 +735,7 @@ b_w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
             // Ignore synthetic mouse events generated from touch screen.
             if (B_IsTouchEvent(GetMessageExtraInfo())) return 0;
 
-            b_w32_send_keyboard_event(B_MOUSE_BUTTON_LEFT, false, false, B_KEY_STATE_END);
+            b_w32_send_keyboard_event(B_MOUSE_BUTTON_LEFT, false, true, B_KEY_STATE_END);
             ReleaseCapture();
             return 0;
 
@@ -752,7 +751,7 @@ b_w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
             // Ignore synthetic mouse events generated from touch screen.
             if (B_IsTouchEvent(GetMessageExtraInfo())) return 0;
 
-            b_w32_send_keyboard_event(B_MOUSE_BUTTON_RIGHT, false, false, B_KEY_STATE_END);
+            b_w32_send_keyboard_event(B_MOUSE_BUTTON_RIGHT, false, true, B_KEY_STATE_END);
             ReleaseCapture();
             return 0;
 
@@ -762,7 +761,7 @@ b_w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
             return 0;
 
         case WM_MBUTTONUP:
-            b_w32_send_keyboard_event(B_MOUSE_BUTTON_MIDDLE, false, false, B_KEY_STATE_END);
+            b_w32_send_keyboard_event(B_MOUSE_BUTTON_MIDDLE, false, true, B_KEY_STATE_END);
             ReleaseCapture();
             return 0;
 
@@ -774,7 +773,7 @@ b_w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 
         case WM_XBUTTONUP:
             b_w32_send_keyboard_event((wparam < (1 << 17)) ? B_MOUSE_BUTTON_X1 : B_MOUSE_BUTTON_X2, 
-                false, false, B_KEY_STATE_END);
+                false, true, B_KEY_STATE_END);
             ReleaseCapture();
             return TRUE;
 
