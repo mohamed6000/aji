@@ -1368,6 +1368,9 @@ NB_EXTERN void bender_update_window_events(void) {
         array_free(&it->files);
     }
     array_reset(&events_this_frame);
+#endif
+
+    b_event_count = 0;
 
     for (s64 index = 0; index < nb_array_count(b_input_button_states); index++) {
         u32 *state = &b_input_button_states[index];
@@ -1379,11 +1382,12 @@ NB_EXTERN void bender_update_window_events(void) {
         }
     }
 
-    mouse_wheel_delta = {};
-    mouse_delta_x = 0;
-    mouse_delta_y = 0;
+    b_mouse_wheel_delta.vertical   = 0;
+    b_mouse_wheel_delta.horizontal = 0;
+    b_mouse_delta_x = 0;
+    b_mouse_delta_y = 0;
 
-    touch_pointer_count = 0;
+    b_touch_pointer_count = 0;
 
     // Should we do this for all the keystrokes?
     if (b_alt_state || (b_input_button_states[B_KEY_ALT] & B_KEY_STATE_DOWN)) {
@@ -1417,7 +1421,6 @@ NB_EXTERN void bender_update_window_events(void) {
             b_input_button_states[B_KEY_SHIFT] |= B_KEY_STATE_END;
         }
     }
-#endif
 
     while (1) {
         MSG msg;

@@ -66,6 +66,10 @@ int main(void) {
                     }
                 }
             }
+
+            if (b_input_button_states[B_MOUSE_BUTTON_LEFT] & B_KEY_STATE_START) {
+                nb_write_string("BUTTON INPUT\n", false);
+            }
         }
     }
 
