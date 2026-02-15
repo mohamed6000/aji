@@ -38,6 +38,16 @@ int main(void) {
                     print("Window sized = %dx%d\n", event.x, event.y);
                 }
 
+/*
+                if (event.type == B_EVENT_TOUCH) {
+                    const char *touch_event[4] = {"None", "Pressed", "Released", "Moved"};
+                    print("Touch %u: %s (%d, %d)\n", 
+                          event.touch_index, 
+                          touch_event[event.touch_type],
+                          event.x, event.y);
+                }
+*/
+
                 if (event.type == B_EVENT_KEYBOARD) {
                     if (event.key_pressed && event.key_code == B_KEY_ESCAPE) ap_running = false;
 
@@ -71,6 +81,8 @@ int main(void) {
                         nb_write_string("Left mouse.\n", false);
                     }
                 }
+
+                nb_reset_temporary_storage();
             }
 
             if (b_input_button_states[B_MOUSE_BUTTON_LEFT] & B_KEY_STATE_START) {
@@ -79,6 +91,16 @@ int main(void) {
 
             if (b_mouse_wheel_delta.vertical) {
                 print("Wheel vertical = %d\n", (s32)(b_mouse_wheel_delta.vertical/b_typical_wheel_delta));
+            }
+
+            for (s32 index = 0; index < b_touch_pointer_count; ++index) {
+                BTouch_Pointer *pointer = b_touch_pointers + index;
+
+                const char *touch_event[4] = {"None", "Pressed", "Released", "Moved"};
+                print("Touch %u: %s (%d, %d)\n", 
+                      index, 
+                      touch_event[pointer->type],
+                      pointer->x, pointer->y);
             }
         }
     }

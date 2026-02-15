@@ -1288,45 +1288,6 @@ bender_create_window(const char *title,
     UpdateWindow(hwnd);
     ShowWindow(hwnd, show_command);
 
-
-#if 0
-    // Setting up touch input for the current window.
-    {
-        int input_caps = GetSystemMetrics(SM_DIGITIZER);
-        bool init_touch_input_for_hwnd = false;
-
-        if (input_caps & NID_INTEGRATED_TOUCH) {
-            Log(NB_LOG_NONE, "Input", "Found an integrated touch digitizer for window: '%s'.", title);
-        }
-        if (input_caps & NID_EXTERNAL_TOUCH) {
-            Log(NB_LOG_NONE, "Input", "Found an external touch digitizer for window: '%s'.", title);
-        }
-        if (input_caps & NID_INTEGRATED_PEN) {
-            Log(NB_LOG_NONE, "Input", "Found an integrated pen digitizer for window '%s'.", title);
-        }
-        if (input_caps & NID_EXTERNAL_PEN) {
-            Log(NB_LOG_NONE, "Input", "Found an external pen digitizer for window: '%s'.", title);
-        }
-        if (input_caps & NID_MULTI_INPUT) {
-            Log(NB_LOG_NONE, "Input", "Found an input digitizer with support for multiple inputs for window '%s'.", title);
-        }
-
-        if (input_caps & NID_READY) {
-            Log(NB_LOG_NONE, "Input", "The input digitizer is ready for input.");
-            init_touch_input_for_hwnd = true;
-        }
-
-        if (init_touch_input_for_hwnd) {
-            BOOL success = RegisterTouchWindow(hwnd, 0); //TWF_WANTPALM);
-            if (success != 0) {
-                Log(NB_LOG_NONE, "Input", "Registered '%s' for touch input.", title);
-            } else {
-                Log(NB_LOG_NONE, "Input", "Failed to RegisterTouchWindow '%s' for touch input.", title);
-            }
-        }
-    }
-#endif
-
 #if 0
     if (!w32_input_initted) {
         w32_init_input_system();
@@ -1358,6 +1319,42 @@ bender_create_window(const char *title,
     record->handle   = hwnd;
     record->style    = style;
     record->ex_style = ex_style;
+
+    // Setting up touch input for the current window.
+    {
+        int input_caps = GetSystemMetrics(SM_DIGITIZER);
+        bool init_touch_input_for_hwnd = false;
+
+        if (input_caps & NID_INTEGRATED_TOUCH) {
+            Log(NB_LOG_NONE, "Input", "Found an integrated touch digitizer for window: '%s'.", title);
+        }
+        if (input_caps & NID_EXTERNAL_TOUCH) {
+            Log(NB_LOG_NONE, "Input", "Found an external touch digitizer for window: '%s'.", title);
+        }
+        if (input_caps & NID_INTEGRATED_PEN) {
+            Log(NB_LOG_NONE, "Input", "Found an integrated pen digitizer for window '%s'.", title);
+        }
+        if (input_caps & NID_EXTERNAL_PEN) {
+            Log(NB_LOG_NONE, "Input", "Found an external pen digitizer for window: '%s'.", title);
+        }
+        if (input_caps & NID_MULTI_INPUT) {
+            Log(NB_LOG_NONE, "Input", "Found an input digitizer with support for multiple inputs for window '%s'.", title);
+        }
+
+        if (input_caps & NID_READY) {
+            Log(NB_LOG_NONE, "Input", "The input digitizer is ready for input.");
+            init_touch_input_for_hwnd = true;
+        }
+
+        if (init_touch_input_for_hwnd) {
+            BOOL success = RegisterTouchWindow(hwnd, TWF_FINETOUCH);//0); //TWF_WANTPALM);
+            if (success != 0) {
+                Log(NB_LOG_NONE, "Input", "Registered '%s' for touch input.", title);
+            } else {
+                Log(NB_LOG_NONE, "Input", "Failed to RegisterTouchWindow '%s' for touch input.", title);
+            }
+        }
+    }
 
     return result;
 }
