@@ -1,6 +1,5 @@
 #include "bender.h"
 
-// Array<Event> events_this_frame;
 u32 b_input_button_states[B_KEY_CODE_COUNT];
 BWheel_Delta b_mouse_wheel_delta;
 
@@ -45,10 +44,37 @@ static Bender_Window_Record *b_window_record_storage;
 static u32 b_window_record_count;
 static u32 b_window_record_allocated;
 static HINSTANCE b_w32_instance;
-static bool b_initted = false;
 
 static BEvent b_events_this_frame[64];
 static u32 b_event_count;
+
+static bool b_initted = false;
+
+
+static WCHAR BENDER_DEFAULT_WINDOW_CLASS_NAME[] = L"BENDER_DEFAULT_WINDOW_CLASS";
+
+static bool b_is_user_resizing = false;
+static bool b_is_app_paused    = false;
+static bool b_window_minimized = false;
+static bool b_window_maximized = false;
+
+static bool b_alt_state   = false;
+static bool b_cmd_state   = false;
+static bool b_ctrl_state  = false;
+static bool b_shift_state = false;
+
+static u32 b_w32_high_surrogate;
+
+static int b_w32_mouse_abs_x = 0;
+static int b_w32_mouse_abs_y = 0;
+
+#define B_MAX_TOUCH_POINT_INPUT_COUNT 4
+static TOUCHINPUT b_w32_touch_inputs[B_MAX_TOUCH_POINT_INPUT_COUNT];
+
+// static DEVMODEW b_w32_target_device_mode;
+// static WCHAR b_w32_target_device_name[32];
+// #define BENDER_TARGET_FREQUENCY_MIN 59
+// #define BENDER_TARGET_FREQUENCY_MAX 60
 
 NB_INLINE void b_push_event(BEvent event) {
     assert(b_event_count < nb_array_count(b_events_this_frame));
@@ -56,34 +82,6 @@ NB_INLINE void b_push_event(BEvent event) {
     b_event_count += 1;
     b_events_this_frame[index] = event;
 }
-
-
-static WCHAR BENDER_DEFAULT_WINDOW_CLASS_NAME[] = L"BENDER_DEFAULT_WINDOW_CLASS";
-
-static bool is_user_resizing = false;
-static bool is_app_paused    = false;
-static bool window_minimized = false;
-static bool window_maximized = false;
-
-static bool user_alt_state   = false;
-static bool user_cmd_state   = false;
-static bool user_ctrl_state  = false;
-static bool user_shift_state = false;
-
-static u32 w32_high_surrogate;
-
-static int w32_mouse_abs_x = 0;
-static int w32_mouse_abs_y = 0;
-
-#define B_MAX_TOUCH_POINT_INPUT_COUNT 4
-static TOUCHINPUT w32_touch_inputs[B_MAX_TOUCH_POINT_INPUT_COUNT];
-
-// static Array<u8> raw_input_buffer;
-
-// static DEVMODEW w32_target_device_mode;
-// static WCHAR w32_target_device_name[32];
-// const u32 TARGET_FREQUENCY_MIN = 59;
-// const u32 TARGET_FREQUENCY_MAX = 60;
 
 NB_INLINE u32 b_float_to_u32_color_channel(float f) {
     u32 u = (u32)(f * 255);
@@ -93,7 +91,7 @@ NB_INLINE u32 b_float_to_u32_color_channel(float f) {
     return u;
 }
 
-static s32 w32_vk_codes[B_KEY_CODE_COUNT] = {
+static s32 b_w32_vk_codes[B_KEY_CODE_COUNT] = {
     0,  // B_KEY_UNKNOWN,  // Not assigned.
 
     0, 0, 0, 0, 0, 0, 0,
@@ -222,7 +220,7 @@ static s32 w32_vk_codes[B_KEY_CODE_COUNT] = {
     VK_XBUTTON2, // B_MOUSE_BUTTON_X2
 };
 
-static BKey_Code w32_key_codes[] = {
+static BKey_Code b_w32_key_codes[] = {
     B_KEY_UNKNOWN,
 
     B_MOUSE_BUTTON_LEFT,   //VK_LBUTTON  0x01    Left mouse button
@@ -460,19 +458,19 @@ static BKey_Code w32_key_codes[] = {
 };
 
 NB_INLINE BKey_Code 
-w32_get_key_code(WPARAM vk_code, bool extended) {
+b_w32_get_key_code(WPARAM vk_code, bool extended) {
     if (extended) {
         if (vk_code == VK_RETURN) return B_KEY_NUMPAD_ENTER;
     }
 
-    return w32_key_codes[vk_code];
+    return b_w32_key_codes[vk_code];
 }
 
 NB_INLINE void 
-w32_send_keyboard_event(BKey_Code key_code, 
-                        bool is_down, 
-                        bool repeat, 
-                        u32 key_current_state) {
+b_w32_send_keyboard_event(BKey_Code key_code, 
+                          bool is_down, 
+                          bool repeat, 
+                          u32 key_current_state) {
     if (!is_down && !repeat) return; // Redundant key release.
 
     BEvent event;
@@ -486,19 +484,18 @@ w32_send_keyboard_event(BKey_Code key_code,
     event.key_pressed = (u32)is_down;
     event.repeat      = repeat;
     
-    event.alt_pressed   = user_alt_state;
-    event.cmd_pressed   = user_cmd_state;
-    event.ctrl_pressed  = user_ctrl_state;
-    event.shift_pressed = user_shift_state;
+    event.alt_pressed   = b_alt_state;
+    event.cmd_pressed   = b_cmd_state;
+    event.ctrl_pressed  = b_ctrl_state;
+    event.shift_pressed = b_shift_state;
     
-    //array_add(&events_this_frame, event);
     b_push_event(event);
 
     b_input_button_states[key_code] |= key_current_state;
 }
 
 static void 
-w32_process_raw_input(HRAWINPUT handle) {
+b_w32_process_raw_input(HRAWINPUT handle) {
     UNUSED(handle);
 #if 0
     UINT data_size;
@@ -550,7 +547,7 @@ w32_process_raw_input(HRAWINPUT handle) {
 
         if (vk_code == VK_SNAPSHOT) {
             bool repeat = is_down && ((b_input_button_states[KEY_PRINT_SCREEN] & B_KEY_STATE_DOWN) != 0);
-            w32_send_keyboard_event(KEY_PRINT_SCREEN, is_down, repeat, 
+            b_w32_send_keyboard_event(KEY_PRINT_SCREEN, is_down, repeat, 
                                     is_down ? (B_KEY_STATE_START|B_KEY_STATE_DOWN) : B_KEY_STATE_END);
         }
     }
@@ -558,9 +555,9 @@ w32_process_raw_input(HRAWINPUT handle) {
 }
 
 static char *
-w32_wide_to_utf8(WCHAR *s, 
-                 size_t src_length, 
-                 NB_Allocator allocator) {
+b_w32_wide_to_utf8(WCHAR *s, 
+                   size_t src_length, 
+                   NB_Allocator allocator) {
     if (!s) return null;
 
     if (!src_length) src_length = wcslen(s);
@@ -589,20 +586,20 @@ w32_wide_to_utf8(WCHAR *s,
 
 
 // https://learn.microsoft.com/en-us/windows/win32/tablet/system-events-and-mouse-messages?redirectedfrom=MSDN
-#define MOUSEEVENTF_FROMTOUCH      0xFF515700
-#define MOUSEEVENTF_FROMTOUCH_MASK 0xFFFFFF00
-#define IsTouchEvent(dw) (((dw)&MOUSEEVENTF_FROMTOUCH_MASK) == MOUSEEVENTF_FROMTOUCH)
+#define B_MOUSEEVENTF_FROMTOUCH      0xFF515700
+#define B_MOUSEEVENTF_FROMTOUCH_MASK 0xFFFFFF00
+#define B_IsTouchEvent(dw) (((dw)&B_MOUSEEVENTF_FROMTOUCH_MASK) == B_MOUSEEVENTF_FROMTOUCH)
 
 #include <shellapi.h>
 
 static LRESULT CALLBACK 
-w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
+b_w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
     switch (msg) {
         // WM_ACTIVATE is sent when the window is activated or deactivated.  
         // We pause the game when the window is deactivated and unpause it 
         // when it becomes active.
         case WM_ACTIVATE:
-            is_app_paused = (LOWORD(wparam) == WA_INACTIVE);
+            b_is_app_paused = (LOWORD(wparam) == WA_INACTIVE);
             return 0;
 
         case WM_ACTIVATEAPP:
@@ -612,8 +609,8 @@ w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
                     u32 *it = &b_input_button_states[index];
                     if (!(*it & B_KEY_STATE_DOWN)) continue;
 
-                    assert(index < nb_array_count(w32_vk_codes));
-                    int vk_code = w32_vk_codes[index];
+                    assert(index < nb_array_count(b_w32_vk_codes));
+                    int vk_code = b_w32_vk_codes[index];
                     if (!vk_code) continue;
 
                     SHORT state = GetAsyncKeyState(vk_code);
@@ -622,12 +619,12 @@ w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 
                         BKey_Code key_code = (BKey_Code)index;
 
-                        if (key_code == B_KEY_ALT)   user_alt_state   = false;
-                        if (key_code == B_KEY_CMD)   user_cmd_state   = false;
-                        if (key_code == B_KEY_CTRL)  user_ctrl_state  = false;
-                        if (key_code == B_KEY_SHIFT) user_shift_state = false;
+                        if (key_code == B_KEY_ALT)   b_alt_state   = false;
+                        if (key_code == B_KEY_CMD)   b_cmd_state   = false;
+                        if (key_code == B_KEY_CTRL)  b_ctrl_state  = false;
+                        if (key_code == B_KEY_SHIFT) b_shift_state = false;
 
-                        w32_send_keyboard_event(key_code, false, true, B_KEY_STATE_END);
+                        b_w32_send_keyboard_event(key_code, false, true, B_KEY_STATE_END);
 
 /*
                         Event event;
@@ -635,10 +632,10 @@ w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
                         event.key_code      = key_code;
                         event.key_pressed   = false;
                         event.repeat        = true;
-                        event.alt_pressed   = user_alt_state;
-                        event.cmd_pressed   = user_cmd_state;
-                        event.ctrl_pressed  = user_ctrl_state;
-                        event.shift_pressed = user_shift_state;
+                        event.alt_pressed   = b_alt_state;
+                        event.cmd_pressed   = b_cmd_state;
+                        event.ctrl_pressed  = b_ctrl_state;
+                        event.shift_pressed = b_shift_state;
                         array_add(&events_this_frame, event);
 
                         b_input_button_states[key_code] |= B_KEY_STATE_END;
@@ -656,17 +653,17 @@ w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
             bool extended = (HIWORD(lparam) & KF_EXTENDED) == KF_EXTENDED;
 
             BKey_Code key_code = B_KEY_UNKNOWN;
-            if (vk_code < nb_array_count(w32_key_codes)) {
-                key_code = w32_get_key_code(vk_code, extended);
+            if (vk_code < nb_array_count(b_w32_key_codes)) {
+                key_code = b_w32_get_key_code(vk_code, extended);
             }
 
             // @Cleanup: Query modifiers state.
-            if (key_code == B_KEY_ALT)   user_alt_state   = true;
-            if (key_code == B_KEY_CMD)   user_cmd_state   = true;
-            if (key_code == B_KEY_CTRL)  user_ctrl_state  = true;
-            if (key_code == B_KEY_SHIFT) user_shift_state = true;
+            if (key_code == B_KEY_ALT)   b_alt_state   = true;
+            if (key_code == B_KEY_CMD)   b_cmd_state   = true;
+            if (key_code == B_KEY_CTRL)  b_ctrl_state  = true;
+            if (key_code == B_KEY_SHIFT) b_shift_state = true;
 
-            w32_send_keyboard_event(key_code, true, was_down, B_KEY_STATE_START|B_KEY_STATE_DOWN);
+            b_w32_send_keyboard_event(key_code, true, was_down, B_KEY_STATE_START|B_KEY_STATE_DOWN);
             return 0;
         } break;
 
@@ -678,17 +675,17 @@ w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
             bool extended = (HIWORD(lparam) & KF_EXTENDED) == KF_EXTENDED;
 
             BKey_Code key_code = B_KEY_UNKNOWN;
-            if (vk_code < nb_array_count(w32_key_codes)) {
-                key_code = w32_get_key_code(vk_code, extended);
+            if (vk_code < nb_array_count(b_w32_key_codes)) {
+                key_code = b_w32_get_key_code(vk_code, extended);
             }
 
             // @Cleanup: Query modifiers state.
-            if (key_code == B_KEY_ALT)   user_alt_state   = false;
-            if (key_code == B_KEY_CMD)   user_cmd_state   = false;
-            if (key_code == B_KEY_CTRL)  user_ctrl_state  = false;
-            if (key_code == B_KEY_SHIFT) user_shift_state = false;
+            if (key_code == B_KEY_ALT)   b_alt_state   = false;
+            if (key_code == B_KEY_CMD)   b_cmd_state   = false;
+            if (key_code == B_KEY_CTRL)  b_ctrl_state  = false;
+            if (key_code == B_KEY_SHIFT) b_shift_state = false;
 
-            w32_send_keyboard_event(key_code, false, was_down, B_KEY_STATE_END);
+            b_w32_send_keyboard_event(key_code, false, was_down, B_KEY_STATE_END);
             return 0;
         } break;
 
@@ -698,19 +695,19 @@ w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
         case WM_CHAR:
             if (IS_HIGH_SURROGATE(wparam)) {
                 // Store the first part.
-                w32_high_surrogate = (u32)wparam;
+                b_w32_high_surrogate = (u32)wparam;
             } else {
                 u32 codepoint = (u32)wparam;
                 if (IS_LOW_SURROGATE(codepoint)) {
                     // We have a complete pair, let's combine them.
                     u32 low_surrogate = codepoint;
-                    codepoint = (w32_high_surrogate - HIGH_SURROGATE_START) << 10;
+                    codepoint = (b_w32_high_surrogate - HIGH_SURROGATE_START) << 10;
                     codepoint += (low_surrogate - LOW_SURROGATE_START);
                     codepoint += 0x10000;
 
-                    // print("HS: %u, LS: %u\n", w32_high_surrogate, low_surrogate);
+                    // print("HS: %u, LS: %u\n", b_w32_high_surrogate, low_surrogate);
 
-                    w32_high_surrogate = 0;
+                    b_w32_high_surrogate = 0;
                 }
 
                 // print("utf32 = %u\n", codepoint);
@@ -729,54 +726,54 @@ w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 
         case WM_LBUTTONDOWN:
             // Ignore synthetic mouse events generated from touch screen.
-            if (IsTouchEvent(GetMessageExtraInfo())) return 0;
+            if (B_IsTouchEvent(GetMessageExtraInfo())) return 0;
 
-            w32_send_keyboard_event(B_MOUSE_BUTTON_LEFT, true, false, B_KEY_STATE_DOWN|B_KEY_STATE_START);
+            b_w32_send_keyboard_event(B_MOUSE_BUTTON_LEFT, true, false, B_KEY_STATE_DOWN|B_KEY_STATE_START);
             SetCapture(hwnd);
             return 0;
 
         case WM_LBUTTONUP:
             // Ignore synthetic mouse events generated from touch screen.
-            if (IsTouchEvent(GetMessageExtraInfo())) return 0;
+            if (B_IsTouchEvent(GetMessageExtraInfo())) return 0;
 
-            w32_send_keyboard_event(B_MOUSE_BUTTON_LEFT, false, false, B_KEY_STATE_END);
+            b_w32_send_keyboard_event(B_MOUSE_BUTTON_LEFT, false, false, B_KEY_STATE_END);
             ReleaseCapture();
             return 0;
 
         case WM_RBUTTONDOWN:
             // Ignore synthetic mouse events generated from touch screen.
-            if (IsTouchEvent(GetMessageExtraInfo())) return 0;
+            if (B_IsTouchEvent(GetMessageExtraInfo())) return 0;
 
-            w32_send_keyboard_event(B_MOUSE_BUTTON_RIGHT, true, false, B_KEY_STATE_DOWN|B_KEY_STATE_START);
+            b_w32_send_keyboard_event(B_MOUSE_BUTTON_RIGHT, true, false, B_KEY_STATE_DOWN|B_KEY_STATE_START);
             SetCapture(hwnd);
             return 0;
 
         case WM_RBUTTONUP:
             // Ignore synthetic mouse events generated from touch screen.
-            if (IsTouchEvent(GetMessageExtraInfo())) return 0;
+            if (B_IsTouchEvent(GetMessageExtraInfo())) return 0;
 
-            w32_send_keyboard_event(B_MOUSE_BUTTON_RIGHT, false, false, B_KEY_STATE_END);
+            b_w32_send_keyboard_event(B_MOUSE_BUTTON_RIGHT, false, false, B_KEY_STATE_END);
             ReleaseCapture();
             return 0;
 
         case WM_MBUTTONDOWN:
-            w32_send_keyboard_event(B_MOUSE_BUTTON_MIDDLE, true, false, B_KEY_STATE_DOWN|B_KEY_STATE_START);
+            b_w32_send_keyboard_event(B_MOUSE_BUTTON_MIDDLE, true, false, B_KEY_STATE_DOWN|B_KEY_STATE_START);
             SetCapture(hwnd);
             return 0;
 
         case WM_MBUTTONUP:
-            w32_send_keyboard_event(B_MOUSE_BUTTON_MIDDLE, false, false, B_KEY_STATE_END);
+            b_w32_send_keyboard_event(B_MOUSE_BUTTON_MIDDLE, false, false, B_KEY_STATE_END);
             ReleaseCapture();
             return 0;
 
         case WM_XBUTTONDOWN:
-            w32_send_keyboard_event((wparam < (1 << 17)) ? B_MOUSE_BUTTON_X1 : B_MOUSE_BUTTON_X2, 
+            b_w32_send_keyboard_event((wparam < (1 << 17)) ? B_MOUSE_BUTTON_X1 : B_MOUSE_BUTTON_X2, 
                 true, false, B_KEY_STATE_DOWN|B_KEY_STATE_START);
             SetCapture(hwnd);
             return TRUE;
 
         case WM_XBUTTONUP:
-            w32_send_keyboard_event((wparam < (1 << 17)) ? B_MOUSE_BUTTON_X1 : B_MOUSE_BUTTON_X2, 
+            b_w32_send_keyboard_event((wparam < (1 << 17)) ? B_MOUSE_BUTTON_X1 : B_MOUSE_BUTTON_X2, 
                 false, false, B_KEY_STATE_END);
             ReleaseCapture();
             return TRUE;
@@ -787,7 +784,6 @@ w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
             event.type = B_EVENT_MOUSE_V_WHEEL;
             event.typical_wheel_delta = WHEEL_DELTA;
             event.wheel_delta = GET_WHEEL_DELTA_WPARAM(wparam);
-            //array_add(&events_this_frame, event);
             b_push_event(event);
 
             b_mouse_wheel_delta.vertical += event.wheel_delta;
@@ -800,7 +796,6 @@ w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
             event.type = B_EVENT_MOUSE_H_WHEEL;
             event.typical_wheel_delta = WHEEL_DELTA;
             event.wheel_delta = GET_WHEEL_DELTA_WPARAM(wparam);
-            //array_add(&events_this_frame, event);
             b_push_event(event);
 
             b_mouse_wheel_delta.horizontal += event.wheel_delta;
@@ -836,11 +831,11 @@ w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 
             bool handled = false;
 
-            if (GetTouchInputInfo(touch_handle, touch_points, w32_touch_inputs, size_of(TOUCHINPUT))) {
+            if (GetTouchInputInfo(touch_handle, touch_points, b_w32_touch_inputs, size_of(TOUCHINPUT))) {
                 // Process touch input.
                 u32 count = Min(touch_points, nb_array_count(b_touch_pointers));
                 for (u32 i = 0; i < count; i++) {
-                    TOUCHINPUT ti = w32_touch_inputs[i];
+                    TOUCHINPUT ti = b_w32_touch_inputs[i];
 
                     BEvent event = {};
                     event.type = B_EVENT_TOUCH;
@@ -862,7 +857,6 @@ w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
                     event.x = pt.x;
                     event.y = pt.y;
 
-                    //array_add(&events_this_frame, event);
                     b_push_event(event);
 
                     b_touch_pointers[i].type = event.touch_type;
@@ -896,7 +890,6 @@ w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
         {
             BEvent event = {B_EVENT_QUIT};
             event.os_handle = hwnd;
-            //array_add(&events_this_frame, event);
             b_push_event(event);
         } break;
 
@@ -911,8 +904,8 @@ w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
         // WM_ENTERSIZEMOVE is sent when the user grabs the resize bars.
         case WM_ENTERSIZEMOVE:
             // Halt frame movement while the app is sizing or moving
-            is_app_paused    = true;
-            is_user_resizing = true;
+            b_is_app_paused    = true;
+            b_is_user_resizing = true;
             return 0;
 
         case WM_SIZE: {
@@ -925,33 +918,30 @@ w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
             event.y = (s32)height;
 
             if (wparam == SIZE_MINIMIZED) {
-                is_app_paused    = true;
-                window_minimized = true;
-                window_maximized = false;
+                b_is_app_paused    = true;
+                b_window_minimized = true;
+                b_window_maximized = false;
             } else if (wparam == SIZE_MAXIMIZED) {
-                is_app_paused    = false;
-                window_minimized = false;
-                window_maximized = true;
+                b_is_app_paused    = false;
+                b_window_minimized = false;
+                b_window_maximized = true;
 
                 // Resize.
-                //array_add(&events_this_frame, event);
                 b_push_event(event);
             } else if (wparam == SIZE_RESTORED) {
-                if (window_minimized) {  // Restoring from minimized state?
-                    is_app_paused    = false;
-                    window_minimized = false;
+                if (b_window_minimized) {  // Restoring from minimized state?
+                    b_is_app_paused    = false;
+                    b_window_minimized = false;
 
                     // Resize.
-                    //array_add(&events_this_frame, event);
                     b_push_event(event);
-                } else if (window_maximized) {  // Restoring from maximized state?
-                    is_app_paused    = false;
-                    window_maximized = false;
+                } else if (b_window_maximized) {  // Restoring from maximized state?
+                    b_is_app_paused    = false;
+                    b_window_maximized = false;
 
                     // Resize.
-                    //array_add(&events_this_frame, event);
                     b_push_event(event);
-                } else if (is_user_resizing) {
+                } else if (b_is_user_resizing) {
                     // If user is dragging the resize bars, we do not resize 
                     // the buffers here because as the user continuously 
                     // drags the resize bars, a stream of WM_SIZE messages are
@@ -962,7 +952,6 @@ w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
                     // sends a WM_EXITSIZEMOVE message.
                 } else {  // API call such as SetWindowPos or mSwapChain->SetFullscreenState.
                     // Resize.
-                    //array_add(&events_this_frame, event);
                     b_push_event(event);
                 }
             }
@@ -973,8 +962,8 @@ w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
         // WM_EXITSIZEMOVE is sent when the user releases the resize bars.
         // Here we reset everything based on the new window dimensions.
         case WM_EXITSIZEMOVE: {
-            is_app_paused    = false;
-            is_user_resizing = false;
+            b_is_app_paused    = false;
+            b_is_user_resizing = false;
 
             // wparam and lparam are not used in WM_EXITSIZEMOVE.
             RECT rect;
@@ -985,7 +974,6 @@ w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
             event.y = rect.bottom - rect.top;
 
             // Resize.
-            //array_add(&events_this_frame, event);
             b_push_event(event);
             return 0;
         } break;
@@ -998,7 +986,7 @@ w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
             {
                 // Filter out touch event.
             } else {
-                w32_process_raw_input((HRAWINPUT)lparam);
+                b_w32_process_raw_input((HRAWINPUT)lparam);
             }
 
             // We're supposed to always call DefWindowProc:
@@ -1057,30 +1045,30 @@ w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
     return 0;
 }
 
-static STICKYKEYS w32_startup_sticky_keys = {size_of(STICKYKEYS), 0};
-static TOGGLEKEYS w32_startup_toggle_keys = {size_of(TOGGLEKEYS), 0};
-static FILTERKEYS w32_startup_filter_keys = {size_of(FILTERKEYS), 0};
+static STICKYKEYS b_w32_startup_sticky_keys = {size_of(STICKYKEYS), 0};
+static TOGGLEKEYS b_w32_startup_toggle_keys = {size_of(TOGGLEKEYS), 0};
+static FILTERKEYS b_w32_startup_filter_keys = {size_of(FILTERKEYS), 0};
 
 static void 
-w32_allow_accessibility_shortcut_keys(bool allow_keys) {
+b_w32_allow_accessibility_shortcut_keys(bool allow_keys) {
     if (allow_keys) {
         // Restore StickyKeys/etc to original state and enable Windows key
-        STICKYKEYS sk = w32_startup_sticky_keys;
-        TOGGLEKEYS tk = w32_startup_toggle_keys;
-        FILTERKEYS fk = w32_startup_filter_keys;
+        STICKYKEYS sk = b_w32_startup_sticky_keys;
+        TOGGLEKEYS tk = b_w32_startup_toggle_keys;
+        FILTERKEYS fk = b_w32_startup_filter_keys;
 
         UNUSED(sk);
         UNUSED(tk);
         UNUSED(fk);
 
-        SystemParametersInfo(SPI_SETSTICKYKEYS, size_of(STICKYKEYS), &w32_startup_sticky_keys, 0);
-        SystemParametersInfo(SPI_SETTOGGLEKEYS, size_of(TOGGLEKEYS), &w32_startup_toggle_keys, 0);
-        SystemParametersInfo(SPI_SETFILTERKEYS, size_of(FILTERKEYS), &w32_startup_filter_keys, 0);
+        SystemParametersInfo(SPI_SETSTICKYKEYS, size_of(STICKYKEYS), &b_w32_startup_sticky_keys, 0);
+        SystemParametersInfo(SPI_SETTOGGLEKEYS, size_of(TOGGLEKEYS), &b_w32_startup_toggle_keys, 0);
+        SystemParametersInfo(SPI_SETFILTERKEYS, size_of(FILTERKEYS), &b_w32_startup_filter_keys, 0);
     } else {
         // Disable StickyKeys/etc shortcuts but if the accessibility feature is on, 
         // then leave the settings alone as its probably being usefully used
 
-        STICKYKEYS sk_off = w32_startup_sticky_keys;
+        STICKYKEYS sk_off = b_w32_startup_sticky_keys;
         if ((sk_off.dwFlags & SKF_STICKYKEYSON) == 0) {
             // Disable the hotkey, confirmation and the sound.
             sk_off.dwFlags &= ~SKF_HOTKEYACTIVE;
@@ -1090,7 +1078,7 @@ w32_allow_accessibility_shortcut_keys(bool allow_keys) {
             SystemParametersInfo(SPI_SETSTICKYKEYS, size_of(STICKYKEYS), &sk_off, 0);
         }
 
-        TOGGLEKEYS tk_off = w32_startup_toggle_keys;
+        TOGGLEKEYS tk_off = b_w32_startup_toggle_keys;
         if ((tk_off.dwFlags & TKF_TOGGLEKEYSON) == 0) {
             // Disable the hotkey, confirmation and the sound.
             tk_off.dwFlags &= ~TKF_HOTKEYACTIVE;
@@ -1100,7 +1088,7 @@ w32_allow_accessibility_shortcut_keys(bool allow_keys) {
             SystemParametersInfo(SPI_SETTOGGLEKEYS, size_of(TOGGLEKEYS), &tk_off, 0);
         }
 
-        FILTERKEYS fk_off = w32_startup_filter_keys;
+        FILTERKEYS fk_off = b_w32_startup_filter_keys;
         if ((fk_off.dwFlags & FKF_FILTERKEYSON) == 0) {
             // Disable the hotkey, confirmation and the sound.
             fk_off.dwFlags &= ~FKF_HOTKEYACTIVE;
@@ -1112,7 +1100,7 @@ w32_allow_accessibility_shortcut_keys(bool allow_keys) {
     }
 }
 
-static void w32_init_input_system(void) {
+static void b_w32_init_input_system(void) {
 #if 0
     if (w32_input_initted) return;
 
@@ -1207,7 +1195,7 @@ bender_create_window(const char *title,
         wc.hbrBackground = brush;
         wc.lpszClassName = BENDER_DEFAULT_WINDOW_CLASS_NAME;
 
-        wc.lpfnWndProc   = w32_main_window_callback;
+        wc.lpfnWndProc   = b_w32_main_window_callback;
 
         // Register the window class.
         if (RegisterClassExW(&wc) == 0) {
@@ -1370,7 +1358,7 @@ bender_create_window(const char *title,
     record->handle   = hwnd;
     record->style    = style;
     record->ex_style = ex_style;
-    
+
     return result;
 }
 
@@ -1399,34 +1387,34 @@ NB_EXTERN void bender_update_window_events(void) {
     touch_pointer_count = 0;
 
     // Should we do this for all the keystrokes?
-    if (user_alt_state || (b_input_button_states[B_KEY_ALT] & B_KEY_STATE_DOWN)) {
+    if (b_alt_state || (b_input_button_states[B_KEY_ALT] & B_KEY_STATE_DOWN)) {
         SHORT state = GetAsyncKeyState(VK_MENU);
         if (!(state & 0x8000)) {
-            user_alt_state = false;
+            b_alt_state = false;
             b_input_button_states[B_KEY_ALT] |= B_KEY_STATE_END;
         }
     }
 
-    if (user_cmd_state || (b_input_button_states[B_KEY_CMD] & B_KEY_STATE_DOWN)) {
+    if (b_cmd_state || (b_input_button_states[B_KEY_CMD] & B_KEY_STATE_DOWN)) {
         SHORT state = GetAsyncKeyState(VK_APPS);
         if (!(state & 0x8000)) {
-            user_cmd_state = false;
+            b_cmd_state = false;
             b_input_button_states[B_KEY_CMD] |= B_KEY_STATE_END;
         }
     }
 
-    if (user_ctrl_state || (b_input_button_states[B_KEY_CTRL] & B_KEY_STATE_DOWN)) {
+    if (b_ctrl_state || (b_input_button_states[B_KEY_CTRL] & B_KEY_STATE_DOWN)) {
         SHORT state = GetAsyncKeyState(VK_CONTROL);
         if (!(state & 0x8000)) {
-            user_ctrl_state = false;
+            b_ctrl_state = false;
             b_input_button_states[B_KEY_CTRL] |= B_KEY_STATE_END;
         }
     }
 
-    if (user_shift_state || (b_input_button_states[B_KEY_SHIFT] & B_KEY_STATE_DOWN)) {
+    if (b_shift_state || (b_input_button_states[B_KEY_SHIFT] & B_KEY_STATE_DOWN)) {
         SHORT state = GetAsyncKeyState(VK_SHIFT);
         if (!(state & 0x8000)) {
-            user_shift_state = false;
+            b_shift_state = false;
             b_input_button_states[B_KEY_SHIFT] |= B_KEY_STATE_END;
         }
     }
@@ -1623,9 +1611,9 @@ bender_toggle_fullscreen(u32 window_id, bool want_fullscreen) {
 }
 
 #if 0
-static bool w32_find_minimum_display_mode(DEVMODEW *mode, 
-                                          s32 min_width, s32 min_height, 
-                                          u32 min_freq, u32 max_freq) {
+static bool b_w32_find_minimum_display_mode(DEVMODEW *mode, 
+                                            s32 min_width, s32 min_height, 
+                                            u32 min_freq, u32 max_freq) {
     mode->dmSize = size_of(DEVMODEW);
 
     DWORD current_mode_index = 0;
