@@ -9,7 +9,9 @@
 //
 
 int main(void) {
-    u32 id = bender_create_window("AJI", 640, 480, -1, -1, 0, 0, B_WINDOW_BACKGROUND_COLOR);
+    u32 id = bender_create_window("AJI", 640, 480, -1, -1, 0, 
+                                  B_WINDOW_CREATE_MAXIMIZED, 
+                                  B_WINDOW_BACKGROUND_COLOR);
     if (id) {
         bool ap_running = true;
         while (ap_running) {
@@ -31,6 +33,10 @@ int main(void) {
                     case B_EVENT_DRAG_AND_DROP_FILES: nb_write_string("DRAG_AND_DROP_FILES\n", false); break;
                 }
 */
+
+                if (event.type == B_EVENT_WINDOW_RESIZE) {
+                    print("Window sized = %dx%d\n", event.x, event.y);
+                }
 
                 if (event.type == B_EVENT_KEYBOARD) {
                     if (event.key_pressed && event.key_code == B_KEY_ESCAPE) ap_running = false;
@@ -69,6 +75,10 @@ int main(void) {
 
             if (b_input_button_states[B_MOUSE_BUTTON_LEFT] & B_KEY_STATE_START) {
                 nb_write_string("BUTTON INPUT\n", false);
+            }
+
+            if (b_mouse_wheel_delta.vertical) {
+                print("Wheel vertical = %d\n", (s32)(b_mouse_wheel_delta.vertical/b_typical_wheel_delta));
             }
         }
     }

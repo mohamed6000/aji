@@ -2,6 +2,7 @@
 
 u32 b_input_button_states[B_KEY_CODE_COUNT];
 BWheel_Delta b_mouse_wheel_delta;
+s32 b_typical_wheel_delta;
 
 s32 b_mouse_delta_x;
 s32 b_mouse_delta_y;
@@ -781,7 +782,7 @@ b_w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
         {
             BEvent event;
             event.type = B_EVENT_MOUSE_V_WHEEL;
-            event.typical_wheel_delta = WHEEL_DELTA;
+            b_typical_wheel_delta = WHEEL_DELTA;
             event.wheel_delta = GET_WHEEL_DELTA_WPARAM(wparam);
             b_push_event(event);
 
@@ -793,7 +794,7 @@ b_w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
         {
             BEvent event;
             event.type = B_EVENT_MOUSE_H_WHEEL;
-            event.typical_wheel_delta = WHEEL_DELTA;
+            b_typical_wheel_delta = WHEEL_DELTA;
             event.wheel_delta = GET_WHEEL_DELTA_WPARAM(wparam);
             b_push_event(event);
 

@@ -274,7 +274,6 @@ typedef struct BEvent {
 
     // Mouse wheel event.
     s32 wheel_delta;
-    s32 typical_wheel_delta;  // @Cleanup: This is a constant that we can take off the event struct.
 
     // Touch event.
     BTouch_Type touch_type;
@@ -305,6 +304,7 @@ typedef struct BTouch_Pointer {
 
 extern u32 b_input_button_states[B_KEY_CODE_COUNT];
 extern BWheel_Delta b_mouse_wheel_delta;
+extern s32 b_typical_wheel_delta;
 
 extern s32 b_mouse_delta_x;
 extern s32 b_mouse_delta_y;
