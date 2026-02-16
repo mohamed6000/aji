@@ -248,37 +248,36 @@ BTouch_Type NB_ENUM_TYPE(u8) {
     B_TOUCH_MOVED    = 3,
 } BTouch_Type;
 
-// @Todo: packing.
-typedef struct BEvent {
-    BEvent_Type NB_DEFAULT_VALUE(type, B_EVENT_NONE);
-    
-    // Modifiers state, maybe replace those with an enum.
-    bool alt_pressed;
-    bool cmd_pressed;  // CMD on MacOS, Win on Windows, Meta on linux.
-    bool ctrl_pressed;
-    bool shift_pressed;
+enum
+BMod_Flags NB_ENUM_TYPE(u8) {
+    B_MOD_ALT_PRESSED   = 0x1,
+    B_MOD_CMD_PRESSED   = 0x2,  // CMD on MacOS, Win on Windows, Meta on linux.
+    B_MOD_CTRL_PRESSED  = 0x4,
+    B_MOD_SHIFT_PRESSED = 0x8,
+};
 
-    // Window/Touch event.
-    s32 x;
-    s32 y;
+typedef struct BEvent {
+    u8 NB_DEFAULT_VALUE(type, B_EVENT_NONE);  // BEvent_Type.
+    u8 modifier_flags;  // Keyboard event.
+
+    // Touch event.
+    u8 touch_type;
+    u8 touch_index;
 
     // Keyboard event.
-    BKey_Code key_code;
+    u16 key_code;  // BKey_Code.
     bool key_pressed;
     bool repeat;
 
     // Text input event.
     u32 utf32;
 
+    // Window/Touch event.
+    s32 x;
+    s32 y;
+
     // Mouse wheel event.
     s32 wheel_delta;
-
-    // Touch event.
-    BTouch_Type touch_type;
-    u32 touch_index;
-
-    // Drag and drop files event.
-    // Array<char *> files;
 } BEvent;
 
 enum Bender_Key_State {
@@ -296,7 +295,7 @@ typedef struct BWheel_Delta {
 typedef struct BTouch_Pointer {
     s32 x;
     s32 y;
-    BTouch_Type type;
+    u8 type;  // BTouch_Type.
 } BTouch_Pointer;
 
 
@@ -316,5 +315,10 @@ NB_INLINE u32
 bender_get_input_button_state(BKey_Code key_code) {
     return b_input_button_states[key_code];
 }
+
+#define bender_alt_pressed(event)   (((event).modifier_flags & B_MOD_ALT_PRESSED) != 0)
+#define bender_cmd_pressed(event)   (((event).modifier_flags & B_MOD_CMD_PRESSED) != 0)
+#define bender_ctrl_pressed(event)  (((event).modifier_flags & B_MOD_CTRL_PRESSED) != 0)
+#define bender_shift_pressed(event) (((event).modifier_flags & B_MOD_SHIFT_PRESSED) != 0)
 
 #endif  // BENDER_INCLUDE_H

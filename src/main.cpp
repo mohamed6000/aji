@@ -42,22 +42,22 @@ int main(void) {
                         nb_write_string("ENTER press.\n", false);
                     }
 
-                    if (event.key_pressed && event.key_code == B_KEY_ENTER && event.alt_pressed) {
+                    if (event.key_pressed && event.key_code == B_KEY_ENTER && (event.modifier_flags & B_MOD_ALT_PRESSED)) {
                         nb_write_string("Enter Fullscreen.\n", false);
                     }
 
-                    if (event.key_pressed && event.key_code == 'C' && event.ctrl_pressed) {
+                    if (event.key_pressed && event.key_code == 'C' && (event.modifier_flags & B_MOD_CTRL_PRESSED)) {
                         nb_write_string("Copy.\n", false);
                     }
-                    if (event.key_pressed && event.key_code == 'X' && event.ctrl_pressed) {
+                    if (event.key_pressed && event.key_code == 'X' && (event.modifier_flags & B_MOD_CTRL_PRESSED)) {
                         nb_write_string("Cut.\n", false);
                     }
-                    if (event.key_pressed && event.key_code == 'V' && event.ctrl_pressed) {
+                    if (event.key_pressed && event.key_code == 'V' && (event.modifier_flags & B_MOD_CTRL_PRESSED)) {
                         nb_write_string("Paste.\n", false);
                     }
 
-                    if (event.key_pressed && event.key_code == 'Z' && event.ctrl_pressed) {
-                        if (event.shift_pressed) {
+                    if (event.key_pressed && event.key_code == 'Z' && (event.modifier_flags & B_MOD_CTRL_PRESSED)) {
+                        if (event.modifier_flags & B_MOD_SHIFT_PRESSED) {
                             nb_write_string("Redo.\n", false);
                         } else {
                             nb_write_string("Undo.\n", false);

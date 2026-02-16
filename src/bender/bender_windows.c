@@ -484,10 +484,15 @@ b_w32_send_keyboard_event(BKey_Code key_code,
     event.key_pressed = is_down;
     event.repeat      = repeat;
     
-    event.alt_pressed   = b_alt_state;
-    event.cmd_pressed   = b_cmd_state;
-    event.ctrl_pressed  = b_ctrl_state;
-    event.shift_pressed = b_shift_state;
+    // event.alt_pressed   = b_alt_state;
+    // event.cmd_pressed   = b_cmd_state;
+    // event.ctrl_pressed  = b_ctrl_state;
+    // event.shift_pressed = b_shift_state;
+    event.modifier_flags = 0;
+    event.modifier_flags |= b_alt_state   ? B_MOD_ALT_PRESSED   : 0;
+    event.modifier_flags |= b_cmd_state   ? B_MOD_CMD_PRESSED   : 0;
+    event.modifier_flags |= b_ctrl_state  ? B_MOD_CTRL_PRESSED  : 0;
+    event.modifier_flags |= b_shift_state ? B_MOD_SHIFT_PRESSED : 0;
     
     b_push_event(event);
 
@@ -554,6 +559,7 @@ b_w32_process_raw_input(HRAWINPUT handle) {
 #endif
 }
 
+#if 0
 static char *
 b_w32_wide_to_utf8(WCHAR *s, 
                    size_t src_length, 
@@ -583,6 +589,7 @@ b_w32_wide_to_utf8(WCHAR *s,
 
     return null;
 }
+#endif
 
 
 // https://learn.microsoft.com/en-us/windows/win32/tablet/system-events-and-mouse-messages?redirectedfrom=MSDN
@@ -833,7 +840,7 @@ b_w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
             if (GetTouchInputInfo(touch_handle, touch_points, b_w32_touch_inputs, size_of(TOUCHINPUT))) {
                 // Process touch input.
                 u32 count = Min(touch_points, nb_array_count(b_touch_pointers));
-                for (u32 i = 0; i < count; i++) {
+                for (u8 i = 0; i < count; i++) {
                     TOUCHINPUT ti = b_w32_touch_inputs[i];
 
                     BEvent event = {};
@@ -1041,6 +1048,7 @@ b_w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
     return 0;
 }
 
+#if 0
 static STICKYKEYS b_w32_startup_sticky_keys = {size_of(STICKYKEYS), 0};
 static TOGGLEKEYS b_w32_startup_toggle_keys = {size_of(TOGGLEKEYS), 0};
 static FILTERKEYS b_w32_startup_filter_keys = {size_of(FILTERKEYS), 0};
@@ -1097,7 +1105,6 @@ b_w32_allow_accessibility_shortcut_keys(bool allow_keys) {
 }
 
 static void b_w32_init_input_system(void) {
-#if 0
     if (w32_input_initted) return;
 
     RAWINPUTDEVICE rid[2];
@@ -1137,8 +1144,8 @@ static void b_w32_init_input_system(void) {
     SystemParametersInfo(SPI_GETFILTERKEYS, size_of(FILTERKEYS), &w32_startup_filter_keys, 0);
 
     w32_allow_accessibility_shortcut_keys(false);
-#endif
 }
+#endif
 
 NB_EXTERN bool bender_init(void) {
     if (b_initted) return true;
@@ -1302,10 +1309,10 @@ bender_create_window(const char *title,
     if (b_window_record_count == b_window_record_allocated) {
         u32 old_count = b_window_record_allocated;
         b_window_record_allocated += 4;
-        b_window_record_storage = nb_realloc(b_window_record_storage, 
-                                             b_window_record_allocated*size_of(Bender_Window_Record),
-                                             old_count*size_of(Bender_Window_Record),
-                                             NB_GET_ALLOCATOR());
+        b_window_record_storage = (Bender_Window_Record *)nb_realloc(b_window_record_storage, 
+            b_window_record_allocated*size_of(Bender_Window_Record),
+            old_count*size_of(Bender_Window_Record),
+            NB_GET_ALLOCATOR());
     }
 
     b_window_record_count += 1; // 0 is an invalid ID in our API.
