@@ -484,10 +484,6 @@ b_w32_send_keyboard_event(BKey_Code key_code,
     event.key_pressed = is_down;
     event.repeat      = repeat;
     
-    // event.alt_pressed   = b_alt_state;
-    // event.cmd_pressed   = b_cmd_state;
-    // event.ctrl_pressed  = b_ctrl_state;
-    // event.shift_pressed = b_shift_state;
     event.modifier_flags = 0;
     event.modifier_flags |= b_alt_state   ? B_MOD_ALT_PRESSED   : 0;
     event.modifier_flags |= b_cmd_state   ? B_MOD_CMD_PRESSED   : 0;
@@ -1244,13 +1240,12 @@ bender_create_window(const char *title,
         ex_style |= WS_EX_ACCEPTFILES;
     }
 
-    UNUSED(window_parent_index);
-#if 0
-    if (parent) {
-        parent_hwnd = parent->os_specific->hwnd;
+    if (window_parent_index) {
+        assert(window_parent_index <= b_window_record_count);
+        Bender_Window_Record *parent_record = b_window_record_storage + window_parent_index;
+        parent_hwnd = parent_record->handle;
         style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME;
     }
-#endif
 
     if (window_creation_flags & B_WINDOW_CREATE_BORDERLESS) {
         style = WS_POPUP;
@@ -1444,12 +1439,6 @@ bender_get_next_event(BEvent *event) {
 
     return false;
 }
-
-#if 0
-NB_EXTERN bool bender_window_has_handle(u32 window_id, void *handle) {
-    return window->os_specific->hwnd == (HWND)handle;
-}
-#endif
 
 NB_EXTERN void 
 bender_get_window_size(u32 window_id, 

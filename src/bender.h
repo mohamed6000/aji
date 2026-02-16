@@ -21,17 +21,6 @@ bender_create_window(const char *title, s32 width, s32 height,
                      const float NB_DEFAULT_VALUE(background_color[3], B_WINDOW_BACKGROUND_COLOR));
 
 NB_EXTERN void bender_update_window_events(void);
-
-/*
-    When using this function instead of iterating on events_this_frame array,
-    we should handle freeing the dragged files array ourselves.
-
-    when an EVENT_DRAG_AND_DROP_FILES is generated.
-    call: array_free(&event.files);
-
-    @Note: file names are never freed by our system, and it is up to the
-    user to handle them.
-*/
 NB_EXTERN bool bender_get_next_event(struct BEvent *event);
 
 NB_EXTERN void 
@@ -316,9 +305,9 @@ bender_get_input_button_state(BKey_Code key_code) {
     return b_input_button_states[key_code];
 }
 
-#define bender_alt_pressed(event)   (((event).modifier_flags & B_MOD_ALT_PRESSED) != 0)
-#define bender_cmd_pressed(event)   (((event).modifier_flags & B_MOD_CMD_PRESSED) != 0)
-#define bender_ctrl_pressed(event)  (((event).modifier_flags & B_MOD_CTRL_PRESSED) != 0)
+#define bender_alt_pressed(event)   (((event).modifier_flags & B_MOD_ALT_PRESSED)   != 0)
+#define bender_cmd_pressed(event)   (((event).modifier_flags & B_MOD_CMD_PRESSED)   != 0)
+#define bender_ctrl_pressed(event)  (((event).modifier_flags & B_MOD_CTRL_PRESSED)  != 0)
 #define bender_shift_pressed(event) (((event).modifier_flags & B_MOD_SHIFT_PRESSED) != 0)
 
 #endif  // BENDER_INCLUDE_H

@@ -10,8 +10,10 @@
 
 int main(void) {
     u32 id = bender_create_window("AJI", 640, 480, -1, -1, 0, 
-                                  B_WINDOW_CREATE_MAXIMIZED, 
+                                  0, 
                                   B_WINDOW_BACKGROUND_COLOR);
+    bender_create_window("child", 200, 200, -1, -1, id, 0, 
+          B_WINDOW_BACKGROUND_COLOR);
     if (id) {
         bool ap_running = true;
         while (ap_running) {
