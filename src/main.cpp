@@ -1,5 +1,5 @@
 // #define NB_STRIP_GENERAL_PREFIX
-#include "general.h"
+#include "nb.h"
 
 #include "bender.h"
 
@@ -20,19 +20,6 @@ int main(void) {
             BEvent event;
             while (bender_get_next_event(&event)) {
                 if (event.type == B_EVENT_QUIT) ap_running = false;
-
-/*
-                switch (event.type) {
-                    case B_EVENT_QUIT: nb_write_string("QUIT\n", false); break;
-                    case B_EVENT_WINDOW_RESIZE: nb_write_string("WINDOW_RESIZE\n", false); break;
-                    case B_EVENT_KEYBOARD: nb_write_string("KEYBOARD\n", false); break;
-                    case B_EVENT_TEXT_INPUT: nb_write_string("TEXT_INPUT\n", false); break;
-                    case B_EVENT_MOUSE_WHEEL: nb_write_string("MOUSE_WHEEL\n", false); break;
-                    case B_EVENT_MOUSE_H_WHEEL: nb_write_string("MOUSE_H_WHEEL\n", false); break;
-                    case B_EVENT_TOUCH: nb_write_string("TOUCH\n", false); break;
-                    case B_EVENT_DRAG_AND_DROP_FILES: nb_write_string("DRAG_AND_DROP_FILES\n", false); break;
-                }
-*/
 
                 if (event.type == B_EVENT_WINDOW_RESIZE) {
                     print("Window sized = %dx%d\n", event.x, event.y);
@@ -110,6 +97,6 @@ int main(void) {
 
 
 #define NB_IMPLEMENTATION
-#include "general.h"
+#include "nb.h"
 
 #include "bender/bender_windows.c"

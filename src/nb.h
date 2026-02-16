@@ -6,7 +6,7 @@
     A general layer for C++ projects.
 
     Use:    #define NB_IMPLEMENTATION
-    before: #include "general.h"
+    before: #include "nb.h"
     to include the implementation code.
 
 
@@ -801,7 +801,8 @@ NB_INLINE u32 nb_find_least_significant_set_bit(u32 value) {
 #endif
 }
 
-NB_INLINE void nb_swap_two_memory_blocks(u8 *a_, u8 *b_, s64 count) {
+NB_INLINE void 
+nb_swap_two_memory_blocks(u8 *a_, u8 *b_, s64 count) {
     u8 *a = a_;
     u8 *b = b_;
 
@@ -974,7 +975,8 @@ NB_INLINE bool nb_cstrings_are_equal(char *a, char *b) {
     return result;
 }
 
-NB_INLINE bool nb_strings_are_equal_length(s64 length_a, char *a, s64 length_b, char *b) {
+NB_INLINE bool 
+nb_strings_are_equal_length(s64 length_a, char *a, s64 length_b, char *b) {
     if (length_a != length_b) return false;
 
     for (s64 index = 0; index < length_a; ++index) {
@@ -984,7 +986,8 @@ NB_INLINE bool nb_strings_are_equal_length(s64 length_a, char *a, s64 length_b, 
     return true;
 }
 
-NB_INLINE bool nb_strings_are_equal_first_length(s64 length_a, char *a, char *b) {
+NB_INLINE bool 
+nb_strings_are_equal_first_length(s64 length_a, char *a, char *b) {
     char *it = b;
     for (s64 index = 0; index < length_a; ++index, ++it) {
         if ((*it == 0) || (a[index] != *it)) {
@@ -1048,7 +1051,8 @@ NB_INLINE char *nb_get_extension(char *s) {
     return result;
 }
 
-NB_INLINE char *nb_find_character_from_right(char *s, u8 c) {
+NB_INLINE char *
+nb_find_character_from_right(char *s, u8 c) {
     s64 length = nb_string_length(s);
 
     for (s64 i = length - 1; i >= 0; --i) {
@@ -1198,157 +1202,6 @@ nb_set_console_text_color_ansi(NB_System_Console_Text_Color color,
 }
 
 #include <stdio.h>
-
-char *mprint(const char *fmt, ...) {
-    char *result = null;
-    int size = NB_PRINT_INITIAL_GUESS;
-
-    while (1) {
-        result = nb_new_array(char, size, NB_GET_ALLOCATOR());
-        if (!result) return null;
-        
-        va_list args;
-        va_start(args, fmt);
-        
-        int len = _vsnprintf(result, size, fmt, args);
-        va_end(args);
-
-        if ((len >= 0) && (size >= len+1)) {
-            size = len;
-            break;
-        }
-
-        nb_free(result, NB_GET_ALLOCATOR());
-        size *= 2;
-    }
-
-    return result;
-}
-
-char *mprint_guess(int size, const char *fmt, ...) {
-    assert(size > 0);
-    
-    char *result = null;
-
-    while (1) {
-        result = nb_new_array(char, size, NB_GET_ALLOCATOR());
-        if (!result) return null;
-        
-        va_list args;
-        va_start(args, fmt);
-        
-        int len = _vsnprintf(result, size, fmt, args);
-        va_end(args);
-
-        if ((len >= 0) && (size >= len+1)) {
-            size = len;
-            break;
-        }
-
-        nb_free(result, NB_GET_ALLOCATOR());
-        size *= 2;
-    }
-
-    return result;
-}
-
-NB_EXTERN char *mprint_valist(const char *fmt, va_list arg_list) {
-    char *result = null;
-    int size = NB_PRINT_INITIAL_GUESS;
-
-    while (1) {
-        result = nb_new_array(char, size, NB_GET_ALLOCATOR());
-        if (!result) return null;
-        
-        va_list args;
-        args = arg_list;
-        
-        int len = _vsnprintf(result, size, fmt, args);
-        va_end(args);
-
-        if ((len >= 0) && (size >= len+1)) {
-            size = len;
-            break;
-        }
-
-        nb_free(result, NB_GET_ALLOCATOR());
-        size *= 2;
-    }
-
-    return result;
-}
-
-NB_EXTERN char *tprint(const char *fmt, ...) {
-    char *result = null;
-
-    // Initial guess.
-    int size = NB_PRINT_INITIAL_GUESS;
-    NB_Allocator allocator = nb_temporary_allocator;
-    NB_Temporary_Storage *ts = &nb_temporary_storage;
-
-    while (1) {
-        s64 mark = nb_get_temporary_storage_mark();
-        result = nb_new_array(char, size, allocator);
-        if (!result) return null;
-        
-        va_list args;
-        va_start(args, fmt);
-        
-        int len = _vsnprintf(result, size, fmt, args);
-        va_end(args);
-
-        if ((len >= 0) && (size >= len+1)) {
-            ts->occupied -= (size - len - 1);
-            size = len;
-            break;
-        }
-
-        nb_set_temporary_storage_mark(mark);
-        size *= 2;
-    }
-
-    return result;
-}
-
-NB_EXTERN char *tprint_valist(const char *fmt, va_list arg_list) {
-    char *result = null;
-    int size = NB_PRINT_INITIAL_GUESS;
-    NB_Allocator allocator = nb_temporary_allocator;
-    NB_Temporary_Storage *ts = &nb_temporary_storage;
-
-    while (1) {
-        s64 mark = nb_get_temporary_storage_mark();
-        result = nb_new_array(char, size, allocator);
-        if (!result) return null;
-
-        va_list args;
-        args = arg_list;
-        
-        int len = _vsnprintf(result, size, fmt, args);
-        va_end(args);
-
-        if ((len >= 0) && (size >= len+1)) {
-            ts->occupied -= (size - len - 1);
-            size = len;
-            break;
-        }
-
-        nb_set_temporary_storage_mark(mark);
-        size *= 2;
-    }
-
-    return result;
-}
-
-NB_EXTERN void print(const char *fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-
-    char *s = tprint_valist(fmt, args);
-    va_end(args);
-
-    nb_write_string(s, false);
-}
 
 NB_EXTERN bool 
 nb_abort_error_message(const char *title, 
@@ -1573,160 +1426,9 @@ nb_set_console_text_color_ansi(NB_System_Console_Text_Color color,
     nb_write_string(ansi_system_console_text_colors[color], to_standard_error);
 }
 
+
 #include <stdio.h>
 
-char *mprint(const char *fmt, ...) {
-    char *result = null;
-    int size = NB_PRINT_INITIAL_GUESS;
-
-    while (1) {
-        result = nb_new_array(char, size, NB_GET_ALLOCATOR());
-        if (!result) return null;
-        
-        va_list args;
-        va_start(args, fmt);
-        
-        int len = vsnprintf(result, size, fmt, args);
-        va_end(args);
-
-        if ((len >= 0) && (size >= len+1)) {
-            size = len;
-            break;
-        }
-
-        nb_free(result, NB_GET_ALLOCATOR());
-        size *= 2;
-    }
-
-    return result;
-}
-
-char *mprint_guess(int size, const char *fmt, ...) {
-    assert(size > 0);
-    
-    char *result = null;
-
-    while (1) {
-        result = nb_new_array(char, size, NB_GET_ALLOCATOR());
-        if (!result) return null;
-        
-        va_list args;
-        va_start(args, fmt);
-        
-        int len = vsnprintf(result, size, fmt, args);
-        va_end(args);
-
-        if ((len >= 0) && (size >= len+1)) {
-            size = len;
-            break;
-        }
-
-        nb_free(result, NB_GET_ALLOCATOR());
-        size *= 2;
-    }
-
-    return result;
-}
-
-NB_EXTERN char *mprint_valist(const char *fmt, va_list arg_list) {
-    char *result = null;
-    int size = NB_PRINT_INITIAL_GUESS;
-
-    while (1) {
-        result = nb_new_array(char, size, NB_GET_ALLOCATOR());
-        if (!result) return null;
-        
-        va_list args;
-        // args = arg_list;
-        va_copy(args, arg_list);  // @Cleanup
-        
-        int len = vsnprintf(result, size, fmt, args);
-        va_end(args);
-
-        if ((len >= 0) && (size >= len+1)) {
-            size = len;
-            break;
-        }
-
-        nb_free(result, NB_GET_ALLOCATOR());
-        size *= 2;
-    }
-
-    return result;
-}
-
-NB_EXTERN char *tprint(const char *fmt, ...) {
-    char *result = null;
-
-    // Initial guess.
-    int size = NB_PRINT_INITIAL_GUESS;
-    NB_Allocator allocator = nb_temporary_allocator;
-    NB_Temporary_Storage *ts = &nb_temporary_storage;
-
-    while (1) {
-        s64 mark = nb_get_temporary_storage_mark();
-        result = nb_new_array(char, size, allocator);
-        if (!result) return null;
-        
-        va_list args;
-        va_start(args, fmt);
-        
-        int len = vsnprintf(result, size, fmt, args);
-        va_end(args);
-
-        if ((len >= 0) && (size >= len+1)) {
-            ts->occupied -= (size - len - 1);
-            size = len;
-            break;
-        }
-
-        nb_set_temporary_storage_mark(mark);
-        size *= 2;
-    }
-
-    return result;
-}
-
-NB_EXTERN char *tprint_valist(const char *fmt, va_list arg_list) {
-    char *result = null;
-    int size = NB_PRINT_INITIAL_GUESS;
-    NB_Allocator allocator = nb_temporary_allocator;
-    NB_Temporary_Storage *ts = &nb_temporary_storage;
-
-    while (1) {
-        s64 mark = nb_get_temporary_storage_mark();
-        result = nb_new_array(char, size, allocator);
-        if (!result) return null;
-
-        va_list args;
-        // args = arg_list;
-        va_copy(args, arg_list);  // @Cleanup
-        
-        int len = vsnprintf(result, size, fmt, args);
-        va_end(args);
-
-        if ((len >= 0) && (size >= len+1)) {
-            ts->occupied -= (size - len - 1);
-            size = len;
-            break;
-        }
-
-        nb_set_temporary_storage_mark(mark);
-        size *= 2;
-    }
-
-    return result;
-}
-
-NB_EXTERN void print(const char *fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-
-    char *s = tprint_valist(fmt, args);
-    va_end(args);
-
-    nb_write_string(s, false);
-}
 
 NB_EXTERN bool 
 nb_abort_error_message(const char *title, 
@@ -2091,6 +1793,208 @@ nb_error_logger(NB_Log_Mode mode,
 
     nb_write_string("\n", true);
 }
+
+int nb_sprint(char *buf, int size, const char *fmt, ...) {
+    int result = 0;
+
+    va_list args;
+    va_start(args, fmt);
+#if OS_WINDOWS
+    result = _vsnprintf(buf, size, fmt, args);
+#else
+    result = vsnprintf(buf, size, fmt, args);
+#endif
+    va_end(args);
+
+    return result;
+}
+
+int nb_sprint_valist(char *buf, int size, const char *fmt, va_list arg_list) {
+    int result = 0;
+
+    va_list args;
+    va_copy(args, arg_list);
+#if OS_WINDOWS
+    result = _vsnprintf(buf, size, fmt, args);
+#else
+    result = vsnprintf(buf, size, fmt, args);
+#endif
+    va_end(args);
+
+    return result;
+}
+
+char *mprint(const char *fmt, ...) {
+    char *result = null;
+    int size = NB_PRINT_INITIAL_GUESS;
+
+    while (1) {
+        result = nb_new_array(char, size, NB_GET_ALLOCATOR());
+        if (!result) return null;
+        
+        va_list args;
+        va_start(args, fmt);
+#if OS_WINDOWS
+        int len = _vsnprintf(result, size, fmt, args);
+#else
+        int len = vsnprintf(result, size, fmt, args);
+#endif
+        va_end(args);
+
+        if ((len >= 0) && (size >= len+1)) {
+            size = len;
+            break;
+        }
+
+        nb_free(result, NB_GET_ALLOCATOR());
+        size *= 2;
+    }
+
+    return result;
+}
+
+char *mprint_guess(int size, const char *fmt, ...) {
+    assert(size > 0);
+    
+    char *result = null;
+
+    while (1) {
+        result = nb_new_array(char, size, NB_GET_ALLOCATOR());
+        if (!result) return null;
+        
+        va_list args;
+        va_start(args, fmt);
+#if OS_WINDOWS
+        int len = _vsnprintf(result, size, fmt, args);
+#else
+        int len = vsnprintf(result, size, fmt, args);
+#endif
+        va_end(args);
+
+        if ((len >= 0) && (size >= len+1)) {
+            size = len;
+            break;
+        }
+
+        nb_free(result, NB_GET_ALLOCATOR());
+        size *= 2;
+    }
+
+    return result;
+}
+
+NB_EXTERN char *mprint_valist(const char *fmt, va_list arg_list) {
+    char *result = null;
+    int size = NB_PRINT_INITIAL_GUESS;
+
+    while (1) {
+        result = nb_new_array(char, size, NB_GET_ALLOCATOR());
+        if (!result) return null;
+        
+        va_list args;
+#if OS_WINDOWS
+        args = arg_list;
+        int len = _vsnprintf(result, size, fmt, args);
+#else
+        va_copy(args, arg_list);
+        int len = vsnprintf(result, size, fmt, args);
+#endif
+        va_end(args);
+
+        if ((len >= 0) && (size >= len+1)) {
+            size = len;
+            break;
+        }
+
+        nb_free(result, NB_GET_ALLOCATOR());
+        size *= 2;
+    }
+
+    return result;
+}
+
+NB_EXTERN char *tprint(const char *fmt, ...) {
+    char *result = null;
+
+    // Initial guess.
+    int size = NB_PRINT_INITIAL_GUESS;
+    NB_Allocator allocator = nb_temporary_allocator;
+    NB_Temporary_Storage *ts = &nb_temporary_storage;
+
+    while (1) {
+        s64 mark = nb_get_temporary_storage_mark();
+        result = nb_new_array(char, size, allocator);
+        if (!result) return null;
+        
+        va_list args;
+        va_start(args, fmt);
+#if OS_WINDOWS
+        int len = _vsnprintf(result, size, fmt, args);
+#else
+        int len = vsnprintf(result, size, fmt, args);
+#endif
+        va_end(args);
+
+        if ((len >= 0) && (size >= len+1)) {
+            ts->occupied -= (size - len - 1);
+            size = len;
+            break;
+        }
+
+        nb_set_temporary_storage_mark(mark);
+        size *= 2;
+    }
+
+    return result;
+}
+
+NB_EXTERN char *tprint_valist(const char *fmt, va_list arg_list) {
+    char *result = null;
+    int size = NB_PRINT_INITIAL_GUESS;
+    NB_Allocator allocator = nb_temporary_allocator;
+    NB_Temporary_Storage *ts = &nb_temporary_storage;
+
+    while (1) {
+        s64 mark = nb_get_temporary_storage_mark();
+        result = nb_new_array(char, size, allocator);
+        if (!result) return null;
+
+        va_list args;
+#if OS_WINDOWS
+        args = arg_list;
+        int len = _vsnprintf(result, size, fmt, args);
+#else
+        va_copy(args, arg_list);
+        int len = vsnprintf(result, size, fmt, args);
+#endif
+        va_end(args);
+
+        if ((len >= 0) && (size >= len+1)) {
+            ts->occupied -= (size - len - 1);
+            size = len;
+            break;
+        }
+
+        nb_set_temporary_storage_mark(mark);
+        size *= 2;
+    }
+
+    return result;
+}
+
+NB_EXTERN void print(const char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+
+    static char buffer[4096];
+    int len = nb_sprint_valist(buffer, nb_array_count(buffer), 
+                               fmt, args);
+    va_end(args);
+
+    assert(len <= nb_array_count(buffer));
+    nb_write_string_count(buffer, len, false);
+}
+
 
 #endif  // NB_IMPLEMENTATION
 

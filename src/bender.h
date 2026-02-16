@@ -1,12 +1,12 @@
-#ifndef OS_INCLUDE_H
-#define OS_INCLUDE_H
+#ifndef BENDER_INCLUDE_H
+#define BENDER_INCLUDE_H
 /*
 
     Bender the OS cross-platform layer.
 
 */
 
-#include "general.h"
+#include "nb.h"
 
 const float B_WINDOW_BACKGROUND_COLOR[3] = {0.15f, 0.15f, 0.15f};
 
@@ -319,6 +319,4 @@ bender_get_input_button_state(BKey_Code key_code) {
     return b_input_button_states[key_code];
 }
 
-// NB_EXTERN bool bender_window_has_handle(Window_Type *window, void *handle);
-
-#endif  // OS_INCLUDE_H
+#endif  // BENDER_INCLUDE_H
