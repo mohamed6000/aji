@@ -1,17 +1,6 @@
 #include "bender.h"
 
-u32 b_input_button_states[B_KEY_CODE_COUNT];
-BWheel_Delta b_mouse_wheel_delta;
-s32 b_typical_wheel_delta;
-
-s32 b_mouse_delta_x;
-s32 b_mouse_delta_y;
-
-s32 b_touch_pointer_count;
-BTouch_Pointer b_touch_pointers[2];
-
-bool b_input_application_has_focus;
-
+BInput_State b_input_state;
 
 
 #if OS_WINDOWS
@@ -45,24 +34,9 @@ static Bender_Window_Record *b_window_record_storage;
 static u32 b_window_record_count;
 static u32 b_window_record_allocated;
 static HINSTANCE b_w32_instance;
-
-static BEvent b_events_this_frame[64];
-static u32 b_event_count;
-
-static bool b_initted = false;
-
-
 static WCHAR BENDER_DEFAULT_WINDOW_CLASS_NAME[] = L"BENDER_DEFAULT_WINDOW_CLASS";
 
-static bool b_is_user_resizing = false;
-static bool b_is_app_paused    = false;
-static bool b_window_minimized = false;
-static bool b_window_maximized = false;
-
-static bool b_alt_state   = false;
-static bool b_cmd_state   = false;
-static bool b_ctrl_state  = false;
-static bool b_shift_state = false;
+static bool b_initted = false;
 
 static u32 b_w32_high_surrogate;
 
@@ -78,10 +52,10 @@ static TOUCHINPUT b_w32_touch_inputs[B_MAX_TOUCH_POINT_INPUT_COUNT];
 // #define BENDER_TARGET_FREQUENCY_MAX 60
 
 NB_INLINE void b_push_event(BEvent event) {
-    assert(b_event_count < nb_array_count(b_events_this_frame));
-    u32 index = b_event_count;
-    b_event_count += 1;
-    b_events_this_frame[index] = event;
+    assert(b_input_state.event_count < nb_array_count(b_input_state.events_this_frame));
+    u32 index = b_input_state.event_count;
+    b_input_state.event_count += 1;
+    b_input_state.events_this_frame[index] = event;
 }
 
 NB_INLINE u32 b_float_to_u32_color_channel(float f) {
@@ -485,14 +459,14 @@ b_w32_send_keyboard_event(BKey_Code key_code,
     event.repeat      = repeat;
     
     event.modifier_flags = 0;
-    event.modifier_flags |= b_alt_state   ? B_MOD_ALT_PRESSED   : 0;
-    event.modifier_flags |= b_cmd_state   ? B_MOD_CMD_PRESSED   : 0;
-    event.modifier_flags |= b_ctrl_state  ? B_MOD_CTRL_PRESSED  : 0;
-    event.modifier_flags |= b_shift_state ? B_MOD_SHIFT_PRESSED : 0;
+    event.modifier_flags |= b_input_state.alt_state   ? B_MOD_ALT_PRESSED   : 0;
+    event.modifier_flags |= b_input_state.cmd_state   ? B_MOD_CMD_PRESSED   : 0;
+    event.modifier_flags |= b_input_state.ctrl_state  ? B_MOD_CTRL_PRESSED  : 0;
+    event.modifier_flags |= b_input_state.shift_state ? B_MOD_SHIFT_PRESSED : 0;
     
     b_push_event(event);
 
-    b_input_button_states[key_code] |= key_current_state;
+    b_input_state.button_states[key_code] |= key_current_state;
 }
 
 static void 
@@ -547,7 +521,7 @@ b_w32_process_raw_input(HRAWINPUT handle) {
         u16 vk_code   = keyboard_data->VKey;
 
         if (vk_code == VK_SNAPSHOT) {
-            bool repeat = is_down && ((b_input_button_states[KEY_PRINT_SCREEN] & B_KEY_STATE_DOWN) != 0);
+            bool repeat = is_down && ((b_input_state.button_states[KEY_PRINT_SCREEN] & B_KEY_STATE_DOWN) != 0);
             b_w32_send_keyboard_event(KEY_PRINT_SCREEN, is_down, repeat, 
                                     is_down ? (B_KEY_STATE_START|B_KEY_STATE_DOWN) : B_KEY_STATE_END);
         }
@@ -602,14 +576,14 @@ b_w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
         // We pause the game when the window is deactivated and unpause it 
         // when it becomes active.
         case WM_ACTIVATE:
-            b_is_app_paused = (LOWORD(wparam) == WA_INACTIVE);
+            b_input_state.is_app_paused = (LOWORD(wparam) == WA_INACTIVE);
             return 0;
 
         case WM_ACTIVATEAPP:
             if (wparam) {
                 // Maybe we should keep track of held down keystrokes instead of doing this...
                 for (s64 index = 0; index < B_KEY_CODE_COUNT; index++) {
-                    u32 *it = &b_input_button_states[index];
+                    u32 *it = &b_input_state.button_states[index];
                     if (!(*it & B_KEY_STATE_DOWN)) continue;
 
                     assert(index < nb_array_count(b_w32_vk_codes));
@@ -622,10 +596,10 @@ b_w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 
                         BKey_Code key_code = (BKey_Code)index;
 
-                        if (key_code == B_KEY_ALT)   b_alt_state   = false;
-                        if (key_code == B_KEY_CMD)   b_cmd_state   = false;
-                        if (key_code == B_KEY_CTRL)  b_ctrl_state  = false;
-                        if (key_code == B_KEY_SHIFT) b_shift_state = false;
+                        if (key_code == B_KEY_ALT)   b_input_state.alt_state   = false;
+                        if (key_code == B_KEY_CMD)   b_input_state.cmd_state   = false;
+                        if (key_code == B_KEY_CTRL)  b_input_state.ctrl_state  = false;
+                        if (key_code == B_KEY_SHIFT) b_input_state.shift_state = false;
 
                         b_w32_send_keyboard_event(key_code, false, true, B_KEY_STATE_END);
 
@@ -635,13 +609,13 @@ b_w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
                         event.key_code      = key_code;
                         event.key_pressed   = false;
                         event.repeat        = true;
-                        event.alt_pressed   = b_alt_state;
-                        event.cmd_pressed   = b_cmd_state;
-                        event.ctrl_pressed  = b_ctrl_state;
-                        event.shift_pressed = b_shift_state;
+                        event.alt_pressed   = b_input_state.alt_state;
+                        event.cmd_pressed   = b_input_state.cmd_state;
+                        event.ctrl_pressed  = b_input_state.ctrl_state;
+                        event.shift_pressed = b_input_state.shift_state;
                         array_add(&events_this_frame, event);
 
-                        b_input_button_states[key_code] |= B_KEY_STATE_END;
+                        b_input_state.button_states[key_code] |= B_KEY_STATE_END;
 */
                     }
                 }
@@ -661,10 +635,10 @@ b_w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
             }
 
             // @Cleanup: Query modifiers state.
-            if (key_code == B_KEY_ALT)   b_alt_state   = true;
-            if (key_code == B_KEY_CMD)   b_cmd_state   = true;
-            if (key_code == B_KEY_CTRL)  b_ctrl_state  = true;
-            if (key_code == B_KEY_SHIFT) b_shift_state = true;
+            if (key_code == B_KEY_ALT)   b_input_state.alt_state   = true;
+            if (key_code == B_KEY_CMD)   b_input_state.cmd_state   = true;
+            if (key_code == B_KEY_CTRL)  b_input_state.ctrl_state  = true;
+            if (key_code == B_KEY_SHIFT) b_input_state.shift_state = true;
 
             b_w32_send_keyboard_event(key_code, true, was_down, B_KEY_STATE_START|B_KEY_STATE_DOWN);
             return 0;
@@ -683,10 +657,10 @@ b_w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
             }
 
             // @Cleanup: Query modifiers state.
-            if (key_code == B_KEY_ALT)   b_alt_state   = false;
-            if (key_code == B_KEY_CMD)   b_cmd_state   = false;
-            if (key_code == B_KEY_CTRL)  b_ctrl_state  = false;
-            if (key_code == B_KEY_SHIFT) b_shift_state = false;
+            if (key_code == B_KEY_ALT)   b_input_state.alt_state   = false;
+            if (key_code == B_KEY_CMD)   b_input_state.cmd_state   = false;
+            if (key_code == B_KEY_CTRL)  b_input_state.ctrl_state  = false;
+            if (key_code == B_KEY_SHIFT) b_input_state.shift_state = false;
 
             b_w32_send_keyboard_event(key_code, false, was_down, B_KEY_STATE_END);
             return 0;
@@ -784,11 +758,11 @@ b_w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
         {
             BEvent event;
             event.type = B_EVENT_MOUSE_V_WHEEL;
-            b_typical_wheel_delta = WHEEL_DELTA;
+            b_input_state.typical_wheel_delta = WHEEL_DELTA;
             event.wheel_delta = GET_WHEEL_DELTA_WPARAM(wparam);
             b_push_event(event);
 
-            b_mouse_wheel_delta.vertical += event.wheel_delta;
+            b_input_state.mouse_wheel_delta.vertical += event.wheel_delta;
             return 0;
         } break;
 
@@ -796,11 +770,11 @@ b_w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
         {
             BEvent event;
             event.type = B_EVENT_MOUSE_H_WHEEL;
-            b_typical_wheel_delta = WHEEL_DELTA;
+            b_input_state.typical_wheel_delta = WHEEL_DELTA;
             event.wheel_delta = GET_WHEEL_DELTA_WPARAM(wparam);
             b_push_event(event);
 
-            b_mouse_wheel_delta.horizontal += event.wheel_delta;
+            b_input_state.mouse_wheel_delta.horizontal += event.wheel_delta;
             return 0;
         } break;
 
@@ -816,8 +790,8 @@ b_w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
             int x = (lparam & 0xFFFF);
             int y = (lparam >> 16) & 0xFFFF;
 
-            b_mouse_delta_x += x - w32_last_mouse_x;
-            b_mouse_delta_y += y - w32_last_mouse_y;
+            b_input_state.mouse_delta_x += x - w32_last_mouse_x;
+            b_input_state.mouse_delta_y += y - w32_last_mouse_y;
 
             w32_last_mouse_x = x;
             w32_last_mouse_y = y;
@@ -835,7 +809,7 @@ b_w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 
             if (GetTouchInputInfo(touch_handle, touch_points, b_w32_touch_inputs, size_of(TOUCHINPUT))) {
                 // Process touch input.
-                u32 count = Min(touch_points, nb_array_count(b_touch_pointers));
+                u32 count = Min(touch_points, nb_array_count(b_input_state.touch_pointers));
                 for (u8 i = 0; i < count; i++) {
                     TOUCHINPUT ti = b_w32_touch_inputs[i];
 
@@ -861,12 +835,12 @@ b_w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 
                     b_push_event(event);
 
-                    b_touch_pointers[i].type = event.touch_type;
-                    b_touch_pointers[i].x = event.x;
-                    b_touch_pointers[i].y = event.y;
+                    b_input_state.touch_pointers[i].type = event.touch_type;
+                    b_input_state.touch_pointers[i].x = event.x;
+                    b_input_state.touch_pointers[i].y = event.y;
                 }
 
-                b_touch_pointer_count = count;
+                b_input_state.touch_pointer_count = count;
 
                 handled = true;
             }
@@ -895,18 +869,18 @@ b_w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
         } break;
 
         case WM_SETFOCUS:
-            b_input_application_has_focus = true;
+            b_input_state.application_has_focus = true;
             return 0;
 
         case WM_KILLFOCUS:
-            b_input_application_has_focus = false;
+            b_input_state.application_has_focus = false;
             return 0;
 
         // WM_ENTERSIZEMOVE is sent when the user grabs the resize bars.
         case WM_ENTERSIZEMOVE:
             // Halt frame movement while the app is sizing or moving
-            b_is_app_paused    = true;
-            b_is_user_resizing = true;
+            b_input_state.is_app_paused    = true;
+            b_input_state.is_user_resizing = true;
             return 0;
 
         case WM_SIZE: {
@@ -918,30 +892,30 @@ b_w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
             event.y = (s32)height;
 
             if (wparam == SIZE_MINIMIZED) {
-                b_is_app_paused    = true;
-                b_window_minimized = true;
-                b_window_maximized = false;
+                b_input_state.is_app_paused    = true;
+                b_input_state.is_window_minimized = true;
+                b_input_state.is_window_maximized = false;
             } else if (wparam == SIZE_MAXIMIZED) {
-                b_is_app_paused    = false;
-                b_window_minimized = false;
-                b_window_maximized = true;
+                b_input_state.is_app_paused    = false;
+                b_input_state.is_window_minimized = false;
+                b_input_state.is_window_maximized = true;
 
                 // Resize.
                 b_push_event(event);
             } else if (wparam == SIZE_RESTORED) {
-                if (b_window_minimized) {  // Restoring from minimized state?
-                    b_is_app_paused    = false;
-                    b_window_minimized = false;
+                if (b_input_state.is_window_minimized) {  // Restoring from minimized state?
+                    b_input_state.is_app_paused    = false;
+                    b_input_state.is_window_minimized = false;
 
                     // Resize.
                     b_push_event(event);
-                } else if (b_window_maximized) {  // Restoring from maximized state?
-                    b_is_app_paused    = false;
-                    b_window_maximized = false;
+                } else if (b_input_state.is_window_maximized) {  // Restoring from maximized state?
+                    b_input_state.is_app_paused    = false;
+                    b_input_state.is_window_maximized = false;
 
                     // Resize.
                     b_push_event(event);
-                } else if (b_is_user_resizing) {
+                } else if (b_input_state.is_user_resizing) {
                     // If user is dragging the resize bars, we do not resize 
                     // the buffers here because as the user continuously 
                     // drags the resize bars, a stream of WM_SIZE messages are
@@ -962,8 +936,8 @@ b_w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
         // WM_EXITSIZEMOVE is sent when the user releases the resize bars.
         // Here we reset everything based on the new window dimensions.
         case WM_EXITSIZEMOVE: {
-            b_is_app_paused    = false;
-            b_is_user_resizing = false;
+            b_input_state.is_app_paused    = false;
+            b_input_state.is_user_resizing = false;
 
             // wparam and lparam are not used in WM_EXITSIZEMOVE.
             RECT rect;
@@ -1366,55 +1340,55 @@ NB_EXTERN void bender_update_window_events(void) {
     array_reset(&events_this_frame);
 #endif
 
-    b_event_count = 0;
+    b_input_state.event_count = 0;
 
-    for (s64 index = 0; index < nb_array_count(b_input_button_states); index++) {
-        u32 *state = &b_input_button_states[index];
+    for (s64 index = 0; index < nb_array_count(b_input_state.button_states); index++) {
+        u32 *state = &b_input_state.button_states[index];
 
-        if ((*state & B_KEY_STATE_END) || !b_input_application_has_focus) {
+        if ((*state & B_KEY_STATE_END) || !b_input_state.application_has_focus) {
             *state &= ~(B_KEY_STATE_DOWN|B_KEY_STATE_START|B_KEY_STATE_END);
         } else {
             *state &= ~B_KEY_STATE_START;
         }
     }
 
-    b_mouse_wheel_delta.vertical   = 0;
-    b_mouse_wheel_delta.horizontal = 0;
-    b_mouse_delta_x = 0;
-    b_mouse_delta_y = 0;
+    b_input_state.mouse_wheel_delta.vertical   = 0;
+    b_input_state.mouse_wheel_delta.horizontal = 0;
+    b_input_state.mouse_delta_x = 0;
+    b_input_state.mouse_delta_y = 0;
 
-    b_touch_pointer_count = 0;
+    b_input_state.touch_pointer_count = 0;
 
     // Should we do this for all the keystrokes?
-    if (b_alt_state || (b_input_button_states[B_KEY_ALT] & B_KEY_STATE_DOWN)) {
+    if (b_input_state.alt_state || (b_input_state.button_states[B_KEY_ALT] & B_KEY_STATE_DOWN)) {
         SHORT state = GetAsyncKeyState(VK_MENU);
         if (!(state & 0x8000)) {
-            b_alt_state = false;
-            b_input_button_states[B_KEY_ALT] |= B_KEY_STATE_END;
+            b_input_state.alt_state = false;
+            b_input_state.button_states[B_KEY_ALT] |= B_KEY_STATE_END;
         }
     }
 
-    if (b_cmd_state || (b_input_button_states[B_KEY_CMD] & B_KEY_STATE_DOWN)) {
+    if (b_input_state.cmd_state || (b_input_state.button_states[B_KEY_CMD] & B_KEY_STATE_DOWN)) {
         SHORT state = GetAsyncKeyState(VK_APPS);
         if (!(state & 0x8000)) {
-            b_cmd_state = false;
-            b_input_button_states[B_KEY_CMD] |= B_KEY_STATE_END;
+            b_input_state.cmd_state = false;
+            b_input_state.button_states[B_KEY_CMD] |= B_KEY_STATE_END;
         }
     }
 
-    if (b_ctrl_state || (b_input_button_states[B_KEY_CTRL] & B_KEY_STATE_DOWN)) {
+    if (b_input_state.ctrl_state || (b_input_state.button_states[B_KEY_CTRL] & B_KEY_STATE_DOWN)) {
         SHORT state = GetAsyncKeyState(VK_CONTROL);
         if (!(state & 0x8000)) {
-            b_ctrl_state = false;
-            b_input_button_states[B_KEY_CTRL] |= B_KEY_STATE_END;
+            b_input_state.ctrl_state = false;
+            b_input_state.button_states[B_KEY_CTRL] |= B_KEY_STATE_END;
         }
     }
 
-    if (b_shift_state || (b_input_button_states[B_KEY_SHIFT] & B_KEY_STATE_DOWN)) {
+    if (b_input_state.shift_state || (b_input_state.button_states[B_KEY_SHIFT] & B_KEY_STATE_DOWN)) {
         SHORT state = GetAsyncKeyState(VK_SHIFT);
         if (!(state & 0x8000)) {
-            b_shift_state = false;
-            b_input_button_states[B_KEY_SHIFT] |= B_KEY_STATE_END;
+            b_input_state.shift_state = false;
+            b_input_state.button_states[B_KEY_SHIFT] |= B_KEY_STATE_END;
         }
     }
 
@@ -1431,9 +1405,9 @@ NB_EXTERN void bender_update_window_events(void) {
 
 NB_EXTERN bool 
 bender_get_next_event(BEvent *event) {
-    if (b_event_count) {
-        *event = b_events_this_frame[b_event_count-1];
-        b_event_count -= 1;
+    if (b_input_state.event_count) {
+        *event = b_input_state.events_this_frame[b_input_state.event_count-1];
+        b_input_state.event_count -= 1;
         return true;
     }
 

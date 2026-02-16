@@ -267,6 +267,8 @@ typedef struct BEvent {
 
     // Mouse wheel event.
     s32 wheel_delta;
+
+    u32 reserved[2];
 } BEvent;
 
 enum Bender_Key_State {
@@ -288,21 +290,38 @@ typedef struct BTouch_Pointer {
 } BTouch_Pointer;
 
 
-extern u32 b_input_button_states[B_KEY_CODE_COUNT];
-extern BWheel_Delta b_mouse_wheel_delta;
-extern s32 b_typical_wheel_delta;
+typedef struct BInput_State {
+    u32 button_states[B_KEY_CODE_COUNT];
+    BWheel_Delta mouse_wheel_delta;
+    s32 typical_wheel_delta;
 
-extern s32 b_mouse_delta_x;
-extern s32 b_mouse_delta_y;
+    s32 mouse_delta_x;
+    s32 mouse_delta_y;
 
-extern s32 b_touch_pointer_count;
-extern BTouch_Pointer b_touch_pointers[2];
+    BTouch_Pointer touch_pointers[2];
+    s32 touch_pointer_count;
 
-extern bool b_input_application_has_focus;
+    BEvent events_this_frame[64];
+    u32    event_count;
+
+    bool application_has_focus;
+
+    bool is_user_resizing;
+    bool is_app_paused;
+    bool is_window_minimized;
+    bool is_window_maximized;
+
+    bool alt_state;
+    bool cmd_state;
+    bool ctrl_state;
+    bool shift_state;
+} BInput_State;
+
+extern BInput_State b_input_state;
 
 NB_INLINE u32 
 bender_get_input_button_state(BKey_Code key_code) {
-    return b_input_button_states[key_code];
+    return b_input_state.button_states[key_code];
 }
 
 #define bender_alt_pressed(event)   (((event).modifier_flags & B_MOD_ALT_PRESSED)   != 0)

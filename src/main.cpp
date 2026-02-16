@@ -74,16 +74,16 @@ int main(void) {
                 nb_reset_temporary_storage();
             }
 
-            if (b_input_button_states[B_MOUSE_BUTTON_LEFT] & B_KEY_STATE_START) {
+            if (b_input_state.button_states[B_MOUSE_BUTTON_LEFT] & B_KEY_STATE_START) {
                 nb_write_string("BUTTON INPUT\n", false);
             }
 
-            if (b_mouse_wheel_delta.vertical) {
-                print("Wheel vertical = %d\n", (s32)(b_mouse_wheel_delta.vertical/b_typical_wheel_delta));
+            if (b_input_state.mouse_wheel_delta.vertical) {
+                print("Wheel vertical = %d\n", (s32)(b_input_state.mouse_wheel_delta.vertical/b_input_state.typical_wheel_delta));
             }
 
-            for (s32 index = 0; index < b_touch_pointer_count; ++index) {
-                BTouch_Pointer *pointer = b_touch_pointers + index;
+            for (s32 index = 0; index < b_input_state.touch_pointer_count; ++index) {
+                BTouch_Pointer *pointer = b_input_state.touch_pointers + index;
 
                 const char *touch_event[4] = {"None", "Pressed", "Released", "Moved"};
                 print("Touch %u: %s (%d, %d)\n", 
