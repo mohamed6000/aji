@@ -31,7 +31,7 @@ typedef struct {
 } Bender_Window_Record;
 
 static Bender_Window_Record *b_window_record_storage;
-static u32 b_window_record_count;
+static u32 b_window_record_count = 1;
 static u32 b_window_record_allocated;
 static HINSTANCE b_w32_instance;
 static WCHAR BENDER_DEFAULT_WINDOW_CLASS_NAME[] = L"BENDER_DEFAULT_WINDOW_CLASS";
@@ -56,6 +56,16 @@ NB_INLINE void b_push_event(BEvent event) {
     u32 index = b_input_state.event_count;
     b_input_state.event_count += 1;
     b_input_state.events_this_frame[index] = event;
+}
+
+NB_INLINE Bender_Window_Record *b_get_window_record(u32 index) {
+    assert(index < b_window_record_count);
+    Bender_Window_Record *result = null;
+    if (index) {
+        result = b_window_record_storage + index;
+    }
+
+    return result;
 }
 
 NB_INLINE u32 b_float_to_u32_color_channel(float f) {
@@ -1215,8 +1225,7 @@ bender_create_window(const char *title,
     }
 
     if (window_parent_index) {
-        assert(window_parent_index <= b_window_record_count);
-        Bender_Window_Record *parent_record = b_window_record_storage + window_parent_index;
+        Bender_Window_Record *parent_record = b_get_window_record(window_parent_index);
         parent_hwnd = parent_record->handle;
         style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME;
     }
@@ -1284,8 +1293,8 @@ bender_create_window(const char *title,
             NB_GET_ALLOCATOR());
     }
 
-    b_window_record_count += 1; // 0 is an invalid ID in our API.
     result = b_window_record_count;
+    b_window_record_count += 1; // 0 is an invalid ID in our API.
 
     Bender_Window_Record *record = b_window_record_storage + result;
     record->handle   = hwnd;
@@ -1418,15 +1427,13 @@ NB_EXTERN void
 bender_get_window_size(u32 window_id, 
                        s32 *width_return, 
                        s32 *height_return) {
-    UNUSED(window_id);
-    UNUSED(width_return);
-    UNUSED(height_return);
-#if 0
+    Bender_Window_Record *record = b_get_window_record(window_id);
+    HWND hwnd = record->handle;
+
     RECT rect;
-    GetClientRect(window.os_specific->hwnd, &rect);
+    GetClientRect(hwnd, &rect);
     *width_return  = rect.right  - rect.left;
     *height_return = rect.bottom - rect.top;
-#endif
 }
 
 NB_EXTERN void 

@@ -12,8 +12,13 @@ int main(void) {
     u32 id = bender_create_window("AJI", 640, 480, -1, -1, 0, 
                                   0, 
                                   B_WINDOW_BACKGROUND_COLOR);
-    bender_create_window("child", 200, 200, -1, -1, id, 0, 
-          B_WINDOW_BACKGROUND_COLOR);
+    u32 win2_id = bender_create_window("child", 200, 200, -1, -1, id, 0, 
+                                       B_WINDOW_BACKGROUND_COLOR);
+
+    s32 w = 0, h = 0;
+    bender_get_window_size(win2_id, &w, &h);
+    print("child window = %dx%d\n", w, h);
+
     if (id) {
         bool ap_running = true;
         while (ap_running) {
