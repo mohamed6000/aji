@@ -24,6 +24,10 @@ int main(void) {
         while (ap_running) {
             bender_update_window_events();
 
+            s32 mx = 0, my = 0;
+            bender_get_mouse_pointer_position_right_handed(win2_id, &mx, &my);
+            print("child window mouse pos = %dx%d\n", mx, my);
+
             BEvent event;
             while (bender_get_next_event(&event)) {
                 if (event.type == B_EVENT_QUIT) ap_running = false;

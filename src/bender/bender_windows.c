@@ -1440,10 +1440,9 @@ NB_EXTERN void
 bender_get_mouse_pointer_position(u32 window_id, 
                                   s32 *x_return, 
                                   s32 *y_return) {
-    UNUSED(window_id);
-    UNUSED(x_return);
-    UNUSED(y_return);
-#if 0
+    Bender_Window_Record *record = b_get_window_record(window_id);
+    HWND hwnd = record->handle;
+
     POINT p;
     BOOL success = GetCursorPos(&p);
     if (!success) {
@@ -1451,12 +1450,10 @@ bender_get_mouse_pointer_position(u32 window_id,
         *y_return = 0;
     }
 
-    HWND hwnd = window.os_specific->hwnd;
     ScreenToClient(hwnd, &p);
 
     *x_return = p.x;
     *y_return = p.y;
-#endif
 }
 
 #if 0
@@ -1485,10 +1482,9 @@ NB_EXTERN void
 bender_get_mouse_pointer_position_right_handed(u32 window_id, 
                                                s32 *x_return, 
                                                s32 *y_return) {
-    UNUSED(window_id);
-    UNUSED(x_return);
-    UNUSED(y_return);
-#if 0
+    Bender_Window_Record *record = b_get_window_record(window_id);
+    HWND hwnd = record->handle;
+
     POINT p;
     BOOL success = GetCursorPos(&p);
     if (!success) {
@@ -1496,7 +1492,6 @@ bender_get_mouse_pointer_position_right_handed(u32 window_id,
         *y_return = 0;
     }
 
-    HWND hwnd = window.os_specific->hwnd;
     ScreenToClient(hwnd, &p);
 
     *x_return = p.x;
@@ -1507,7 +1502,6 @@ bender_get_mouse_pointer_position_right_handed(u32 window_id,
         s32 height = screen_rect.bottom - screen_rect.top;
         *y_return = height - *y_return;
     }
-#endif
 }
 
 #if 0
