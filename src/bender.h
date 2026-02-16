@@ -258,9 +258,7 @@ typedef struct BEvent {
     bool ctrl_pressed;
     bool shift_pressed;
 
-    void *os_handle;  // Low level handle of the platform window.
-
-    // Window event.
+    // Window/Touch event.
     s32 x;
     s32 y;
 

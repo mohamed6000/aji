@@ -476,7 +476,6 @@ b_w32_send_keyboard_event(BKey_Code key_code,
 
     BEvent event;
     event.type = B_EVENT_KEYBOARD;
-    event.os_handle = null;
     event.x = 0;
     event.y = 0;
     event.utf32 = 0;
@@ -889,7 +888,6 @@ b_w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
         case WM_QUIT:
         {
             BEvent event = {B_EVENT_QUIT};
-            event.os_handle = hwnd;
             b_push_event(event);
         } break;
 
@@ -913,7 +911,6 @@ b_w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
             UINT height = HIWORD(lparam);
 
             BEvent event = {B_EVENT_WINDOW_RESIZE};
-            event.os_handle = hwnd;
             event.x = (s32)width;
             event.y = (s32)height;
 
@@ -969,7 +966,6 @@ b_w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
             RECT rect;
             GetClientRect(hwnd, &rect);
             BEvent event = {B_EVENT_WINDOW_RESIZE};
-            event.os_handle = hwnd;
             event.x = rect.right  - rect.left;
             event.y = rect.bottom - rect.top;
 
