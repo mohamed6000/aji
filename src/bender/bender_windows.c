@@ -18,7 +18,7 @@ BInput_State b_input_state;
 #endif
 
 #if COMPILER_CL
-#pragma comment(lib, "Gdi32.lib")  // For CreateSolidBrush.
+#pragma comment(lib, "Gdi32.lib")    // For CreateSolidBrush.
 #pragma comment(lib, "Shell32.lib")  // For ExtractIconW.
 #endif
 
@@ -58,7 +58,8 @@ NB_INLINE void b_push_event(BEvent event) {
     b_input_state.events_this_frame[index] = event;
 }
 
-NB_INLINE Bender_Window_Record *b_get_window_record(u32 index) {
+NB_INLINE Bender_Window_Record *
+b_get_window_record(u32 index) {
     assert(index < b_window_record_count);
     Bender_Window_Record *result = null;
     if (index) {
@@ -539,8 +540,7 @@ b_w32_process_raw_input(HRAWINPUT handle) {
 #endif
 }
 
-#if 0
-static char *
+NB_EXTERN char *
 b_w32_wide_to_utf8(WCHAR *s, 
                    size_t src_length, 
                    NB_Allocator allocator) {
@@ -569,7 +569,6 @@ b_w32_wide_to_utf8(WCHAR *s,
 
     return null;
 }
-#endif
 
 
 // https://learn.microsoft.com/en-us/windows/win32/tablet/system-events-and-mouse-messages?redirectedfrom=MSDN
@@ -1532,6 +1531,23 @@ NB_EXTERN void bender_sleep_ms(u32 ms) {
     Sleep((DWORD)ms);
 }
 
+#if 0
+static void b_w32_set_screen_mode(s32 w, s32 h, bool reset) {
+    DEVMODEW screen_settings = {0};
+    screen_settings.dmSize       = size_of(screen_settings);
+    screen_settings.dmPelsWidth  = w;
+    screen_settings.dmPelsHeight = h;
+    screen_settings.dmBitsPerPel = 32;
+    screen_settings.dmFields = DM_BITSPERPEL|DM_PELSWIDTH|DM_PELSHEIGHT;
+
+    if (reset) {
+        ChangeDisplaySettings(null, 0);
+    } else {
+        ChangeDisplaySettings(&screen_settings, CDS_FULLSCREEN);
+    }
+}
+#endif
+
 NB_EXTERN void 
 bender_toggle_fullscreen(u32 window_id, bool want_fullscreen) {
     Bender_Window_Record *record = b_get_window_record(window_id);
@@ -1542,23 +1558,30 @@ bender_toggle_fullscreen(u32 window_id, bool want_fullscreen) {
         u32 old_ex_style = GetWindowLongW(hwnd, GWL_EXSTYLE);
 
         SetWindowLongW(hwnd, GWL_STYLE, (old_style & ~(WS_CAPTION|WS_THICKFRAME)));
-        SetWindowLongW(hwnd, GWL_EXSTYLE, (old_ex_style & ~(WS_EX_DLGMODALFRAME| WS_EX_WINDOWEDGE | WS_EX_CLIENTEDGE | WS_EX_STATICEDGE)));
+        SetWindowLongW(hwnd, GWL_EXSTYLE, 
+            (old_ex_style & ~(WS_EX_DLGMODALFRAME|WS_EX_WINDOWEDGE|WS_EX_CLIENTEDGE|WS_EX_STATICEDGE)));
 
         HMONITOR monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
         MONITORINFO info;
         info.cbSize = size_of(MONITORINFO);
         BOOL success = GetMonitorInfoW(monitor, &info);
         if (success != 0) {
-            GetWindowRect(hwnd, &record->rect);
-            record->style    = old_style;
-            record->ex_style = old_ex_style;
-
             int x = info.rcMonitor.left;
             int y = info.rcMonitor.top;
             int width  = info.rcMonitor.right  - x;
             int height = info.rcMonitor.bottom - y;
 
-            SetWindowPos(hwnd, HWND_TOPMOST, x, y, width, height, SWP_NOZORDER|SWP_NOACTIVATE|SWP_FRAMECHANGED);
+            record->style    = old_style;
+            record->ex_style = old_ex_style;
+            GetWindowRect(hwnd, &record->rect);
+
+#if 0
+            SetWindowPos(hwnd, HWND_TOPMOST, x, y, width, height, 
+                         SWP_NOZORDER|SWP_NOACTIVATE|SWP_FRAMECHANGED);
+#else
+            SetWindowPos(hwnd, HWND_TOPMOST, x, y, width, height, 
+                         SWP_NOACTIVATE|SWP_FRAMECHANGED|SWP_NOCOPYBITS|SWP_SHOWWINDOW); //|SWP_NOREDRAW|SWP_NOOWNERZORDER);
+#endif
         }
     } else {
         int x = record->rect.left;
@@ -1569,7 +1592,11 @@ bender_toggle_fullscreen(u32 window_id, bool want_fullscreen) {
         SetWindowLongW(hwnd, GWL_STYLE, record->style);
         SetWindowLongW(hwnd, GWL_EXSTYLE, record->ex_style);
 
-        SetWindowPos(hwnd, HWND_TOP, x, y, width, height, SWP_FRAMECHANGED);
+        // @Cleanup: Check if we need to call AdjustWindowRect.
+
+        // HWND_TOP doesn't necessarily remove the effect of HWND_TOPMOST.
+        // SetWindowPos(hwnd, HWND_TOP, x, y, width, height, SWP_FRAMECHANGED);
+        SetWindowPos(hwnd, HWND_NOTOPMOST, x, y, width, height, SWP_FRAMECHANGED|SWP_SHOWWINDOW);
     }
 }
 

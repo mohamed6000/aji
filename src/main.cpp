@@ -32,7 +32,10 @@ int main(void) {
 
             BEvent event;
             while (bender_get_next_event(&event)) {
-                if (event.type == B_EVENT_QUIT) ap_running = false;
+                if (event.type == B_EVENT_QUIT) {
+                    if (bender_messagebox_confirm("Quit AJI?", "Are you sure? You want to quit AJI?"))
+                        ap_running = false;
+                }
 
                 if (event.type == B_EVENT_WINDOW_RESIZE) {
                     print("Window sized = %dx%d\n", event.x, event.y);
