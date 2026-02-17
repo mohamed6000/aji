@@ -1534,11 +1534,8 @@ NB_EXTERN void bender_sleep_ms(u32 ms) {
 
 NB_EXTERN void 
 bender_toggle_fullscreen(u32 window_id, bool want_fullscreen) {
-    UNUSED(window_id);
-    UNUSED(want_fullscreen);
-#if 0
-    Window_OS_Specific *os_specific = window->os_specific;
-    HWND hwnd = os_specific->hwnd;
+    Bender_Window_Record *record = b_get_window_record(window_id);
+    HWND hwnd = record->handle;
 
     if (want_fullscreen) {
         u32 old_style    = GetWindowLongW(hwnd, GWL_STYLE);
@@ -1552,9 +1549,9 @@ bender_toggle_fullscreen(u32 window_id, bool want_fullscreen) {
         info.cbSize = size_of(MONITORINFO);
         BOOL success = GetMonitorInfoW(monitor, &info);
         if (success != 0) {
-            GetWindowRect(hwnd, &os_specific->rect);
-            os_specific->style    = old_style;
-            os_specific->ex_style = old_ex_style;
+            GetWindowRect(hwnd, &record->rect);
+            record->style    = old_style;
+            record->ex_style = old_ex_style;
 
             int x = info.rcMonitor.left;
             int y = info.rcMonitor.top;
@@ -1564,17 +1561,16 @@ bender_toggle_fullscreen(u32 window_id, bool want_fullscreen) {
             SetWindowPos(hwnd, HWND_TOPMOST, x, y, width, height, SWP_NOZORDER|SWP_NOACTIVATE|SWP_FRAMECHANGED);
         }
     } else {
-        int x = os_specific->rect.left;
-        int y = os_specific->rect.top;
-        int width  = os_specific->rect.right  - x;
-        int height = os_specific->rect.bottom - y;
+        int x = record->rect.left;
+        int y = record->rect.top;
+        int width  = record->rect.right  - x;
+        int height = record->rect.bottom - y;
 
-        SetWindowLongW(hwnd, GWL_STYLE, os_specific->style);
-        SetWindowLongW(hwnd, GWL_EXSTYLE, os_specific->ex_style);
+        SetWindowLongW(hwnd, GWL_STYLE, record->style);
+        SetWindowLongW(hwnd, GWL_EXSTYLE, record->ex_style);
 
         SetWindowPos(hwnd, HWND_TOP, x, y, width, height, SWP_FRAMECHANGED);
     }
-#endif
 }
 
 #if 0

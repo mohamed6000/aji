@@ -12,12 +12,14 @@ int main(void) {
     u32 id = bender_create_window("AJI", 640, 480, -1, -1, 0, 
                                   0, 
                                   B_WINDOW_BACKGROUND_COLOR);
-    u32 win2_id = bender_create_window("child", 200, 200, -1, -1, id, 0, 
-                                       B_WINDOW_BACKGROUND_COLOR);
+    
+    // u32 win2_id = bender_create_window("child", 200, 200, -1, -1, id, 0, B_WINDOW_BACKGROUND_COLOR);
 
     s32 w = 0, h = 0;
-    bender_get_window_size(win2_id, &w, &h);
-    print("child window = %dx%d\n", w, h);
+    bender_get_window_size(id, &w, &h);
+    print("window = %dx%d\n", w, h);
+
+    bool is_fullscreen = false;
 
     if (id) {
         bool ap_running = true;
@@ -25,8 +27,8 @@ int main(void) {
             bender_update_window_events();
 
             s32 mx = 0, my = 0;
-            bender_get_mouse_pointer_position_right_handed(win2_id, &mx, &my);
-            print("child window mouse pos = %dx%d\n", mx, my);
+            bender_get_mouse_pointer_position_right_handed(id, &mx, &my);
+            // print("window mouse pos = %dx%d\n", mx, my);
 
             BEvent event;
             while (bender_get_next_event(&event)) {
@@ -48,6 +50,12 @@ int main(void) {
 
                 if (event.type == B_EVENT_KEYBOARD) {
                     if (event.key_pressed && event.key_code == B_KEY_ESCAPE) ap_running = false;
+
+                    if (!event.key_pressed && event.key_code == B_KEY_ENTER &&
+                        event.modifier_flags & B_MOD_ALT_PRESSED) {
+                        is_fullscreen = !is_fullscreen;
+                        bender_toggle_fullscreen(id, is_fullscreen);
+                    }
 
                     if (event.key_pressed && event.key_code == B_KEY_ENTER) {
                         nb_write_string("ENTER press.\n", false);
