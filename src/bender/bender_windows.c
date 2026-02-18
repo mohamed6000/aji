@@ -69,6 +69,18 @@ b_get_window_record(u32 index) {
     return result;
 }
 
+NB_EXTERN void *
+b_get_window_handle(u32 index) {
+    void *result = null;
+
+    Bender_Window_Record *record = b_get_window_record(index);
+    if (record) {
+        result = record->handle;
+    }
+
+    return result;
+}
+
 NB_INLINE u32 b_float_to_u32_color_channel(float f) {
     u32 u = (u32)(f * 255);
     if (u < 0)   u = 0;
@@ -1575,12 +1587,13 @@ bender_toggle_fullscreen(u32 window_id, bool want_fullscreen) {
             record->ex_style = old_ex_style;
             GetWindowRect(hwnd, &record->rect);
 
-#if 0
+#if 1
             SetWindowPos(hwnd, HWND_TOPMOST, x, y, width, height, 
                          SWP_NOZORDER|SWP_NOACTIVATE|SWP_FRAMECHANGED);
 #else
             SetWindowPos(hwnd, HWND_TOPMOST, x, y, width, height, 
-                         SWP_NOACTIVATE|SWP_FRAMECHANGED|SWP_NOCOPYBITS|SWP_SHOWWINDOW); //|SWP_NOREDRAW|SWP_NOOWNERZORDER);
+                         SWP_NOACTIVATE|SWP_FRAMECHANGED|SWP_NOCOPYBITS|SWP_SHOWWINDOW); 
+                         //|SWP_NOREDRAW|SWP_NOOWNERZORDER);
 #endif
         }
     } else {
@@ -1595,15 +1608,20 @@ bender_toggle_fullscreen(u32 window_id, bool want_fullscreen) {
         // @Cleanup: Check if we need to call AdjustWindowRect.
 
         // HWND_TOP doesn't necessarily remove the effect of HWND_TOPMOST.
-        // SetWindowPos(hwnd, HWND_TOP, x, y, width, height, SWP_FRAMECHANGED);
-        SetWindowPos(hwnd, HWND_NOTOPMOST, x, y, width, height, SWP_FRAMECHANGED|SWP_SHOWWINDOW);
+#if 1
+        SetWindowPos(hwnd, HWND_TOP, x, y, width, height, SWP_FRAMECHANGED);
+#else
+        SetWindowPos(hwnd, HWND_NOTOPMOST, x, y, width, height, 
+                     SWP_FRAMECHANGED|SWP_SHOWWINDOW);
+#endif
     }
 }
 
 #if 0
-static bool b_w32_find_minimum_display_mode(DEVMODEW *mode, 
-                                            s32 min_width, s32 min_height, 
-                                            u32 min_freq, u32 max_freq) {
+static bool 
+b_w32_find_minimum_display_mode(DEVMODEW *mode, 
+                                s32 min_width, s32 min_height, 
+                                u32 min_freq, u32 max_freq) {
     mode->dmSize = size_of(DEVMODEW);
 
     DWORD current_mode_index = 0;
@@ -1620,9 +1638,7 @@ static bool b_w32_find_minimum_display_mode(DEVMODEW *mode,
 
     return false;
 }
-#endif
 
-#if 0
 NB_EXTERN void 
 bender_init_display_modes(u32 target_adapter_index) {
     bool target_mode_found = false;
@@ -1630,8 +1646,12 @@ bender_init_display_modes(u32 target_adapter_index) {
     DISPLAY_DEVICEW adapter = { size_of(DISPLAY_DEVICEW) };
     DWORD current_adapter_index = 0;
     while (EnumDisplayDevicesW(null, current_adapter_index, &adapter, 0) != 0) {
-        print("Adapter %u Name:   %s\n", current_adapter_index, w32_wide_to_utf8(adapter.DeviceName, 0, nb_temporary_allocator));
-        print("Adapter %u String: %s\n", current_adapter_index, w32_wide_to_utf8(adapter.DeviceString, 0, nb_temporary_allocator));
+        print("Adapter %u Name:   %s\n", 
+              current_adapter_index, 
+              w32_wide_to_utf8(adapter.DeviceName, 0, nb_temporary_allocator));
+        print("Adapter %u String: %s\n", 
+              current_adapter_index, 
+              w32_wide_to_utf8(adapter.DeviceString, 0, nb_temporary_allocator));
 
         if (adapter.StateFlags) {
             print("Adapter %u State: ", current_adapter_index);
@@ -1655,8 +1675,10 @@ bender_init_display_modes(u32 target_adapter_index) {
         DWORD current_device_index = 0;
         while (EnumDisplayDevicesW(adapter.DeviceName, current_device_index, &display_device, 0) != 0) {
             print("\tDisplay Device %u:\n", current_device_index);
-            print("\t\tDeviceName:   %s\n", w32_wide_to_utf8(display_device.DeviceName, 0, nb_temporary_allocator));
-            print("\t\tDeviceString: %s\n", w32_wide_to_utf8(display_device.DeviceString, 0, nb_temporary_allocator));
+            print("\t\tDeviceName:   %s\n", 
+                  w32_wide_to_utf8(display_device.DeviceName, 0, nb_temporary_allocator));
+            print("\t\tDeviceString: %s\n", 
+                  w32_wide_to_utf8(display_device.DeviceString, 0, nb_temporary_allocator));
 
             if (display_device.StateFlags) {
                 nb_write_string("\t\tStateFlags:  ");

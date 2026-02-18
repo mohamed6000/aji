@@ -1,0 +1,41 @@
+bender:
+
+Gamepads...
+DPI change event
+Touch input translation/manipulation deltas.
+[N] Window capturing for touch?
+Right handed coords for touch.
+https://learn.microsoft.com/en-us/answers/questions/285548/getmessageextrainfo-signature-missing-for-touch-in
+
+Disable shortcut keys (stickykeys, togglekeys, filterkeys)
+Mouse wheel
+Mouse delta
+RAW Input for Mouse deltas, screen shot key down.
+Drag and drop files window event.
+
+renderman:
+2D renderer
+3D forward+ renderer
+OpenGL/OpenGL ES graphics driver
+D3D9/D3D11/D3D12 graphics driver
+Software graphics driver
+
+Vector graphics rendering
+
+Font renderer
+Mesh font rendering
+Unicode support
+Text shaping (Arabic)
+Freetype font driver
+stb_truetype font driver
+GDI+ font driver
+DirectWrite font driver
+
+Vertex Pools/Arrays
+Render quads, meshes, cubes, circles, spheres, lines, triangles, points.
+
+
+NB:
+nb_log_push_ident()
+nb_log_push_mode()
+C dynamic array

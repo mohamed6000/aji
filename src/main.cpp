@@ -3,6 +3,8 @@
 
 #include "bender.h"
 
+#include "renderman.h"
+
 //
 // This file is only here for the purpose of testing the engine API.
 // In a real project, the entrypoint should be platform specific...
@@ -12,6 +14,8 @@ int main(void) {
     u32 id = bender_create_window("AJI", 640, 480, -1, -1, 0, 
                                   0, 
                                   B_WINDOW_BACKGROUND_COLOR);
+
+    rm_init(id);
     
     // u32 win2_id = bender_create_window("child", 200, 200, -1, -1, id, 0, B_WINDOW_BACKGROUND_COLOR);
 
@@ -111,6 +115,10 @@ int main(void) {
                       touch_event[pointer->type],
                       pointer->x, pointer->y);
             }
+
+            rm_clear_render_target(0.18f, 0.34f, 0.34f, 1);
+
+            rm_swap_buffers(id);
         }
     }
 
@@ -122,3 +130,5 @@ int main(void) {
 #include "nb.h"
 
 #include "bender/bender_windows.c"
+
+#include "renderman/renderman_d3d9.cpp"

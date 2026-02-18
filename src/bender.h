@@ -329,4 +329,7 @@ bender_get_input_button_state(BKey_Code key_code) {
 #define bender_ctrl_pressed(event)  (((event).modifier_flags & B_MOD_CTRL_PRESSED)  != 0)
 #define bender_shift_pressed(event) (((event).modifier_flags & B_MOD_SHIFT_PRESSED) != 0)
 
+// Helper functions (Useful for other APIs or engines).
+NB_EXTERN void *b_get_window_handle(u32 index);
+
 #endif  // BENDER_INCLUDE_H

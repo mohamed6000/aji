@@ -719,11 +719,6 @@ nb_default_logger(NB_Log_Mode mode,
                   const char *ident, 
                   const char *message, ...);
 
-NB_EXTERN void 
-nb_error_logger(NB_Log_Mode mode, 
-                const char *ident, 
-                const char *message, ...);
-
 
 
 NB_INLINE u32 nb_safe_truncate_u64(u64 value) {
@@ -1740,12 +1735,12 @@ NB_EXTERN void
 nb_default_logger(NB_Log_Mode mode, 
                   const char *ident, 
                   const char *message, ...) {
-    UNUSED(mode);
+    bool to_standard_error = mode == NB_LOG_ERROR;
 
     if (ident) {
-        nb_write_string("[",   false);
-        nb_write_string(ident, false);
-        nb_write_string("] ",  false);
+        nb_write_string("[",   to_standard_error);
+        nb_write_string(ident, to_standard_error);
+        nb_write_string("] ",  to_standard_error);
     }
 
 #if 0
@@ -1758,40 +1753,11 @@ nb_default_logger(NB_Log_Mode mode,
     char *s = tprint_valist(message, args);
     va_end(args);
 
-    nb_write_string(s, false);
+    nb_write_string(s, to_standard_error);
     nb_set_temporary_storage_mark(mark);
 #endif
 
-    nb_write_string("\n", false);
-}
-
-NB_EXTERN void 
-nb_error_logger(NB_Log_Mode mode, 
-                const char *ident, 
-                const char *message, ...) {
-    UNUSED(mode);
-
-    if (ident) {
-        nb_write_string("[",   true);
-        nb_write_string(ident, true);
-        nb_write_string("] ",  true);
-    }
-
-#if 0
-    nb_write_string(message, true);
-#else
-    s64 mark = nb_get_temporary_storage_mark();
-    va_list args;
-    va_start(args, message);
-
-    char *s = tprint_valist(message, args);
-    va_end(args);
-
-    nb_write_string(s, true);
-    nb_set_temporary_storage_mark(mark);
-#endif
-
-    nb_write_string("\n", true);
+    nb_write_string("\n", to_standard_error);
 }
 
 int nb_sprint(char *buf, int size, const char *fmt, ...) {
