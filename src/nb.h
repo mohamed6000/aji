@@ -30,10 +30,16 @@
 
     To define a custom logger:
 
-        void logger_name(Log_Mode mode, const char *ident, const char *message, ...) {...}
+        void logger_name(const char *message, ...) {...}
+
+    You can also push a logger mode (default is NB_LOG_NONE:
+        void nb_logger_push_mode(mode);
+
+    You can also push an identifier for the next logs (default is null):
+        void nb_logger_push_ident(ident);
 
     To get printf like compile-time checking, forward declare with:
-        void logger_name(Log_Mode mode, const char *ident, const char *message, ...) NB_IS_PRINTF_LIKE(3, 4);
+        void logger_name(const char *message, ...) NB_IS_PRINTF_LIKE(3, 4);
 
     The Logger_Proc typedef can be helpful in some cases.
 
@@ -294,7 +300,7 @@ typedef u8  b8;   // For consistency.
 #define nb_offset_of(Type, member) ((umm)(&((Type *)0)->member))
 #endif
 
-#define nb_array_count(a) (size_of(a) / size_of((a)[0]))
+#define nb_array_count(a) (s64)(size_of(a) / size_of((a)[0]))
 
 #define nb_align_forward_offset(s, a) (((s) & ((a)-1)) ? ((a) - ((s) & ((a)-1))) : 0)
 #define nb_align_forward(s, a) (((s) + ((a)-1)) & ~((a)-1))
@@ -614,14 +620,39 @@ typedef enum NB_Log_Mode {
     NB_LOG_WARNING,
 } NB_Log_Mode;
 
-typedef void NB_Logger_Proc(NB_Log_Mode mode, const char *ident, const char *message, ...) NB_IS_PRINTF_LIKE(3, 4);
+typedef void NB_Logger_Proc(const char *message, ...) NB_IS_PRINTF_LIKE(1, 2);
 
 extern NB_Logger_Proc *nb_current_logger;
+extern const char *nb_current_logger_ident;
+extern u32 nb_current_logger_mode;
+
+NB_EXTERN const char *nb_logger_push_ident(const char *ident);
+NB_EXTERN u32 nb_logger_push_mode(u32 mode);
 
 #if COMPILER_CL
-#define nb_log(mode, ident, message, ...) nb_current_logger((mode), (ident), (message), __VA_ARGS__)
+#define nb_log_print(mode, ident, message, ...) \
+do { \
+    u32 nb_log_old_mode = nb_logger_push_mode(mode); \
+    const char *nb_log_old_ident = nb_logger_push_ident(ident); \
+    nb_log((message), __VA_ARGS__); \
+    nb_logger_push_ident(nb_log_old_ident); \
+    nb_logger_push_mode(nb_log_old_mode); \
+} while (0)
 #else
-#define nb_log(mode, ident, message, ...) nb_current_logger((mode), (ident), (message), ##__VA_ARGS__)
+#define nb_log_print(mode, ident, message, ...) \
+do { \
+    u32 nb_log_old_mode = nb_logger_push_mode(mode); \
+    const char *nb_log_old_ident = nb_logger_push_ident(ident); \
+    nb_log((message), ##__VA_ARGS__); \
+    nb_logger_push_ident(nb_log_old_ident); \
+    nb_logger_push_mode(nb_log_old_mode); \
+} while (0)
+#endif
+
+#if COMPILER_CL
+#define nb_log(message, ...) nb_current_logger((message), __VA_ARGS__)
+#else
+#define nb_log(message, ...) nb_current_logger((message), ##__VA_ARGS__)
 #endif
 
 #ifndef Log
@@ -630,6 +661,9 @@ extern NB_Logger_Proc *nb_current_logger;
 
 #define NB_SET_LOGGER(l) do { nb_current_logger = l; } while (0)
 #define NB_GET_LOGGER() (nb_current_logger)
+
+#define NB_GET_LOGGER_MODE()  (nb_current_logger_mode)
+#define NB_GET_LOGGER_IDENT() (nb_current_logger_ident)
 
 // Cross-platform write string functions.
 void nb_write_string(const char *s, 
@@ -715,9 +749,7 @@ NB_EXTERN char *tprint_valist(const char *fmt, va_list arg_list);
 NB_EXTERN void print(const char *fmt, ...) NB_IS_PRINTF_LIKE(1, 2);
 
 NB_EXTERN void 
-nb_default_logger(NB_Log_Mode mode, 
-                  const char *ident, 
-                  const char *message, ...);
+nb_default_logger(const char *message, ...);
 
 
 
@@ -1094,6 +1126,23 @@ NB_INLINE void nb_advance(NB_String *s, s64 amount) {
 #ifdef NB_IMPLEMENTATION
 
 NB_Logger_Proc *nb_current_logger = nb_default_logger;
+const char *nb_current_logger_ident = null;
+u32 nb_current_logger_mode = NB_LOG_NONE;
+
+NB_EXTERN const char *nb_logger_push_ident(const char *ident) {
+    const char *result = nb_current_logger_ident;
+    nb_current_logger_ident = ident;
+
+    return result;
+}
+
+NB_EXTERN u32 nb_logger_push_mode(u32 mode) {
+    u32 result = nb_current_logger_mode;
+    nb_current_logger_mode = mode;
+
+    return result;
+}
+
 nb_thread_local NB_Allocator nb_current_allocator = {nb_heap_allocator, null};
 
 // @Cleanup:
@@ -1106,6 +1155,10 @@ nb_thread_local NB_Allocator nb_temporary_allocator = {nb_temporary_storage_proc
 #ifdef NB_INCLUDE_WINDEFS
 #include "windefs.h"
 #else
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+
 #define UNICODE
 #define _UNICODE
 
@@ -1567,16 +1620,19 @@ NB_EXTERN NB_ALLOCATOR_PROC(nb_temporary_storage_proc) {
             if (nbytes > (ts->size - ts->occupied)) {
                 ts->high_water_mark += nbytes;
 
+                u32 old_mode = nb_logger_push_mode(NB_LOG_WARNING);
+                const char *old_ident = nb_logger_push_ident("Temporary_Storage");
+
 #if OS_WINDOWS && COMPILER_GCC
-                Log(NB_LOG_WARNING, 
-                    "Temporary_Storage", "Attempting to allocate from the heap, highest water mark: %I64d\n", 
+                Log("Attempting to allocate from the heap, highest water mark: %I64d\n", 
                     ts->high_water_mark);
 #else
-                Log(NB_LOG_WARNING, 
-                    "Temporary_Storage", 
-                    "Attempting to allocate from the heap, highest water mark: %" PRId64 "\n", 
+                Log("Attempting to allocate from the heap, highest water mark: %" PRId64 "\n", 
                     ts->high_water_mark);
 #endif
+
+                nb_logger_push_mode(old_mode);
+                nb_logger_push_ident(old_ident);
                 return nb_heap_allocator(NB_ALLOCATOR_ALLOCATE, nbytes, 0, null, null);
             }
 #else
@@ -1598,17 +1654,20 @@ NB_EXTERN NB_ALLOCATOR_PROC(nb_temporary_storage_proc) {
 #if NB_DEBUG
             if (nbytes > (ts->size - ts->occupied)) {
                 ts->high_water_mark += nbytes;
+
+                u32 old_mode = nb_logger_push_mode(NB_LOG_WARNING);
+                const char *old_ident = nb_logger_push_ident("Temporary_Storage");
+
 #if OS_WINDOWS && COMPILER_GCC
-                Log(NB_LOG_WARNING, 
-                    "Temporary_Storage", 
-                    "Attempting to allocate from the heap, highest water mark: %I64d\n", 
+                Log("Attempting to allocate from the heap, highest water mark: %I64d\n", 
                     ts->high_water_mark);
 #else
-                Log(NB_LOG_WARNING, 
-                    "Temporary_Storage", 
-                    "Attempting to allocate from the heap, highest water mark: %" PRId64 "\n", 
+                Log("Attempting to allocate from the heap, highest water mark: %" PRId64 "\n", 
                     ts->high_water_mark);
 #endif
+
+                nb_logger_push_mode(old_mode);
+                nb_logger_push_ident(old_ident);
                 return nb_heap_allocator(NB_ALLOCATOR_ALLOCATE, nbytes, 0, null, null);
             }
 #else
@@ -1732,15 +1791,13 @@ void nb_qsort_it(void *data, s64 count,
 }
 
 NB_EXTERN void 
-nb_default_logger(NB_Log_Mode mode, 
-                  const char *ident, 
-                  const char *message, ...) {
-    bool to_standard_error = mode == NB_LOG_ERROR;
+nb_default_logger(const char *message, ...) {
+    bool to_standard_error = (nb_current_logger_mode == NB_LOG_ERROR);
 
-    if (ident) {
-        nb_write_string("[",   to_standard_error);
-        nb_write_string(ident, to_standard_error);
-        nb_write_string("] ",  to_standard_error);
+    if (nb_current_logger_ident) {
+        nb_write_string("[", to_standard_error);
+        nb_write_string(nb_current_logger_ident, to_standard_error);
+        nb_write_string("] ", to_standard_error);
     }
 
 #if 0

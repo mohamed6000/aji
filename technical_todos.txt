@@ -13,6 +13,8 @@ Mouse delta
 RAW Input for Mouse deltas, screen shot key down.
 Drag and drop files window event.
 
+
+
 renderman:
 2D renderer
 3D forward+ renderer
@@ -35,7 +37,8 @@ Vertex Pools/Arrays
 Render quads, meshes, cubes, circles, spheres, lines, triangles, points.
 
 
+
 NB:
-nb_log_push_ident()
-nb_log_push_mode()
+[X] nb_log_push_ident()
+[X] nb_log_push_mode()
 C dynamic array

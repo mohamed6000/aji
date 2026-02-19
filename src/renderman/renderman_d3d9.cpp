@@ -14,9 +14,12 @@ static D3DPRESENT_PARAMETERS d3d_params;
 NB_EXTERN bool rm_init(u32 window_id) {
     if (rm_initted) return true;
 
+    const char *old_ident = nb_logger_push_ident("D3D9");
+    u32 old_mode = nb_logger_push_mode(NB_LOG_ERROR);
+
     IDirect3D9 *d3d9 = Direct3DCreate9(D3D_SDK_VERSION);
     if (!d3d9) {
-        Log(NB_LOG_ERROR, "D3D9", "Failed to Direct3DCreate9.");
+        Log("Failed to Direct3DCreate9.");
         return false;
     }
 
@@ -28,7 +31,7 @@ NB_EXTERN bool rm_init(u32 window_id) {
     D3DCAPS9 caps = {0};
     hr = IDirect3D9_GetDeviceCaps(d3d9, adapter, D3DDEVTYPE_HAL, &caps);
     if (FAILED(hr)) {
-        Log(NB_LOG_ERROR, "D3D9", "Failed to IDirect3D9_GetDeviceCaps.");
+        Log("Failed to IDirect3D9_GetDeviceCaps.");
         return false;
     }
     
@@ -65,12 +68,11 @@ NB_EXTERN bool rm_init(u32 window_id) {
     );
 
     if (!adapter_mode_count) {
-        Log(NB_LOG_ERROR, "D3D9", "No adapter modes were found for the specified D3D format.");
+        Log("No adapter modes were found for the specified D3D format.");
         return false;
     }
 
-    Log(NB_LOG_NONE, "D3D9", "Found %u adapter modes.", 
-        adapter_mode_count);
+    nb_log_print(NB_LOG_NONE, "D3D9", "Found %u adapter modes.", adapter_mode_count);
 
     D3DDISPLAYMODE *display_modes = (D3DDISPLAYMODE *)nb_new_array(D3DDISPLAYMODE, adapter_mode_count, NB_GET_ALLOCATOR());
     if (!display_modes) return false;
@@ -83,13 +85,16 @@ NB_EXTERN bool rm_init(u32 window_id) {
                                          display_modes + index);
         if (hr == D3D_OK) {
             D3DDISPLAYMODE *mode = display_modes + index;
-            Log(NB_LOG_NONE, "D3D9", "Found valid device mode:");
-            Log(NB_LOG_NONE, null, "    Device %u: %ux%u %uHz", 
-                index, mode->Width, mode->Height, mode->RefreshRate);
+            nb_log_print(NB_LOG_NONE, "D3D9", "Found valid device mode:");
+
+            nb_log_print(NB_LOG_NONE, null,
+                         "    Device %u: %ux%u %uHz", index, mode->Width, mode->Height, mode->RefreshRate);
         } else if (hr == D3DERR_INVALIDCALL) {
-            Log(NB_LOG_ERROR, "D3D9", "INVALIDCALL: The adapter equals or exceeds the number of display adapters in the system.");
+            nb_log_print(NB_LOG_ERROR, "D3D9", 
+                         "INVALIDCALL: The adapter equals or exceeds the number of display adapters in the system.");
         } else if (hr == D3DERR_NOTAVAILABLE) {
-            Log(NB_LOG_ERROR, "D3D9", "NOTAVAILABLE: Either surface format is not supported or hardware acceleration is not available for the specified formats.");
+            nb_log_print(NB_LOG_ERROR, "D3D9", 
+                         "NOTAVAILABLE: Either surface format is not supported or hardware acceleration is not available for the specified formats.");
         }
     }
 
@@ -113,9 +118,12 @@ NB_EXTERN bool rm_init(u32 window_id) {
     }
 
     if (FAILED(hr)) {
-        Log(NB_LOG_ERROR, "D3D9", "Failed to IDirect3D9_CreateDevice.");
+        nb_log_print(NB_LOG_ERROR, "D3D9", "Failed to IDirect3D9_CreateDevice.");
         return false;
     }
+
+    nb_logger_push_mode(old_mode);
+    nb_logger_push_ident(old_ident);
 
     return true;
 }
@@ -153,6 +161,6 @@ NB_EXTERN void rm_clear_render_target(float r, float g, float b, float a) {
     }
 
     if (FAILED(IDirect3DDevice9_BeginScene(d3d_device))) {
-        Log(NB_LOG_ERROR, "D3D9", "Failed to IDirect3DDevice9_BeginScene.");
+        nb_log_print(NB_LOG_ERROR, "D3D9", "Failed to IDirect3DDevice9_BeginScene.");
     }
 }

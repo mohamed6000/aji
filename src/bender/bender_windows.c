@@ -12,6 +12,9 @@ BInput_State b_input_state;
 #define NOMINMAX
 #endif
 
+#define UNICODE
+#define _UNICODE
+
 #define WIN32_LEAN_AND_MEAN
 #define VC_EXTRALEAN
 #include <windows.h>
@@ -885,7 +888,8 @@ b_w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
         case WM_CLOSE:
         case WM_QUIT:
         {
-            BEvent event = {B_EVENT_QUIT};
+            BEvent event = {0};
+            event.type = B_EVENT_QUIT;
             b_push_event(event);
         } break;
 
@@ -908,7 +912,8 @@ b_w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
             UINT width  = LOWORD(lparam);
             UINT height = HIWORD(lparam);
 
-            BEvent event = {B_EVENT_WINDOW_RESIZE};
+            BEvent event = {0};
+            event.type = B_EVENT_WINDOW_RESIZE;
             event.x = (s32)width;
             event.y = (s32)height;
 
@@ -963,7 +968,8 @@ b_w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
             // wparam and lparam are not used in WM_EXITSIZEMOVE.
             RECT rect;
             GetClientRect(hwnd, &rect);
-            BEvent event = {B_EVENT_WINDOW_RESIZE};
+            BEvent event = {0};
+            event.type = B_EVENT_WINDOW_RESIZE;
             event.x = rect.right  - rect.left;
             event.y = rect.bottom - rect.top;
 
@@ -1314,38 +1320,44 @@ bender_create_window(const char *title,
 
     // Setting up touch input for the current window.
     {
+        u32 old_mode = nb_logger_push_mode(NB_LOG_NONE);
+        const char *old_ident = nb_logger_push_ident("Input");
+
         int input_caps = GetSystemMetrics(SM_DIGITIZER);
         bool init_touch_input_for_hwnd = false;
 
         if (input_caps & NID_INTEGRATED_TOUCH) {
-            Log(NB_LOG_NONE, "Input", "Found an integrated touch digitizer for window: '%s'.", title);
+            Log("Found an integrated touch digitizer for window: '%s'.", title);
         }
         if (input_caps & NID_EXTERNAL_TOUCH) {
-            Log(NB_LOG_NONE, "Input", "Found an external touch digitizer for window: '%s'.", title);
+            Log("Found an external touch digitizer for window: '%s'.", title);
         }
         if (input_caps & NID_INTEGRATED_PEN) {
-            Log(NB_LOG_NONE, "Input", "Found an integrated pen digitizer for window '%s'.", title);
+            Log("Found an integrated pen digitizer for window '%s'.", title);
         }
         if (input_caps & NID_EXTERNAL_PEN) {
-            Log(NB_LOG_NONE, "Input", "Found an external pen digitizer for window: '%s'.", title);
+            Log("Found an external pen digitizer for window: '%s'.", title);
         }
         if (input_caps & NID_MULTI_INPUT) {
-            Log(NB_LOG_NONE, "Input", "Found an input digitizer with support for multiple inputs for window '%s'.", title);
+            Log("Found an input digitizer with support for multiple inputs for window '%s'.", title);
         }
 
         if (input_caps & NID_READY) {
-            Log(NB_LOG_NONE, "Input", "The input digitizer is ready for input.");
+            Log("The input digitizer is ready for input.");
             init_touch_input_for_hwnd = true;
         }
 
         if (init_touch_input_for_hwnd) {
             BOOL success = RegisterTouchWindow(hwnd, TWF_FINETOUCH);//0); //TWF_WANTPALM);
             if (success != 0) {
-                Log(NB_LOG_NONE, "Input", "Registered '%s' for touch input.", title);
+                Log("Registered '%s' for touch input.", title);
             } else {
-                Log(NB_LOG_NONE, "Input", "Failed to RegisterTouchWindow '%s' for touch input.", title);
+                Log("Failed to RegisterTouchWindow '%s' for touch input.", title);
             }
         }
+
+        nb_logger_push_mode(old_mode);
+        nb_logger_push_ident(old_ident);
     }
 
     return result;
