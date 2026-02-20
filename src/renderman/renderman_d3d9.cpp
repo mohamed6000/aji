@@ -31,10 +31,9 @@ static Immediate_Vertex immediate_vertices[MAX_IMMEDIATE_VERTICES];
 
 
 char rm_vertex_shader_source[] = 
-// "float4x4 world_view_proj : register(c0);"
+"float4x4 world_view_proj : register(c0);"
 "float4 main(float3 pos : POSITION) : POSITION {"
-// "   return mul(float4(pos, 1.0f), world_view_proj);"
-"   return float4(pos, 1.0f);"
+"   return mul(float4(pos, 1.0f), world_view_proj);"
 "}";
 
 char rm_pixel_shader_source[] = 
@@ -392,7 +391,13 @@ NB_EXTERN void rm_swap_buffers(u32 window_id) {
         // IDirect3DDevice9_SetFVF(d3d_device, D3DFVF_XYZ);
         IDirect3DDevice9_SetVertexDeclaration(d3d_device, d3d_vertex_layout);
 
-        // IDirect3DDevice9_SetVertexShaderConstantF(d3d_device, 0, &wvp_transposed.m[0][0], 4);
+        float mat_identity[16] = {
+            1, 0, 0, 0,
+            0, 1, 0, 0,
+            0, 0, 1, 0,
+            0, 0, 0, 1,
+        };
+        IDirect3DDevice9_SetVertexShaderConstantF(d3d_device, 0, mat_identity, 4);
 
         IDirect3DDevice9_SetVertexShader(d3d_device, vertex_shader);
         IDirect3DDevice9_SetPixelShader(d3d_device, pixel_shader);
