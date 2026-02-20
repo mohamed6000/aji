@@ -15,6 +15,7 @@ static bool d3d_device_lost;
 static D3DPRESENT_PARAMETERS  d3d_params;
 static IDirect3DDevice9       *d3d_device;
 static IDirect3DVertexBuffer9 *immediate_vb;
+static IDirect3DVertexDeclaration9 *d3d_vertex_layout;
 static IDirect3DVertexShader9 *vertex_shader;
 static IDirect3DPixelShader9  *pixel_shader;
 
@@ -157,29 +158,32 @@ NB_EXTERN bool rm_init(u32 window_id) {
         return false;
     }
 
+    // Immediate non-FVF vertex buffer.
     hr = IDirect3DDevice9_CreateVertexBuffer(d3d_device, 
                                              size_of(immediate_vertices),
-                                             D3DUSAGE_DYNAMIC,//D3DUSAGE_DYNAMIC,
-                                             D3DFVF_XYZ,
-                                             D3DPOOL_DEFAULT,//D3DPOOL_DEFAULT,
+                                             D3DUSAGE_DYNAMIC|D3DUSAGE_WRITEONLY,
+                                             0, // No more FVF D3DFVF_XYZ,
+                                             D3DPOOL_DEFAULT,
                                              &immediate_vb, null);
     if (FAILED(hr)) {
         Log("Failed to create the immediate vertex buffer.");
         return false;
     }
 
-    void *locked_vb = null;
-    if (SUCCEEDED(IDirect3DVertexBuffer9_Lock(immediate_vb, 
-        0, 
-        num_immediate_vertices*size_of(Immediate_Vertex), 
-        &locked_vb, 0))) {
-        memcpy(locked_vb, 
-               immediate_vertices, 
-               num_immediate_vertices*size_of(Immediate_Vertex));
+    // Vertex declaration.
+    // https://learn.microsoft.com/en-us/windows/win32/direct3d9/mapping-fvf-codes-to-a-directx-9-declaration
+    D3DVERTEXELEMENT9 vertex_elements[] = {
+        {/*stream=*/0, /*offset=*/0, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, /*usage_index=*/0},
+        D3DDECL_END()
+    };
 
-        IDirect3DVertexBuffer9_Unlock(immediate_vb);
+    hr = IDirect3DDevice9_CreateVertexDeclaration(d3d_device,
+                                                  vertex_elements,
+                                                  &d3d_vertex_layout);
+    if (FAILED(hr)) {
+        Log("Failed to IDirect3DDevice9_CreateVertexDeclaration.");
+        return false;
     }
-
 
     // Vertex shader.
     ID3DBlob *compiled_shader = null;
@@ -258,19 +262,19 @@ NB_EXTERN bool rm_init(u32 window_id) {
     IDirect3DDevice9_SetRenderState(d3d_device, D3DRS_CULLMODE, D3DCULL_NONE);
     IDirect3DDevice9_SetRenderState(d3d_device, D3DRS_ZENABLE, FALSE);
     IDirect3DDevice9_SetRenderState(d3d_device, D3DRS_ALPHABLENDENABLE, TRUE);
-    IDirect3DDevice9_SetRenderState(d3d_device, D3DRS_BLENDOP, D3DBLENDOP_ADD);
-    IDirect3DDevice9_SetRenderState(d3d_device, D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+    IDirect3DDevice9_SetRenderState(d3d_device, D3DRS_BLENDOP,   D3DBLENDOP_ADD);
+    IDirect3DDevice9_SetRenderState(d3d_device, D3DRS_SRCBLEND,  D3DBLEND_SRCALPHA);
     IDirect3DDevice9_SetRenderState(d3d_device, D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
     IDirect3DDevice9_SetRenderState(d3d_device, D3DRS_SEPARATEALPHABLENDENABLE, TRUE);
-    IDirect3DDevice9_SetRenderState(d3d_device, D3DRS_SRCBLENDALPHA, D3DBLEND_ONE);
+    IDirect3DDevice9_SetRenderState(d3d_device, D3DRS_SRCBLENDALPHA,  D3DBLEND_ONE);
     IDirect3DDevice9_SetRenderState(d3d_device, D3DRS_DESTBLENDALPHA, D3DBLEND_INVSRCALPHA);
     IDirect3DDevice9_SetRenderState(d3d_device, D3DRS_SCISSORTESTENABLE, TRUE);
-    IDirect3DDevice9_SetRenderState(d3d_device, D3DRS_FOGENABLE, FALSE);
-    IDirect3DDevice9_SetRenderState(d3d_device, D3DRS_RANGEFOGENABLE, FALSE);
-    IDirect3DDevice9_SetRenderState(d3d_device, D3DRS_SPECULARENABLE, FALSE);
-    IDirect3DDevice9_SetRenderState(d3d_device, D3DRS_STENCILENABLE, FALSE);
-    IDirect3DDevice9_SetRenderState(d3d_device, D3DRS_CLIPPING, TRUE);
-    IDirect3DDevice9_SetRenderState(d3d_device, D3DRS_LIGHTING, FALSE);
+    IDirect3DDevice9_SetRenderState(d3d_device, D3DRS_FOGENABLE,         FALSE);
+    IDirect3DDevice9_SetRenderState(d3d_device, D3DRS_RANGEFOGENABLE,    FALSE);
+    IDirect3DDevice9_SetRenderState(d3d_device, D3DRS_SPECULARENABLE,    FALSE);
+    IDirect3DDevice9_SetRenderState(d3d_device, D3DRS_STENCILENABLE,     FALSE);
+    IDirect3DDevice9_SetRenderState(d3d_device, D3DRS_CLIPPING,          TRUE);
+    IDirect3DDevice9_SetRenderState(d3d_device, D3DRS_LIGHTING,          FALSE);
 
     nb_logger_push_mode(old_mode);
     nb_logger_push_ident(old_ident);
@@ -365,23 +369,13 @@ NB_EXTERN void rm_swap_buffers(u32 window_id) {
         nb_log_print(NB_LOG_ERROR, "D3D9", "Failed to IDirect3DDevice9_BeginScene.");
     }
 
-    // D3DMATRIX world, view, proj;
-    // IDirect3DDevice9_GetTransform(d3d_device, D3DTS_WORLD, &world);
-    // IDirect3DDevice9_GetTransform(d3d_device, D3DTS_VIEW, &view);
-    // IDirect3DDevice9_GetTransform(d3d_device, D3DTS_PROJECTION, &proj);
-
-    // D3DMATRIX wvp, wvp_transposed;
-    // d3d_matrix_multiply(&wvp, &world, &view);
-    // d3d_matrix_multiply(&wvp, &wvp, &proj);
-
-    // d3d_matrix_transpose(&wvp_transposed, &wvp);
 
     if (num_immediate_vertices) {
         void *locked_vb = null;
         if (SUCCEEDED(IDirect3DVertexBuffer9_Lock(immediate_vb, 
             0, 
             num_immediate_vertices*size_of(Immediate_Vertex), 
-            &locked_vb, 0))) {
+            &locked_vb, D3DLOCK_DISCARD))) {
             memcpy(locked_vb, 
                    immediate_vertices, 
                    num_immediate_vertices*size_of(Immediate_Vertex));
@@ -395,7 +389,8 @@ NB_EXTERN void rm_swap_buffers(u32 window_id) {
                                          0,
                                          size_of(Immediate_Vertex));
 
-        IDirect3DDevice9_SetFVF(d3d_device, D3DFVF_XYZ);
+        // IDirect3DDevice9_SetFVF(d3d_device, D3DFVF_XYZ);
+        IDirect3DDevice9_SetVertexDeclaration(d3d_device, d3d_vertex_layout);
 
         // IDirect3DDevice9_SetVertexShaderConstantF(d3d_device, 0, &wvp_transposed.m[0][0], 4);
 
