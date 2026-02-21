@@ -307,8 +307,10 @@ typedef struct BInput_State {
 
     BEvent events_this_frame[64];
     u32    event_count;
+    u32    event_cursor;
 
     bool application_has_focus;
+    bool application_wants_to_quit;
 
     bool is_user_resizing;
     bool is_app_paused;
@@ -335,5 +337,17 @@ bender_get_input_button_state(BKey_Code key_code) {
 
 // Helper functions (Useful for other APIs or engines).
 NB_EXTERN void *b_get_window_handle(u32 index);
+
+NB_INLINE bool 
+bender_get_next_event(BInput_State *input, BEvent *event) {
+    if (input->event_count) {
+        *event = input->events_this_frame[input->event_cursor];
+        input->event_cursor = (input->event_cursor + 1) & (nb_array_count(input->events_this_frame) - 1);
+        input->event_count -= 1;
+        return true;
+    }
+
+    return false;
+}
 
 #endif  // BENDER_INCLUDE_H

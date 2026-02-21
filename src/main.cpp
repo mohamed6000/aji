@@ -40,7 +40,7 @@ int main(void) {
             float my = (float)(render_target_height - b_input_state.mouse_y);
 
             BEvent event;
-            while (bender_get_next_event(&event)) {
+            while (bender_get_next_event(&b_input_state, &event)) {
                 if (event.type == B_EVENT_QUIT) {
                     if (bender_messagebox_confirm("Quit AJI?", "Are you sure? You want to quit AJI?"))
                         ap_running = false;
@@ -50,6 +50,8 @@ int main(void) {
                     print("Window sized = %dx%d\n", event.x, event.y);
                     render_target_width  = event.x;
                     render_target_height = event.y;
+
+                    // @Todo: if size has changed, resize the back buffer.
                 }
 
 /*

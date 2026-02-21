@@ -56,9 +56,13 @@ static TOUCHINPUT b_w32_touch_inputs[B_MAX_TOUCH_POINT_INPUT_COUNT];
 
 NB_INLINE void b_push_event(BEvent event) {
     assert(b_input_state.event_count < nb_array_count(b_input_state.events_this_frame));
-    u32 index = b_input_state.event_count;
-    b_input_state.event_count += 1;
+
+    u32 index = (b_input_state.event_cursor + b_input_state.event_count) & (nb_array_count(b_input_state.events_this_frame) - 1);
     b_input_state.events_this_frame[index] = event;
+    
+    b_input_state.event_count += 1;
+
+    // print("Pushed event at slot %u count = %u\n", index, b_input_state.event_count);
 }
 
 NB_INLINE Bender_Window_Record *
@@ -893,6 +897,8 @@ b_w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
             BEvent event = {0};
             event.type = B_EVENT_QUIT;
             b_push_event(event);
+
+            b_input_state.application_wants_to_quit = true;
         } break;
 
         case WM_SETFOCUS:
@@ -1435,17 +1441,6 @@ NB_EXTERN void bender_update_window_events(void) {
         TranslateMessage(&msg);
         DispatchMessageW(&msg);
     }
-}
-
-NB_EXTERN bool 
-bender_get_next_event(BEvent *event) {
-    if (b_input_state.event_count) {
-        *event = b_input_state.events_this_frame[b_input_state.event_count-1];
-        b_input_state.event_count -= 1;
-        return true;
-    }
-
-    return false;
 }
 
 NB_EXTERN void 
