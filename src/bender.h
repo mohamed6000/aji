@@ -298,6 +298,10 @@ typedef struct BInput_State {
     s32 mouse_delta_x;
     s32 mouse_delta_y;
 
+    // Mouse coords in pixels (Left handed coords).
+    s32 mouse_x;
+    s32 mouse_y;
+
     BTouch_Pointer touch_pointers[2];
     s32 touch_pointer_count;
 

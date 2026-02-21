@@ -1,44 +1,66 @@
 #include "renderman.h"
 
 #include <d3d9.h>
+
+#pragma warning(push)
+#pragma warning(disable:4115)
 #include <d3dcompiler.h>
+#pragma warning(pop)
 
 #if COMPILER_CL
 #pragma comment(lib, "d3d9.lib")
 #pragma comment(lib, "d3dcompiler.lib")
 #endif
 
-static bool rm_initted;
-
-static bool d3d_device_lost;
-
-static D3DPRESENT_PARAMETERS  d3d_params;
-static IDirect3DDevice9       *d3d_device;
-static IDirect3DVertexBuffer9 *immediate_vb;
-static IDirect3DVertexDeclaration9 *d3d_vertex_layout;
-static IDirect3DVertexShader9 *vertex_shader;
-static IDirect3DPixelShader9  *pixel_shader;
-
 typedef struct {
     float x, y, z;
+    float r, g, b, a;
 } Immediate_Vertex;
 
 #define MAX_IMMEDIATE_VERTICES 2048
 
-static s32 current_vertex_per_primitive = 3;
-static u32 num_immediate_vertices;
-static Immediate_Vertex immediate_vertices[MAX_IMMEDIATE_VERTICES];
+typedef struct {
+    IDirect3D9                  *d3d9;
+    IDirect3DDevice9            *d3d_device;
+    IDirect3DVertexBuffer9      *immediate_vb;
+    IDirect3DVertexDeclaration9 *d3d_vertex_layout;
+    IDirect3DVertexShader9      *vertex_shader;
+    IDirect3DPixelShader9       *pixel_shader;
+    D3DPRESENT_PARAMETERS       d3d_params;
+
+    u32 num_immediate_vertices;
+    Immediate_Vertex immediate_vertices[MAX_IMMEDIATE_VERTICES];
+
+    float pixels_to_proj_matrix[4][4];
+    
+    bool d3d_device_lost;
+} Renderman_State;
+
+static Renderman_State rm_state;
+static bool rm_initted;
 
 
+// @Todo: One shader source.
 char rm_vertex_shader_source[] = 
-"float4x4 world_view_proj : register(c0);"
-"float4 main(float3 pos : POSITION) : POSITION {"
-"   return mul(float4(pos, 1.0f), world_view_proj);"
+"float4x4 wvp : register(c0);"
+"struct VS_Output {"
+"   float4 pos   : POSITION;"
+"   float4 color : COLOR;"
+"};"
+"VS_Output main(float3 pos : POSITION, float4 color : COLOR) {"
+"   VS_Output result;"
+"   result.pos   = mul(float4(pos, 1.0f), wvp);"
+"   result.color = color;"
+"   return result;"
 "}";
 
 char rm_pixel_shader_source[] = 
-"float4 main() : COLOR {"
-"   return float4(1.0f, 1.0f, 1.0f, 1.0f);"
+"struct VS_Output {"
+"   float4 pos   : POSITION;"
+"   float4 color : COLOR;"
+"};"
+"float4 main(VS_Output input) : COLOR {"
+"   return input.color;"
 "}";
 
 
@@ -48,8 +70,8 @@ NB_EXTERN bool rm_init(u32 window_id) {
     const char *old_ident = nb_logger_push_ident("D3D9");
     u32 old_mode = nb_logger_push_mode(NB_LOG_ERROR);
 
-    IDirect3D9 *d3d9 = Direct3DCreate9(D3D_SDK_VERSION);
-    if (!d3d9) {
+    rm_state.d3d9 = Direct3DCreate9(D3D_SDK_VERSION);
+    if (!rm_state.d3d9) {
         Log("Failed to Direct3DCreate9.");
         return false;
     }
@@ -60,7 +82,7 @@ NB_EXTERN bool rm_init(u32 window_id) {
 
     // Check the device capabilities.
     D3DCAPS9 caps = {0};
-    hr = IDirect3D9_GetDeviceCaps(d3d9, adapter, D3DDEVTYPE_HAL, &caps);
+    hr = IDirect3D9_GetDeviceCaps(rm_state.d3d9, adapter, D3DDEVTYPE_HAL, &caps);
     if (FAILED(hr)) {
         Log("Failed to IDirect3D9_GetDeviceCaps.");
         return false;
@@ -73,16 +95,16 @@ NB_EXTERN bool rm_init(u32 window_id) {
     RECT client_rect;
     GetClientRect(hwnd, &client_rect);
 
-    d3d_params.Windowed   = TRUE;
-    d3d_params.SwapEffect = D3DSWAPEFFECT_DISCARD;//D3DSWAPEFFECT_COPY;
-    d3d_params.BackBufferFormat = format;
-    d3d_params.hDeviceWindow    = hwnd;
-    d3d_params.BackBufferWidth  = client_rect.right  - client_rect.left;
-    d3d_params.BackBufferHeight = client_rect.bottom - client_rect.top;
-    d3d_params.EnableAutoDepthStencil = TRUE;
-    d3d_params.AutoDepthStencilFormat = D3DFMT_D24S8;
-    d3d_params.PresentationInterval   = D3DPRESENT_INTERVAL_ONE;  // vsync on.
-    // d3d_params.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;  // vsync off.
+    rm_state.d3d_params.Windowed   = TRUE;
+    rm_state.d3d_params.SwapEffect = D3DSWAPEFFECT_DISCARD;//D3DSWAPEFFECT_COPY;
+    rm_state.d3d_params.BackBufferFormat = format;
+    rm_state.d3d_params.hDeviceWindow    = hwnd;
+    rm_state.d3d_params.BackBufferWidth  = client_rect.right  - client_rect.left;
+    rm_state.d3d_params.BackBufferHeight = client_rect.bottom - client_rect.top;
+    rm_state.d3d_params.EnableAutoDepthStencil = TRUE;
+    rm_state.d3d_params.AutoDepthStencilFormat = D3DFMT_D24S8;
+    rm_state.d3d_params.PresentationInterval   = D3DPRESENT_INTERVAL_ONE;  // vsync on.
+    // rm_state.d3d_params.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;  // vsync off.
 
 
     // Check device format.
@@ -135,21 +157,21 @@ NB_EXTERN bool rm_init(u32 window_id) {
 
     // hr = IDirect3D9_CheckDeviceType(...);
 
-    hr = IDirect3D9_CreateDevice(d3d9, 
+    hr = IDirect3D9_CreateDevice(rm_state.d3d9, 
                                  adapter,
                                  D3DDEVTYPE_HAL,
                                  hwnd,
                                  vertex_hardware_processing_enabled ? D3DCREATE_HARDWARE_VERTEXPROCESSING : D3DCREATE_SOFTWARE_VERTEXPROCESSING,
-                                 &d3d_params,
-                                 &d3d_device);
+                                 &rm_state.d3d_params,
+                                 &rm_state.d3d_device);
     if (FAILED(hr) && vertex_hardware_processing_enabled) {
-        hr = IDirect3D9_CreateDevice(d3d9, 
+        hr = IDirect3D9_CreateDevice(rm_state.d3d9, 
                                      adapter,
                                      D3DDEVTYPE_HAL,
                                      hwnd,
                                      D3DCREATE_SOFTWARE_VERTEXPROCESSING,
-                                     &d3d_params,
-                                     &d3d_device);
+                                     &rm_state.d3d_params,
+                                     &rm_state.d3d_device);
     }
 
     if (FAILED(hr)) {
@@ -158,12 +180,12 @@ NB_EXTERN bool rm_init(u32 window_id) {
     }
 
     // Immediate non-FVF vertex buffer.
-    hr = IDirect3DDevice9_CreateVertexBuffer(d3d_device, 
-                                             size_of(immediate_vertices),
+    hr = IDirect3DDevice9_CreateVertexBuffer(rm_state.d3d_device, 
+                                             size_of(rm_state.immediate_vertices),
                                              D3DUSAGE_DYNAMIC|D3DUSAGE_WRITEONLY,
                                              0, // No more FVF D3DFVF_XYZ,
                                              D3DPOOL_DEFAULT,
-                                             &immediate_vb, null);
+                                             &rm_state.immediate_vb, null);
     if (FAILED(hr)) {
         Log("Failed to create the immediate vertex buffer.");
         return false;
@@ -173,12 +195,14 @@ NB_EXTERN bool rm_init(u32 window_id) {
     // https://learn.microsoft.com/en-us/windows/win32/direct3d9/mapping-fvf-codes-to-a-directx-9-declaration
     D3DVERTEXELEMENT9 vertex_elements[] = {
         {/*stream=*/0, /*offset=*/0, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, /*usage_index=*/0},
+        {/*stream=*/0, /*offset=*/12, D3DDECLTYPE_FLOAT4, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_COLOR, /*usage_index=*/0},
+
         D3DDECL_END()
     };
 
-    hr = IDirect3DDevice9_CreateVertexDeclaration(d3d_device,
+    hr = IDirect3DDevice9_CreateVertexDeclaration(rm_state.d3d_device,
                                                   vertex_elements,
-                                                  &d3d_vertex_layout);
+                                                  &rm_state.d3d_vertex_layout);
     if (FAILED(hr)) {
         Log("Failed to IDirect3DDevice9_CreateVertexDeclaration.");
         return false;
@@ -203,13 +227,13 @@ NB_EXTERN bool rm_init(u32 window_id) {
     }
 
 #if LANGUAGE_C
-    DWORD *data = (DWORD *)ID3D10Blob_GetBufferPointer(compiled_shader);
+    DWORD *data = (DWORD *)(compiled_shader->lpVtbl->GetBufferPointer(compiled_shader));//ID3D10Blob_GetBufferPointer(compiled_shader);
 #else
     DWORD *data = (DWORD *)compiled_shader->GetBufferPointer();
 #endif
-    hr = IDirect3DDevice9_CreateVertexShader(d3d_device,
+    hr = IDirect3DDevice9_CreateVertexShader(rm_state.d3d_device,
                                              data,
-                                             &vertex_shader);
+                                             &rm_state.vertex_shader);
     if (FAILED(hr)) {
         Log("Failed to IDirect3DDevice9_CreateVertexShader.");
         return false;
@@ -233,13 +257,13 @@ NB_EXTERN bool rm_init(u32 window_id) {
     }
 
 #if LANGUAGE_C
-    data = (DWORD *)ID3D10Blob_GetBufferPointer(compiled_shader);
+    data = (DWORD *)(compiled_shader->lpVtbl->GetBufferPointer(compiled_shader));
 #else
     data = (DWORD *)compiled_shader->GetBufferPointer();
 #endif
-    hr = IDirect3DDevice9_CreatePixelShader(d3d_device,
+    hr = IDirect3DDevice9_CreatePixelShader(rm_state.d3d_device,
                                             data,
-                                            &pixel_shader);
+                                            &rm_state.pixel_shader);
     if (FAILED(hr)) {
         Log("Failed to IDirect3DDevice9_CreatePixelShader.");
         return false;
@@ -247,33 +271,33 @@ NB_EXTERN bool rm_init(u32 window_id) {
 
     D3DVIEWPORT9 vp;
     vp.X = vp.Y = 0;
-    vp.Width  = d3d_params.BackBufferWidth;
-    vp.Height = d3d_params.BackBufferHeight;
+    vp.Width  = rm_state.d3d_params.BackBufferWidth;
+    vp.Height = rm_state.d3d_params.BackBufferHeight;
     vp.MinZ = 0.0f;
     vp.MaxZ = 1.0f;
 
-    IDirect3DDevice9_SetViewport(d3d_device, &vp);
+    IDirect3DDevice9_SetViewport(rm_state.d3d_device, &vp);
 
-    IDirect3DDevice9_SetRenderState(d3d_device, D3DRS_FILLMODE,  D3DFILL_SOLID);
-    IDirect3DDevice9_SetRenderState(d3d_device, D3DRS_SHADEMODE, D3DSHADE_GOURAUD);
-    IDirect3DDevice9_SetRenderState(d3d_device, D3DRS_ZWRITEENABLE,    FALSE);
-    IDirect3DDevice9_SetRenderState(d3d_device, D3DRS_ALPHATESTENABLE, FALSE);
-    IDirect3DDevice9_SetRenderState(d3d_device, D3DRS_CULLMODE, D3DCULL_NONE);
-    IDirect3DDevice9_SetRenderState(d3d_device, D3DRS_ZENABLE, FALSE);
-    IDirect3DDevice9_SetRenderState(d3d_device, D3DRS_ALPHABLENDENABLE, TRUE);
-    IDirect3DDevice9_SetRenderState(d3d_device, D3DRS_BLENDOP,   D3DBLENDOP_ADD);
-    IDirect3DDevice9_SetRenderState(d3d_device, D3DRS_SRCBLEND,  D3DBLEND_SRCALPHA);
-    IDirect3DDevice9_SetRenderState(d3d_device, D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
-    IDirect3DDevice9_SetRenderState(d3d_device, D3DRS_SEPARATEALPHABLENDENABLE, TRUE);
-    IDirect3DDevice9_SetRenderState(d3d_device, D3DRS_SRCBLENDALPHA,  D3DBLEND_ONE);
-    IDirect3DDevice9_SetRenderState(d3d_device, D3DRS_DESTBLENDALPHA, D3DBLEND_INVSRCALPHA);
-    IDirect3DDevice9_SetRenderState(d3d_device, D3DRS_SCISSORTESTENABLE, TRUE);
-    IDirect3DDevice9_SetRenderState(d3d_device, D3DRS_FOGENABLE,         FALSE);
-    IDirect3DDevice9_SetRenderState(d3d_device, D3DRS_RANGEFOGENABLE,    FALSE);
-    IDirect3DDevice9_SetRenderState(d3d_device, D3DRS_SPECULARENABLE,    FALSE);
-    IDirect3DDevice9_SetRenderState(d3d_device, D3DRS_STENCILENABLE,     FALSE);
-    IDirect3DDevice9_SetRenderState(d3d_device, D3DRS_CLIPPING,          TRUE);
-    IDirect3DDevice9_SetRenderState(d3d_device, D3DRS_LIGHTING,          FALSE);
+    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_FILLMODE,  D3DFILL_SOLID);
+    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_SHADEMODE, D3DSHADE_GOURAUD);
+    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ZWRITEENABLE,    FALSE);
+    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ALPHATESTENABLE, FALSE);
+    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_CULLMODE, D3DCULL_NONE);
+    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ZENABLE, FALSE);
+    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ALPHABLENDENABLE, TRUE);
+    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_BLENDOP,   D3DBLENDOP_ADD);
+    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_SRCBLEND,  D3DBLEND_SRCALPHA);
+    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_SEPARATEALPHABLENDENABLE, TRUE);
+    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_SRCBLENDALPHA,  D3DBLEND_ONE);
+    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_DESTBLENDALPHA, D3DBLEND_INVSRCALPHA);
+    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_SCISSORTESTENABLE, TRUE);
+    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_FOGENABLE,         FALSE);
+    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_RANGEFOGENABLE,    FALSE);
+    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_SPECULARENABLE,    FALSE);
+    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_STENCILENABLE,     FALSE);
+    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_CLIPPING,          TRUE);
+    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_LIGHTING,          FALSE);
 
     nb_logger_push_mode(old_mode);
     nb_logger_push_ident(old_ident);
@@ -284,15 +308,40 @@ NB_EXTERN bool rm_init(u32 window_id) {
 }
 
 NB_EXTERN void rm_finish(void) {
-    if (d3d_device) {
-        IDirect3DDevice9_Release(d3d_device);
-        d3d_device = null;
+    if (rm_state.immediate_vb) {
+        IDirect3DVertexBuffer9_Release(rm_state.immediate_vb);
+        rm_state.immediate_vb = null;
+    }
+
+    if (rm_state.d3d_vertex_layout) {
+        IDirect3DVertexDeclaration9_Release(rm_state.d3d_vertex_layout);
+        rm_state.d3d_vertex_layout = null;
+    }
+
+    if (rm_state.vertex_shader) {
+        IDirect3DVertexShader9_Release(rm_state.vertex_shader);
+        rm_state.vertex_shader = null;
+    }
+
+    if (rm_state.pixel_shader) {
+        IDirect3DPixelShader9_Release(rm_state.pixel_shader);
+        rm_state.pixel_shader = null;
+    }
+
+    if (rm_state.d3d_device) {
+        IDirect3DDevice9_Release(rm_state.d3d_device);
+        rm_state.d3d_device = null;
+    }
+
+    if (rm_state.d3d9) {
+        IDirect3D9_Release(rm_state.d3d9);
+        rm_state.d3d9 = null;
     }
 }
 
 static void d3d_reset_device(void) {
     // @Todo: Free resources.
-    HRESULT hr = IDirect3DDevice9_Reset(d3d_device, &d3d_params);
+    HRESULT hr = IDirect3DDevice9_Reset(rm_state.d3d_device, &rm_state.d3d_params);
     assert(hr != D3DERR_INVALIDCALL);
     // @Todo: Init resources.
 }
@@ -328,27 +377,24 @@ d3d_matrix_transpose(D3DMATRIX *m_out, D3DMATRIX *m_in) {
 }
 #endif
 
+static float *
+rm_matrix_transpose(float *m_out, float *m_in) {
+    for (int i = 0; i < 4; ++i) {
+        for (int j = 0; j < 4; ++j) {
+            m_out[4*i+j] = m_in[4*j+i];
+        }
+    }
+
+    return m_out;
+}
+
 NB_EXTERN void rm_swap_buffers(u32 window_id) {
     UNUSED(window_id);
     HRESULT hr;
 
-    immediate_vertices[0].x = -0.5f;
-    immediate_vertices[0].y = -0.5f;
-    immediate_vertices[0].z = 0;
-
-    immediate_vertices[1].x = 0;
-    immediate_vertices[1].y = 0.5f;
-    immediate_vertices[1].z = 0;
-
-    immediate_vertices[2].x = 0.5f;
-    immediate_vertices[2].y = -0.5f;
-    immediate_vertices[2].z = 0;
-
-    num_immediate_vertices = 3;
-
     // Test device lost state.
-    if (d3d_device_lost) {
-        hr = IDirect3DDevice9_TestCooperativeLevel(d3d_device);
+    if (rm_state.d3d_device_lost) {
+        hr = IDirect3DDevice9_TestCooperativeLevel(rm_state.d3d_device);
         if (hr == D3DERR_DEVICELOST) {
             // Do nothing.
             nb_log_print(NB_LOG_NONE, "D3D9", "Device Lost.");
@@ -361,66 +407,124 @@ NB_EXTERN void rm_swap_buffers(u32 window_id) {
             d3d_reset_device();
         }
 
-        d3d_device_lost = false;
+        rm_state.d3d_device_lost = false;
     }
 
-    if (FAILED(IDirect3DDevice9_BeginScene(d3d_device))) {
+    if (FAILED(IDirect3DDevice9_BeginScene(rm_state.d3d_device))) {
         nb_log_print(NB_LOG_ERROR, "D3D9", "Failed to IDirect3DDevice9_BeginScene.");
     }
 
 
-    if (num_immediate_vertices) {
+    if (rm_state.num_immediate_vertices) {
+        // IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_CULLMODE, D3DCULL_CW);
+
         void *locked_vb = null;
-        if (SUCCEEDED(IDirect3DVertexBuffer9_Lock(immediate_vb, 
+        if (SUCCEEDED(IDirect3DVertexBuffer9_Lock(rm_state.immediate_vb, 
             0, 
-            num_immediate_vertices*size_of(Immediate_Vertex), 
+            rm_state.num_immediate_vertices*size_of(Immediate_Vertex), 
             &locked_vb, D3DLOCK_DISCARD))) {
             memcpy(locked_vb, 
-                   immediate_vertices, 
-                   num_immediate_vertices*size_of(Immediate_Vertex));
+                   rm_state.immediate_vertices, 
+                   rm_state.num_immediate_vertices*size_of(Immediate_Vertex));
 
-            IDirect3DVertexBuffer9_Unlock(immediate_vb);
+            IDirect3DVertexBuffer9_Unlock(rm_state.immediate_vb);
         }
 
-        IDirect3DDevice9_SetStreamSource(d3d_device,
+        IDirect3DDevice9_SetStreamSource(rm_state.d3d_device,
                                          0,
-                                         immediate_vb,
+                                         rm_state.immediate_vb,
                                          0,
                                          size_of(Immediate_Vertex));
 
-        // IDirect3DDevice9_SetFVF(d3d_device, D3DFVF_XYZ);
-        IDirect3DDevice9_SetVertexDeclaration(d3d_device, d3d_vertex_layout);
+        IDirect3DDevice9_SetVertexDeclaration(rm_state.d3d_device, 
+                                              rm_state.d3d_vertex_layout);
 
-        float mat_identity[16] = {
-            1, 0, 0, 0,
-            0, 1, 0, 0,
-            0, 0, 1, 0,
-            0, 0, 0, 1,
-        };
-        IDirect3DDevice9_SetVertexShaderConstantF(d3d_device, 0, mat_identity, 4);
+        float transposed[16];
+        rm_matrix_transpose(transposed, &rm_state.pixels_to_proj_matrix[0][0]);
+        IDirect3DDevice9_SetVertexShaderConstantF(rm_state.d3d_device, 
+                                                  0, 
+                                                  transposed, 4);
 
-        IDirect3DDevice9_SetVertexShader(d3d_device, vertex_shader);
-        IDirect3DDevice9_SetPixelShader(d3d_device, pixel_shader);
+        IDirect3DDevice9_SetVertexShader(rm_state.d3d_device, rm_state.vertex_shader);
+        IDirect3DDevice9_SetPixelShader(rm_state.d3d_device, rm_state.pixel_shader);
 
-        UINT num_primitives = num_immediate_vertices / 3;
-        IDirect3DDevice9_DrawPrimitive(d3d_device,
+        UINT num_primitives = rm_state.num_immediate_vertices / 3;
+        IDirect3DDevice9_DrawPrimitive(rm_state.d3d_device,
                                        D3DPT_TRIANGLELIST, 
                                        0, num_primitives);
 
-        num_immediate_vertices = 0;
+        rm_state.num_immediate_vertices = 0;
     }
 
-    IDirect3DDevice9_EndScene(d3d_device);
+    IDirect3DDevice9_EndScene(rm_state.d3d_device);
     
-    hr = IDirect3DDevice9_Present(d3d_device, 0, 0, 0, 0);
+    hr = IDirect3DDevice9_Present(rm_state.d3d_device, 0, 0, 0, 0);
     if (hr == D3DERR_DEVICELOST) {
-        d3d_device_lost = true;
+        rm_state.d3d_device_lost = true;
     }
 }
 
 NB_EXTERN void rm_clear_render_target(float r, float g, float b, float a) {
-    IDirect3DDevice9_Clear(d3d_device, 0, null, 
+    IDirect3DDevice9_Clear(rm_state.d3d_device, 0, null, 
                            D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER,
                            D3DCOLOR_COLORVALUE(r,g,b,a),
                            1.0f, 0);
+}
+
+
+
+NB_INLINE void rm_put_vertex(Immediate_Vertex *dest, 
+                             float x, float y, float z,
+                             float r, float g, float b, float a) {
+    dest->x = x;
+    dest->y = y;
+    dest->z = z;
+
+    dest->r = r;
+    dest->g = g;
+    dest->b = b;
+    dest->a = a;
+}
+
+NB_EXTERN void rm_begin_rendering_2d(float render_target_width, 
+                                     float render_target_height) {
+    // float zn = -1.0f, zf = 1.0f;
+
+    rm_state.pixels_to_proj_matrix[0][0] = 2.0f / render_target_width;
+    rm_state.pixels_to_proj_matrix[0][1] = 0;
+    rm_state.pixels_to_proj_matrix[0][2] = 0;
+    rm_state.pixels_to_proj_matrix[0][3] = 0;
+
+    rm_state.pixels_to_proj_matrix[1][0] = 0;
+    rm_state.pixels_to_proj_matrix[1][1] = 2.0f / render_target_height;
+    rm_state.pixels_to_proj_matrix[1][2] = 0;
+    rm_state.pixels_to_proj_matrix[1][3] = 0;
+
+    rm_state.pixels_to_proj_matrix[2][0] = 0;
+    rm_state.pixels_to_proj_matrix[2][1] = 0;
+    // rm_state.pixels_to_proj_matrix[2][2] = 1/(zn-zf);
+    rm_state.pixels_to_proj_matrix[2][2] = 1;
+    rm_state.pixels_to_proj_matrix[2][3] = 0;
+
+    rm_state.pixels_to_proj_matrix[3][0] = -1;
+    rm_state.pixels_to_proj_matrix[3][1] = -1;
+    // rm_state.pixels_to_proj_matrix[3][2] = zn/(zn-zf);
+    rm_state.pixels_to_proj_matrix[3][2] = 0;
+    rm_state.pixels_to_proj_matrix[3][3] = 1;
+}
+
+NB_EXTERN void 
+rm_immediate_quad(float x0, float y0, float x1, float y1,
+                  float r, float g, float b, float a) {
+    Immediate_Vertex *dest = rm_state.immediate_vertices + rm_state.num_immediate_vertices;
+
+    rm_put_vertex(dest,   x0, y0, 0, r, g, b, a);
+    rm_put_vertex(dest+1, x1, y0, 0, r, g, b, a);
+    rm_put_vertex(dest+2, x1, y1, 0, r, g, b, a);
+
+    rm_put_vertex(dest+3, x0, y0, 0, r, g, b, a);
+    rm_put_vertex(dest+4, x1, y1, 0, r, g, b, a);
+    rm_put_vertex(dest+5, x0, y1, 0, r, g, b, a);
+
+    rm_state.num_immediate_vertices += 6;
 }

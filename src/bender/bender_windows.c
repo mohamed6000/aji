@@ -804,6 +804,8 @@ b_w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 
         case WM_MOUSEMOVE:
         {
+            b_input_state.mouse_x = (lparam & 0xFFFF);
+            b_input_state.mouse_y = (lparam >> 16) & 0xFFFF;
 /*
             // Do we need a mouse move event in practice?
 

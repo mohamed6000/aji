@@ -19,20 +19,25 @@ int main(void) {
     
     // u32 win2_id = bender_create_window("child", 200, 200, -1, -1, id, 0, B_WINDOW_BACKGROUND_COLOR);
 
-    s32 w = 0, h = 0;
-    bender_get_window_size(id, &w, &h);
-    print("window = %dx%d\n", w, h);
+    s32 render_target_width  = 0;
+    s32 render_target_height = 0;
+    bender_get_window_size(id, &render_target_width, &render_target_height);
+    print("window = %dx%d\n", render_target_width, render_target_height);
 
     bool is_fullscreen = false;
+
 
     if (id) {
         bool ap_running = true;
         while (ap_running) {
             bender_update_window_events();
 
-            s32 mx = 0, my = 0;
-            bender_get_mouse_pointer_position_right_handed(id, &mx, &my);
+            // s32 mx = 0, my = 0;
+            // bender_get_mouse_pointer_position_right_handed(id, &mx, &my);
             // print("window mouse pos = %dx%d\n", mx, my);
+
+            float mx = (float)b_input_state.mouse_x;
+            float my = (float)(render_target_height - b_input_state.mouse_y);
 
             BEvent event;
             while (bender_get_next_event(&event)) {
@@ -43,6 +48,8 @@ int main(void) {
 
                 if (event.type == B_EVENT_WINDOW_RESIZE) {
                     print("Window sized = %dx%d\n", event.x, event.y);
+                    render_target_width  = event.x;
+                    render_target_height = event.y;
                 }
 
 /*
@@ -116,7 +123,12 @@ int main(void) {
                       pointer->x, pointer->y);
             }
 
+
             rm_clear_render_target(0.18f, 0.34f, 0.34f, 1);
+
+            rm_begin_rendering_2d((float)render_target_width, (float)render_target_height);
+
+            rm_immediate_quad(mx, my, mx+10.0f, my+10.0f, 0, 1, 0, 1);
 
             rm_swap_buffers(id);
         }
