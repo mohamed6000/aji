@@ -26,6 +26,7 @@ int main(void) {
 
     bool is_fullscreen = false;
 
+    BInput_State *input = bender_get_input_state();
 
     if (id) {
         bool ap_running = true;
@@ -36,11 +37,11 @@ int main(void) {
             // bender_get_mouse_pointer_position_right_handed(id, &mx, &my);
             // print("window mouse pos = %dx%d\n", mx, my);
 
-            float mx = (float)b_input_state.mouse_x;
-            float my = (float)(render_target_height - b_input_state.mouse_y);
+            float mx = (float)input->mouse_x;
+            float my = (float)(render_target_height - input->mouse_y);
 
             BEvent event;
-            while (bender_get_next_event(&b_input_state, &event)) {
+            while (bender_get_next_event(input, &event)) {
                 if (event.type == B_EVENT_QUIT) {
                     if (bender_messagebox_confirm("Quit AJI?", "Are you sure? You want to quit AJI?"))
                         ap_running = false;
@@ -107,16 +108,16 @@ int main(void) {
                 nb_reset_temporary_storage();
             }
 
-            if (b_input_state.button_states[B_MOUSE_BUTTON_LEFT] & B_KEY_STATE_START) {
+            if (input->button_states[B_MOUSE_BUTTON_LEFT] & B_KEY_STATE_START) {
                 nb_write_string("BUTTON INPUT\n", false);
             }
 
-            if (b_input_state.mouse_wheel_delta.vertical) {
-                print("Wheel vertical = %d\n", (s32)(b_input_state.mouse_wheel_delta.vertical/b_input_state.typical_wheel_delta));
+            if (input->mouse_wheel_delta.vertical) {
+                print("Wheel vertical = %d\n", (s32)(input->mouse_wheel_delta.vertical/input->typical_wheel_delta));
             }
 
-            for (s32 index = 0; index < b_input_state.touch_pointer_count; ++index) {
-                BTouch_Pointer *pointer = b_input_state.touch_pointers + index;
+            for (s32 index = 0; index < input->touch_pointer_count; ++index) {
+                BTouch_Pointer *pointer = input->touch_pointers + index;
 
                 const char *touch_event[4] = {"None", "Pressed", "Released", "Moved"};
                 print("Touch %u: %s (%d, %d)\n", 
@@ -126,11 +127,20 @@ int main(void) {
             }
 
 
+            rm_set_viewport(0,0, (float)render_target_width, (float)render_target_height);
             rm_clear_render_target(0.18f, 0.34f, 0.34f, 1);
 
             rm_begin_rendering_2d((float)render_target_width, (float)render_target_height);
 
             rm_immediate_quad(mx, my, mx+10.0f, my+10.0f, 0, 1, 0, 1);
+
+            rm_immediate_quad(0.25f*render_target_width,
+                              0.25f*render_target_height,
+                              0.75f*render_target_width,
+                              0.75f*render_target_height,
+                              1, 1, 1, 0.75f);
+
+            rm_end_frame();
 
             rm_swap_buffers(id);
         }

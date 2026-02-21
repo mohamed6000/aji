@@ -12,6 +12,8 @@
 #pragma comment(lib, "d3dcompiler.lib")
 #endif
 
+// @Todo: dxerr...
+
 typedef struct {
     float x, y, z;
     float r, g, b, a;
@@ -42,26 +44,39 @@ static bool rm_initted;
 
 // @Todo: One shader source.
 char rm_vertex_shader_source[] = 
-"float4x4 wvp : register(c0);"
-"struct VS_Output {"
-"   float4 pos   : POSITION;"
-"   float4 color : COLOR;"
-"};"
-"VS_Output main(float3 pos : POSITION, float4 color : COLOR) {"
-"   VS_Output result;"
-"   result.pos   = mul(float4(pos, 1.0f), wvp);"
-"   result.color = color;"
-"   return result;"
+"float4x4 wvp : register(c0);\n"
+"struct VS_Output {\n"
+"   float4 pos   : POSITION;\n"
+"   float4 color : COLOR;\n"
+"};\n"
+"VS_Output main(float3 pos : POSITION, float4 color : COLOR) {\n"
+"   VS_Output result;\n"
+"   result.pos   = mul(float4(pos, 1.0f), wvp);\n"
+"   result.color = color;\n"
+"   return result;\n"
 "}";
 
 char rm_pixel_shader_source[] = 
-"struct VS_Output {"
-"   float4 pos   : POSITION;"
-"   float4 color : COLOR;"
-"};"
-"float4 main(VS_Output input) : COLOR {"
-"   return input.color;"
-"}";
+"struct VS_Output {\n"
+"   float4 pos   : POSITION;\n"
+"   float4 color : COLOR;\n"
+"};\n"
+"float4 main(VS_Output input) : COLOR {\n"
+"   return input.color;\n"
+"}\n";
+
+
+static void d3d_log_shader_error(ID3DBlob *shader_error) {
+    if (shader_error) {
+#if LANGUAGE_C
+        char *shader_error_message = (char *)(shader_error->lpVtbl->GetBufferPointer(shader_error));
+#else
+        char *shader_error_message = (char *)(shader_error->GetBufferPointer());
+#endif
+
+        Log("%s", shader_error_message);
+    }
+}
 
 
 NB_EXTERN bool rm_init(u32 window_id) {
@@ -210,9 +225,10 @@ NB_EXTERN bool rm_init(u32 window_id) {
 
     // Vertex shader.
     ID3DBlob *compiled_shader = null;
+    ID3DBlob *shader_error    = null;
     hr = D3DCompile(rm_vertex_shader_source, 
                     size_of(rm_vertex_shader_source),
-                    /*pSourceName=*/null, 
+                    /*pSourceName=*/"basic_vs.hlsl", 
                     /*pDefines=*/null,
                     /*pInclude=*/null,
                     "main",
@@ -220,9 +236,12 @@ NB_EXTERN bool rm_init(u32 window_id) {
                     0,
                     0,
                     &compiled_shader,
-                    null);
+                    &shader_error);
     if (FAILED(hr)) {
         Log("Failed to compile the vertex shader.");
+
+        d3d_log_shader_error(shader_error);
+
         return false;
     }
 
@@ -240,9 +259,11 @@ NB_EXTERN bool rm_init(u32 window_id) {
     }
 
     // Pixel shader.
+    compiled_shader = null;
+    shader_error    = null;
     hr = D3DCompile(rm_pixel_shader_source, 
                     size_of(rm_pixel_shader_source),
-                    /*pSourceName=*/null, 
+                    /*pSourceName=*/"basic_ps.hlsl", 
                     /*pDefines=*/null,
                     /*pInclude=*/null,
                     "main",
@@ -250,9 +271,12 @@ NB_EXTERN bool rm_init(u32 window_id) {
                     0,
                     0,
                     &compiled_shader,
-                    null);
+                    &shader_error);
     if (FAILED(hr)) {
         Log("Failed to compile the pixel shader.");
+
+        d3d_log_shader_error(shader_error);
+
         return false;
     }
 
@@ -390,73 +414,8 @@ rm_matrix_transpose(float *m_out, float *m_in) {
 
 NB_EXTERN void rm_swap_buffers(u32 window_id) {
     UNUSED(window_id);
+    
     HRESULT hr;
-
-    // Test device lost state.
-    if (rm_state.d3d_device_lost) {
-        hr = IDirect3DDevice9_TestCooperativeLevel(rm_state.d3d_device);
-        if (hr == D3DERR_DEVICELOST) {
-            // Do nothing.
-            nb_log_print(NB_LOG_NONE, "D3D9", "Device Lost.");
-            bender_sleep_ms(10);
-            return;
-        }
-
-        if (hr == D3DERR_DEVICENOTRESET) {
-            nb_log_print(NB_LOG_NONE, "D3D9", "Device Not Reset.");
-            d3d_reset_device();
-        }
-
-        rm_state.d3d_device_lost = false;
-    }
-
-    if (FAILED(IDirect3DDevice9_BeginScene(rm_state.d3d_device))) {
-        nb_log_print(NB_LOG_ERROR, "D3D9", "Failed to IDirect3DDevice9_BeginScene.");
-    }
-
-
-    if (rm_state.num_immediate_vertices) {
-        // IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_CULLMODE, D3DCULL_CW);
-
-        void *locked_vb = null;
-        if (SUCCEEDED(IDirect3DVertexBuffer9_Lock(rm_state.immediate_vb, 
-            0, 
-            rm_state.num_immediate_vertices*size_of(Immediate_Vertex), 
-            &locked_vb, D3DLOCK_DISCARD))) {
-            memcpy(locked_vb, 
-                   rm_state.immediate_vertices, 
-                   rm_state.num_immediate_vertices*size_of(Immediate_Vertex));
-
-            IDirect3DVertexBuffer9_Unlock(rm_state.immediate_vb);
-        }
-
-        IDirect3DDevice9_SetStreamSource(rm_state.d3d_device,
-                                         0,
-                                         rm_state.immediate_vb,
-                                         0,
-                                         size_of(Immediate_Vertex));
-
-        IDirect3DDevice9_SetVertexDeclaration(rm_state.d3d_device, 
-                                              rm_state.d3d_vertex_layout);
-
-        float transposed[16];
-        rm_matrix_transpose(transposed, &rm_state.pixels_to_proj_matrix[0][0]);
-        IDirect3DDevice9_SetVertexShaderConstantF(rm_state.d3d_device, 
-                                                  0, 
-                                                  transposed, 4);
-
-        IDirect3DDevice9_SetVertexShader(rm_state.d3d_device, rm_state.vertex_shader);
-        IDirect3DDevice9_SetPixelShader(rm_state.d3d_device, rm_state.pixel_shader);
-
-        UINT num_primitives = rm_state.num_immediate_vertices / 3;
-        IDirect3DDevice9_DrawPrimitive(rm_state.d3d_device,
-                                       D3DPT_TRIANGLELIST, 
-                                       0, num_primitives);
-
-        rm_state.num_immediate_vertices = 0;
-    }
-
-    IDirect3DDevice9_EndScene(rm_state.d3d_device);
     
     hr = IDirect3DDevice9_Present(rm_state.d3d_device, 0, 0, 0, 0);
     if (hr == D3DERR_DEVICELOST) {
@@ -511,6 +470,90 @@ NB_EXTERN void rm_begin_rendering_2d(float render_target_width,
     // rm_state.pixels_to_proj_matrix[3][2] = zn/(zn-zf);
     rm_state.pixels_to_proj_matrix[3][2] = 0;
     rm_state.pixels_to_proj_matrix[3][3] = 1;
+}
+
+NB_EXTERN void rm_end_frame(void) {
+    HRESULT hr;
+
+    // Test device lost state.
+    if (rm_state.d3d_device_lost) {
+        hr = IDirect3DDevice9_TestCooperativeLevel(rm_state.d3d_device);
+        if (hr == D3DERR_DEVICELOST) {
+            // Do nothing.
+            nb_log_print(NB_LOG_NONE, "D3D9", "Device Lost.");
+            bender_sleep_ms(10);
+            return;
+        }
+
+        if (hr == D3DERR_DEVICENOTRESET) {
+            nb_log_print(NB_LOG_NONE, "D3D9", "Device Not Reset.");
+            d3d_reset_device();
+        }
+
+        rm_state.d3d_device_lost = false;
+    }
+
+    if (FAILED(IDirect3DDevice9_BeginScene(rm_state.d3d_device))) {
+        nb_log_print(NB_LOG_ERROR, "D3D9", "Failed to IDirect3DDevice9_BeginScene.");
+    }
+
+
+    if (rm_state.num_immediate_vertices) {
+        // IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_CULLMODE, D3DCULL_CW);
+
+        // @Todo: Renderer state changes.
+
+        void *locked_vb = null;
+        if (SUCCEEDED(IDirect3DVertexBuffer9_Lock(rm_state.immediate_vb, 
+            0, 
+            rm_state.num_immediate_vertices*size_of(Immediate_Vertex), 
+            &locked_vb, D3DLOCK_DISCARD))) {
+            memcpy(locked_vb, 
+                   rm_state.immediate_vertices, 
+                   rm_state.num_immediate_vertices*size_of(Immediate_Vertex));
+
+            IDirect3DVertexBuffer9_Unlock(rm_state.immediate_vb);
+        }
+
+        IDirect3DDevice9_SetStreamSource(rm_state.d3d_device,
+                                         0,
+                                         rm_state.immediate_vb,
+                                         0,
+                                         size_of(Immediate_Vertex));
+
+        IDirect3DDevice9_SetVertexDeclaration(rm_state.d3d_device, 
+                                              rm_state.d3d_vertex_layout);
+
+        float transposed[16];
+        rm_matrix_transpose(transposed, &rm_state.pixels_to_proj_matrix[0][0]);
+        IDirect3DDevice9_SetVertexShaderConstantF(rm_state.d3d_device, 
+                                                  0, 
+                                                  transposed, 4);
+
+        IDirect3DDevice9_SetVertexShader(rm_state.d3d_device, rm_state.vertex_shader);
+        IDirect3DDevice9_SetPixelShader(rm_state.d3d_device, rm_state.pixel_shader);
+
+        UINT num_primitives = rm_state.num_immediate_vertices / 3;
+        IDirect3DDevice9_DrawPrimitive(rm_state.d3d_device,
+                                       D3DPT_TRIANGLELIST, 
+                                       0, num_primitives);
+
+        rm_state.num_immediate_vertices = 0;
+    }
+
+    IDirect3DDevice9_EndScene(rm_state.d3d_device);
+}
+
+NB_EXTERN void rm_set_viewport(float x, float y, float width, float height) {
+    D3DVIEWPORT9 vp;
+    vp.X = (DWORD)x;
+    vp.Y = (DWORD)y;
+    vp.Width  = (DWORD)width;
+    vp.Height = (DWORD)height;
+    vp.MinZ = 0.0f;
+    vp.MaxZ = 1.0f;
+
+    IDirect3DDevice9_SetViewport(rm_state.d3d_device, &vp);
 }
 
 NB_EXTERN void 

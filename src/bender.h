@@ -325,6 +325,11 @@ typedef struct BInput_State {
 
 extern BInput_State b_input_state;
 
+NB_INLINE BInput_State *
+bender_get_input_state(void) {
+    return &b_input_state;
+}
+
 NB_INLINE u32 
 bender_get_input_button_state(BKey_Code key_code) {
     return b_input_state.button_states[key_code];
