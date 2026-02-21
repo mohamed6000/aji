@@ -12,8 +12,7 @@
 
 int main(void) {
     u32 id = bender_create_window("AJI", 640, 480, -1, -1, 0, 
-                                  0, 
-                                  B_WINDOW_BACKGROUND_COLOR);
+                                  0, B_WINDOW_BACKGROUND_COLOR);
 
     rm_init(id);
     
@@ -49,10 +48,14 @@ int main(void) {
 
                 if (event.type == B_EVENT_WINDOW_RESIZE) {
                     print("Window sized = %dx%d\n", event.x, event.y);
+
+                    if (event.x != render_target_width ||
+                        event.y != render_target_height) {
+                        rm_backbuffer_resize(event.x, event.y);
+                    }
+
                     render_target_width  = event.x;
                     render_target_height = event.y;
-
-                    // @Todo: if size has changed, resize the back buffer.
                 }
 
 /*

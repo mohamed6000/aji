@@ -14,6 +14,8 @@ NB_EXTERN bool rm_init(u32 window_id);
 // (The window must be set for rendering)
 NB_EXTERN void rm_swap_buffers(u32 window_id);
 
+NB_EXTERN void rm_backbuffer_resize(s32 width, s32 height);
+
 // Clear the current render target to the specified color.
 NB_EXTERN void rm_clear_render_target(float r, float g, float b, float a);
 
@@ -26,7 +28,7 @@ NB_EXTERN void rm_begin_rendering_2d(float render_target_width,
 // Draws the entire frame.
 NB_EXTERN void rm_end_frame(void);
 
-NB_EXTERN void rm_set_viewport(float x, float y, float width, float height);
+NB_EXTERN void rm_set_viewport(float x0, float y0, float x1, float y1);
 
 // Pushes a quad to the immediate vertex buffer.
 NB_EXTERN void rm_immediate_quad(float x0, float y0, float x1, float y1,

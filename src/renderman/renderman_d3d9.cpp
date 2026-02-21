@@ -31,6 +31,7 @@ typedef struct {
     IDirect3DVertexShader9      *vertex_shader;
     IDirect3DPixelShader9       *pixel_shader;
     D3DPRESENT_PARAMETERS       d3d_params;
+    HWND main_window_handle;
 
     u32 num_immediate_vertices;
     Immediate_Vertex immediate_vertices[MAX_IMMEDIATE_VERTICES];
@@ -38,6 +39,7 @@ typedef struct {
     float pixels_to_proj_matrix[4][4];
     
     bool d3d_device_lost;
+    bool vertex_hw_processing_enabled;
 } Renderman_State;
 
 static Renderman_State rm_state;
@@ -121,123 +123,9 @@ static char *hresult_to_message(HRESULT hr) {
     return result;
 }
 
-
-NB_EXTERN bool rm_init(u32 window_id) {
-    if (rm_initted) return true;
-
-    const char *old_ident = nb_logger_push_ident("D3D9");
-    u32 old_mode = nb_logger_push_mode(NB_LOG_ERROR);
-
-    rm_state.d3d9 = Direct3DCreate9(D3D_SDK_VERSION);
-    if (!rm_state.d3d9) {
-        Log("Failed to Direct3DCreate9.");
-        return false;
-    }
-
+static bool 
+d3d_immediate_mode_init(void) {
     HRESULT hr;
-    UINT adapter = D3DADAPTER_DEFAULT;
-    D3DFORMAT format = D3DFMT_X8R8G8B8;
-
-    // Check the device capabilities.
-    D3DCAPS9 caps = {0};
-    hr = IDirect3D9_GetDeviceCaps(rm_state.d3d9, adapter, D3DDEVTYPE_HAL, &caps);
-    if (FAILED(hr)) {
-        Log("Failed to IDirect3D9_GetDeviceCaps.");
-        Log("%s", hresult_to_message(hr));
-        return false;
-    }
-    
-    bool vertex_hardware_processing_enabled = (caps.DevCaps & D3DDEVCAPS_HWTRANSFORMANDLIGHT) != 0;
-
-    HWND hwnd = (HWND)b_get_window_handle(window_id);
-
-    RECT client_rect;
-    GetClientRect(hwnd, &client_rect);
-
-    rm_state.d3d_params.Windowed   = TRUE;
-    rm_state.d3d_params.SwapEffect = D3DSWAPEFFECT_DISCARD;//D3DSWAPEFFECT_COPY;
-    rm_state.d3d_params.BackBufferFormat = format;
-    rm_state.d3d_params.hDeviceWindow    = hwnd;
-    rm_state.d3d_params.BackBufferWidth  = client_rect.right  - client_rect.left;
-    rm_state.d3d_params.BackBufferHeight = client_rect.bottom - client_rect.top;
-    rm_state.d3d_params.EnableAutoDepthStencil = TRUE;
-    rm_state.d3d_params.AutoDepthStencilFormat = D3DFMT_D24S8;
-    rm_state.d3d_params.PresentationInterval   = D3DPRESENT_INTERVAL_ONE;  // vsync on.
-    // rm_state.d3d_params.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;  // vsync off.
-
-
-    // Check device format.
-/*
-    hr = IDirect3D9_CheckDeviceFormat(d3d9,
-                                      adapter,
-                                      D3DDEVTYPE_HAL,
-                                      ...);
-*/
-
-#if 0
-    // Enumerate adapters.
-    UINT adapter_mode_count = IDirect3D9_GetAdapterModeCount(
-        d3d9,
-        adapter,
-        format
-    );
-
-    if (!adapter_mode_count) {
-        Log("No adapter modes were found for the specified D3D format.");
-        return false;
-    }
-
-    nb_log_print(NB_LOG_NONE, "D3D9", "Found %u adapter modes.", adapter_mode_count);
-
-    D3DDISPLAYMODE *display_modes = (D3DDISPLAYMODE *)nb_new_array(D3DDISPLAYMODE, adapter_mode_count, NB_GET_ALLOCATOR());
-    if (!display_modes) return false;
-
-    for (UINT index = 0; index < adapter_mode_count; ++index) {
-        hr = IDirect3D9_EnumAdapterModes(d3d9,
-                                         adapter,
-                                         format,
-                                         index,
-                                         display_modes + index);
-        if (hr == D3D_OK) {
-            D3DDISPLAYMODE *mode = display_modes + index;
-            nb_log_print(NB_LOG_NONE, "D3D9", "Found valid device mode:");
-
-            nb_log_print(NB_LOG_NONE, null,
-                         "    Device %u: %ux%u %uHz", index, mode->Width, mode->Height, mode->RefreshRate);
-        } else if (hr == D3DERR_INVALIDCALL) {
-            nb_log_print(NB_LOG_ERROR, "D3D9", 
-                         "INVALIDCALL: The adapter equals or exceeds the number of display adapters in the system.");
-        } else if (hr == D3DERR_NOTAVAILABLE) {
-            nb_log_print(NB_LOG_ERROR, "D3D9", 
-                         "NOTAVAILABLE: Either surface format is not supported or hardware acceleration is not available for the specified formats.");
-        }
-    }
-#endif
-
-    // hr = IDirect3D9_CheckDeviceType(...);
-
-    hr = IDirect3D9_CreateDevice(rm_state.d3d9, 
-                                 adapter,
-                                 D3DDEVTYPE_HAL,
-                                 hwnd,
-                                 vertex_hardware_processing_enabled ? D3DCREATE_HARDWARE_VERTEXPROCESSING : D3DCREATE_SOFTWARE_VERTEXPROCESSING,
-                                 &rm_state.d3d_params,
-                                 &rm_state.d3d_device);
-    if (FAILED(hr) && vertex_hardware_processing_enabled) {
-        hr = IDirect3D9_CreateDevice(rm_state.d3d9, 
-                                     adapter,
-                                     D3DDEVTYPE_HAL,
-                                     hwnd,
-                                     D3DCREATE_SOFTWARE_VERTEXPROCESSING,
-                                     &rm_state.d3d_params,
-                                     &rm_state.d3d_device);
-    }
-
-    if (FAILED(hr)) {
-        Log("Failed to IDirect3D9_CreateDevice.");
-        Log("%s", hresult_to_message(hr));
-        return false;
-    }
 
     // Immediate non-FVF vertex buffer.
     hr = IDirect3DDevice9_CreateVertexBuffer(rm_state.d3d_device, 
@@ -344,14 +232,6 @@ NB_EXTERN bool rm_init(u32 window_id) {
         return false;
     }
 
-    D3DVIEWPORT9 vp;
-    vp.X = vp.Y = 0;
-    vp.Width  = rm_state.d3d_params.BackBufferWidth;
-    vp.Height = rm_state.d3d_params.BackBufferHeight;
-    vp.MinZ = 0.0f;
-    vp.MaxZ = 1.0f;
-
-    IDirect3DDevice9_SetViewport(rm_state.d3d_device, &vp);
 
     IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_FILLMODE,  D3DFILL_SOLID);
     IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_SHADEMODE, D3DSHADE_GOURAUD);
@@ -374,15 +254,11 @@ NB_EXTERN bool rm_init(u32 window_id) {
     IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_CLIPPING,          TRUE);
     IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_LIGHTING,          FALSE);
 
-    nb_logger_push_mode(old_mode);
-    nb_logger_push_ident(old_ident);
-
-    rm_initted = true;
 
     return true;
 }
 
-NB_EXTERN void rm_finish(void) {
+static void d3d_immediate_mode_release(void) {
     if (rm_state.immediate_vb) {
         IDirect3DVertexBuffer9_Release(rm_state.immediate_vb);
         rm_state.immediate_vb = null;
@@ -402,6 +278,161 @@ NB_EXTERN void rm_finish(void) {
         IDirect3DPixelShader9_Release(rm_state.pixel_shader);
         rm_state.pixel_shader = null;
     }
+}
+
+static IDirect3DDevice9 *d3d_device_create(UINT adapter) {
+    HRESULT hr;
+    IDirect3DDevice9 *device = null;
+
+    hr = IDirect3D9_CreateDevice(rm_state.d3d9, 
+                                 adapter,
+                                 D3DDEVTYPE_HAL,
+                                 rm_state.main_window_handle,
+                                 rm_state.vertex_hw_processing_enabled ? D3DCREATE_HARDWARE_VERTEXPROCESSING : D3DCREATE_SOFTWARE_VERTEXPROCESSING,
+                                 &rm_state.d3d_params,
+                                 &device);
+    if (FAILED(hr) && rm_state.vertex_hw_processing_enabled) {
+        hr = IDirect3D9_CreateDevice(rm_state.d3d9, 
+                                     adapter,
+                                     D3DDEVTYPE_HAL,
+                                     rm_state.main_window_handle,
+                                     D3DCREATE_SOFTWARE_VERTEXPROCESSING,
+                                     &rm_state.d3d_params,
+                                     &device);
+    }
+
+    if (FAILED(hr)) {
+        Log("Failed to IDirect3D9_CreateDevice.");
+        Log("%s", hresult_to_message(hr));
+        return null;
+    }
+
+    return device;
+}
+
+
+NB_EXTERN bool rm_init(u32 window_id) {
+    if (rm_initted) return true;
+
+    const char *old_ident = nb_logger_push_ident("D3D9");
+    u32 old_mode = nb_logger_push_mode(NB_LOG_ERROR);
+
+    rm_state.d3d9 = Direct3DCreate9(D3D_SDK_VERSION);
+    if (!rm_state.d3d9) {
+        Log("Failed to Direct3DCreate9.");
+        return false;
+    }
+
+    HRESULT hr;
+    UINT adapter = D3DADAPTER_DEFAULT;
+    D3DFORMAT format = D3DFMT_X8R8G8B8;
+
+    // Check the device capabilities.
+    D3DCAPS9 caps = {0};
+    hr = IDirect3D9_GetDeviceCaps(rm_state.d3d9, adapter, D3DDEVTYPE_HAL, &caps);
+    if (FAILED(hr)) {
+        Log("Failed to IDirect3D9_GetDeviceCaps.");
+        Log("%s", hresult_to_message(hr));
+        return false;
+    }
+    
+    rm_state.vertex_hw_processing_enabled = (caps.DevCaps & D3DDEVCAPS_HWTRANSFORMANDLIGHT) != 0;
+
+    HWND hwnd = (HWND)b_get_window_handle(window_id);
+    rm_state.main_window_handle = hwnd;
+
+    RECT client_rect;
+    GetClientRect(hwnd, &client_rect);
+
+    rm_state.d3d_params.Windowed   = TRUE;
+    rm_state.d3d_params.SwapEffect = D3DSWAPEFFECT_DISCARD;//D3DSWAPEFFECT_COPY;
+    rm_state.d3d_params.BackBufferFormat = format;
+    rm_state.d3d_params.hDeviceWindow    = hwnd;
+    rm_state.d3d_params.BackBufferWidth  = client_rect.right  - client_rect.left;
+    rm_state.d3d_params.BackBufferHeight = client_rect.bottom - client_rect.top;
+    rm_state.d3d_params.EnableAutoDepthStencil = TRUE;
+    rm_state.d3d_params.AutoDepthStencilFormat = D3DFMT_D24S8;
+    rm_state.d3d_params.PresentationInterval   = D3DPRESENT_INTERVAL_ONE;  // vsync on.
+    // rm_state.d3d_params.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;  // vsync off.
+
+
+    // Check device format.
+/*
+    hr = IDirect3D9_CheckDeviceFormat(d3d9,
+                                      adapter,
+                                      D3DDEVTYPE_HAL,
+                                      ...);
+*/
+
+#if 0
+    // Enumerate adapters.
+    UINT adapter_mode_count = IDirect3D9_GetAdapterModeCount(
+        d3d9,
+        adapter,
+        format
+    );
+
+    if (!adapter_mode_count) {
+        Log("No adapter modes were found for the specified D3D format.");
+        return false;
+    }
+
+    nb_log_print(NB_LOG_NONE, "D3D9", "Found %u adapter modes.", adapter_mode_count);
+
+    D3DDISPLAYMODE *display_modes = (D3DDISPLAYMODE *)nb_new_array(D3DDISPLAYMODE, adapter_mode_count, NB_GET_ALLOCATOR());
+    if (!display_modes) return false;
+
+    for (UINT index = 0; index < adapter_mode_count; ++index) {
+        hr = IDirect3D9_EnumAdapterModes(d3d9,
+                                         adapter,
+                                         format,
+                                         index,
+                                         display_modes + index);
+        if (hr == D3D_OK) {
+            D3DDISPLAYMODE *mode = display_modes + index;
+            nb_log_print(NB_LOG_NONE, "D3D9", "Found valid device mode:");
+
+            nb_log_print(NB_LOG_NONE, null,
+                         "    Device %u: %ux%u %uHz", index, mode->Width, mode->Height, mode->RefreshRate);
+        } else if (hr == D3DERR_INVALIDCALL) {
+            nb_log_print(NB_LOG_ERROR, "D3D9", 
+                         "INVALIDCALL: The adapter equals or exceeds the number of display adapters in the system.");
+        } else if (hr == D3DERR_NOTAVAILABLE) {
+            nb_log_print(NB_LOG_ERROR, "D3D9", 
+                         "NOTAVAILABLE: Either surface format is not supported or hardware acceleration is not available for the specified formats.");
+        }
+    }
+#endif
+
+    // hr = IDirect3D9_CheckDeviceType(...);
+
+    rm_state.d3d_device = d3d_device_create(D3DADAPTER_DEFAULT);
+    if (!rm_state.d3d_device) return false;
+
+    if (!d3d_immediate_mode_init()) {
+        return false;
+    }
+
+    D3DVIEWPORT9 vp;
+    vp.X = vp.Y = 0;
+    vp.Width  = rm_state.d3d_params.BackBufferWidth;
+    vp.Height = rm_state.d3d_params.BackBufferHeight;
+    vp.MinZ = 0.0f;
+    vp.MaxZ = 1.0f;
+
+    IDirect3DDevice9_SetViewport(rm_state.d3d_device, &vp);
+
+
+    nb_logger_push_mode(old_mode);
+    nb_logger_push_ident(old_ident);
+
+    rm_initted = true;
+
+    return true;
+}
+
+NB_EXTERN void rm_finish(void) {
+    d3d_immediate_mode_release();
 
     if (rm_state.d3d_device) {
         IDirect3DDevice9_Release(rm_state.d3d_device);
@@ -415,10 +446,14 @@ NB_EXTERN void rm_finish(void) {
 }
 
 static void d3d_reset_device(void) {
-    // @Todo: Free resources.
-    HRESULT hr = IDirect3DDevice9_Reset(rm_state.d3d_device, &rm_state.d3d_params);
+    HRESULT hr;
+
+    d3d_immediate_mode_release();
+
+    hr = IDirect3DDevice9_Reset(rm_state.d3d_device, &rm_state.d3d_params);
     assert(hr != D3DERR_INVALIDCALL);
-    // @Todo: Init resources.
+
+    d3d_immediate_mode_init();
 }
 
 #if 0
@@ -472,6 +507,25 @@ NB_EXTERN void rm_swap_buffers(u32 window_id) {
     if (hr == D3DERR_DEVICELOST) {
         rm_state.d3d_device_lost = true;
     }
+}
+
+NB_EXTERN void rm_backbuffer_resize(s32 width, s32 height) {
+    HRESULT hr;
+
+    d3d_immediate_mode_release();
+
+    hr = IDirect3DDevice9_Reset(rm_state.d3d_device, &rm_state.d3d_params);
+    assert(hr != D3DERR_INVALIDCALL);
+
+    IDirect3DDevice9_Release(rm_state.d3d_device);
+
+    rm_state.d3d_params.BackBufferWidth  = width;
+    rm_state.d3d_params.BackBufferHeight = height;
+
+    rm_state.d3d_device = d3d_device_create(D3DADAPTER_DEFAULT);
+    if (!rm_state.d3d_device) return;
+
+    d3d_immediate_mode_init();
 }
 
 NB_EXTERN void rm_clear_render_target(float r, float g, float b, float a) {
@@ -596,12 +650,12 @@ NB_EXTERN void rm_end_frame(void) {
     IDirect3DDevice9_EndScene(rm_state.d3d_device);
 }
 
-NB_EXTERN void rm_set_viewport(float x, float y, float width, float height) {
+NB_EXTERN void rm_set_viewport(float x0, float y0, float x1, float y1) {
     D3DVIEWPORT9 vp;
-    vp.X = (DWORD)x;
-    vp.Y = (DWORD)y;
-    vp.Width  = (DWORD)width;
-    vp.Height = (DWORD)height;
+    vp.X = (DWORD)x0;
+    vp.Y = (DWORD)y0;
+    vp.Width  = (DWORD)(x1-x0);
+    vp.Height = (DWORD)(y1-y0);
     vp.MinZ = 0.0f;
     vp.MaxZ = 1.0f;
 
