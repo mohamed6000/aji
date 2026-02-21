@@ -21,7 +21,6 @@ bender_create_window(const char *title, s32 width, s32 height,
                      const float NB_DEFAULT_VALUE(background_color[3], B_WINDOW_BACKGROUND_COLOR));
 
 NB_EXTERN void bender_update_window_events(void);
-NB_EXTERN bool bender_get_next_event(struct BEvent *event);
 
 NB_EXTERN void 
 bender_get_window_size(u32 window_id, 

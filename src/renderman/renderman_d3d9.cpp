@@ -12,7 +12,9 @@
 #pragma comment(lib, "d3dcompiler.lib")
 #endif
 
-// @Todo: dxerr...
+#define DXERROR9(v,n,d) {v, TEXT(n), TEXT(d)},
+#define DXERROR9LAST(v,n,d) {v, TEXT(n), TEXT(d)}
+#include "dxerr_d3d9.c"
 
 typedef struct {
     float x, y, z;
@@ -78,6 +80,47 @@ static void d3d_log_shader_error(ID3DBlob *shader_error) {
     }
 }
 
+static char *hresult_to_message(HRESULT hr) {
+    char *result = null;
+
+    WCHAR *message_text = null;
+
+    DWORD message_length = FormatMessageW(
+      FORMAT_MESSAGE_ALLOCATE_BUFFER|
+      FORMAT_MESSAGE_FROM_SYSTEM|
+      FORMAT_MESSAGE_IGNORE_INSERTS,
+      null,
+      hr,
+      MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+      // MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US),
+      (LPWSTR)&message_text, 0,
+      null
+    );
+
+    UNUSED(message_length);
+
+    if (message_text) {
+        result = b_w32_wide_to_utf8(message_text, 
+                                          message_length, 
+                                          nb_temporary_allocator);
+
+        // Log("%s", result);
+
+        LocalFree(message_text);
+    } else {
+        // Failed: fallback to dxerr messages.
+        TCHAR *s = (TCHAR *)DXGetErrorString(hr);
+        TCHAR *d = (TCHAR *)DXGetErrorDescription(hr);
+
+        char *error_str  = b_w32_wide_to_utf8(s, 0, nb_temporary_allocator);
+        char *error_desc = b_w32_wide_to_utf8(d, 0, nb_temporary_allocator);
+
+        result = tprint("%s: %s", error_str, error_desc);
+    }
+
+    return result;
+}
+
 
 NB_EXTERN bool rm_init(u32 window_id) {
     if (rm_initted) return true;
@@ -100,6 +143,7 @@ NB_EXTERN bool rm_init(u32 window_id) {
     hr = IDirect3D9_GetDeviceCaps(rm_state.d3d9, adapter, D3DDEVTYPE_HAL, &caps);
     if (FAILED(hr)) {
         Log("Failed to IDirect3D9_GetDeviceCaps.");
+        Log("%s", hresult_to_message(hr));
         return false;
     }
     
@@ -191,6 +235,7 @@ NB_EXTERN bool rm_init(u32 window_id) {
 
     if (FAILED(hr)) {
         Log("Failed to IDirect3D9_CreateDevice.");
+        Log("%s", hresult_to_message(hr));
         return false;
     }
 
@@ -203,6 +248,7 @@ NB_EXTERN bool rm_init(u32 window_id) {
                                              &rm_state.immediate_vb, null);
     if (FAILED(hr)) {
         Log("Failed to create the immediate vertex buffer.");
+        Log("%s", hresult_to_message(hr));
         return false;
     }
 
@@ -220,6 +266,7 @@ NB_EXTERN bool rm_init(u32 window_id) {
                                                   &rm_state.d3d_vertex_layout);
     if (FAILED(hr)) {
         Log("Failed to IDirect3DDevice9_CreateVertexDeclaration.");
+        Log("%s", hresult_to_message(hr));
         return false;
     }
 
@@ -239,6 +286,7 @@ NB_EXTERN bool rm_init(u32 window_id) {
                     &shader_error);
     if (FAILED(hr)) {
         Log("Failed to compile the vertex shader.");
+        Log("%s", hresult_to_message(hr));
 
         d3d_log_shader_error(shader_error);
 
@@ -255,6 +303,7 @@ NB_EXTERN bool rm_init(u32 window_id) {
                                              &rm_state.vertex_shader);
     if (FAILED(hr)) {
         Log("Failed to IDirect3DDevice9_CreateVertexShader.");
+        Log("%s", hresult_to_message(hr));
         return false;
     }
 
@@ -274,6 +323,7 @@ NB_EXTERN bool rm_init(u32 window_id) {
                     &shader_error);
     if (FAILED(hr)) {
         Log("Failed to compile the pixel shader.");
+        Log("%s", hresult_to_message(hr));
 
         d3d_log_shader_error(shader_error);
 
@@ -290,6 +340,7 @@ NB_EXTERN bool rm_init(u32 window_id) {
                                             &rm_state.pixel_shader);
     if (FAILED(hr)) {
         Log("Failed to IDirect3DDevice9_CreatePixelShader.");
+        Log("%s", hresult_to_message(hr));
         return false;
     }
 
@@ -495,6 +546,7 @@ NB_EXTERN void rm_end_frame(void) {
 
     if (FAILED(IDirect3DDevice9_BeginScene(rm_state.d3d_device))) {
         nb_log_print(NB_LOG_ERROR, "D3D9", "Failed to IDirect3DDevice9_BeginScene.");
+        Log("%s", hresult_to_message(GetLastError()));
     }
 
 
