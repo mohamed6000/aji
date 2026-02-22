@@ -96,371 +96,8 @@ NB_INLINE u32 b_float_to_u32_color_channel(float f) {
     return u;
 }
 
-static s32 b_w32_vk_codes[B_KEY_CODE_COUNT] = {
-    0,  // B_KEY_UNKNOWN,  // Not assigned.
-
-    0, 0, 0, 0, 0, 0, 0,
-
-    VK_BACK, // KEY_BACKSPACE = 8,
-    VK_TAB,  // KEY_TAB       = 9,
-    10,      // KEY_LINEFEED  = 10,
-
-    0, 0,
-
-    VK_RETURN, // KEY_ENTER = 13,
-
-    0, 0, 0, 0, 0, 0, 0,
-
-    VK_ESCAPE,  // KEY_ESCAPE = 21,
-
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-
-    VK_SPACE,  // KEY_SPACE = 32,
-
-    0, 0, 0, 0, 0, 0,
-
-    VK_OEM_7,      // ''' KEY_APOSTROPHE
-    0, 0, 0, 
-    VK_OEM_PLUS,   // '+' KEY_PLUS
-    VK_OEM_COMMA,  // ',' KEY_COMMA
-    VK_OEM_MINUS,  // '-' KEY_DASH
-    VK_OEM_PERIOD, // '.' KEY_DOT
-    VK_OEM_2,      // '/' KEY_FORWARD_SLASH
-
-    // ASCII Input keys.
-    48, 49, 50, 51, 52, 53, 54, 55, 56, 57,  // 0..9 -> 48..57
-
-    0,        // ':' KEY_COLON
-    VK_OEM_1, // ';' KEY_SEMI_COLON
-
-    0, 0, 0, 0, 0,
-
-    // A..Z -> 65..90
-    65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 
-    75, 76, 77, 78, 79, 80, 81, 82, 83, 84,
-    85, 86, 87, 88, 89, 90,
-
-    VK_OEM_4, // '[' KEY_LEFT_BRACKET
-    VK_OEM_5, // '\' KEY_BACK_SLASH
-    VK_OEM_6, // ']' KEY_RIGHT_BRACKET
-    0, 0, 
-    VK_OEM_3, // '`' KEY_BACK_TICK
-    
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-    
-    VK_DELETE,  // KEY_DELETE = 127,
-
-    VK_LEFT,  // KEY_ARROW_LEFT,
-    VK_UP,    // KEY_ARROW_UP,
-    VK_RIGHT, // KEY_ARROW_RIGHT,
-    VK_DOWN,  // KEY_ARROW_DOWN,
-
-    VK_SHIFT,    // B_KEY_SHIFT,
-    VK_CONTROL,  // B_KEY_CTRL,
-    VK_MENU,     // B_KEY_ALT,
-    VK_APPS,     // B_KEY_CMD,
-
-    VK_PAUSE,    // KEY_PAUSE,
-    VK_CAPITAL,  // KEY_CAPS_LOCK,
-
-    VK_PRIOR, // KEY_PAGE_UP,
-    VK_NEXT,  // KEY_PAGE_DOWN,
-    VK_HOME,  // KEY_HOME,
-    VK_END,   // KEY_END,
-    
-    VK_SNAPSHOT, // KEY_PRINT_SCREEN,
-    VK_INSERT,   // KEY_INSERT,
-
-    VK_NUMPAD0,  // KEY_NUMPAD_0,
-    VK_NUMPAD1,  // KEY_NUMPAD_1,
-    VK_NUMPAD2,  // KEY_NUMPAD_2,
-    VK_NUMPAD3,  // KEY_NUMPAD_3,
-    VK_NUMPAD4,  // KEY_NUMPAD_4,
-    VK_NUMPAD5,  // KEY_NUMPAD_5,
-    VK_NUMPAD6,  // KEY_NUMPAD_6,
-    VK_NUMPAD7,  // KEY_NUMPAD_7,
-    VK_NUMPAD8,  // KEY_NUMPAD_8,
-    VK_NUMPAD9,  // KEY_NUMPAD_9,
-
-    VK_MULTIPLY,  // KEY_NUMPAD_MULTIPLY,
-    VK_ADD,       // KEY_NUMPAD_ADD,
-    VK_SUBTRACT,  // KEY_NUMPAD_SUBTRACT,
-    VK_DECIMAL,   // KEY_NUMPAD_DECIMAL,
-    VK_DIVIDE,    // KEY_NUMPAD_DIVIDE,
-    VK_RETURN,    // KEY_NUMPAD_ENTER,
-
-    VK_F1,       // KEY_F1,
-    VK_F2,       // KEY_F2,
-    VK_F3,       // KEY_F3,
-    VK_F4,       // KEY_F4,
-    VK_F5,       // KEY_F5,
-    VK_F6,       // KEY_F6,
-    VK_F7,       // KEY_F7,
-    VK_F8,       // KEY_F8,
-    VK_F9,       // KEY_F9,
-    VK_F10,      // KEY_F10,
-    VK_F11,      // KEY_F11,
-    VK_F12,      // KEY_F12,
-    VK_F13,      // KEY_F13,
-    VK_F14,      // KEY_F14,
-    VK_F15,      // KEY_F15,
-    VK_F16,      // KEY_F16,
-    VK_F17,      // KEY_F17,
-    VK_F18,      // KEY_F18,
-    VK_F19,      // KEY_F19,
-    VK_F20,      // KEY_F20,
-    VK_F21,      // KEY_F21,
-    VK_F22,      // KEY_F22,
-    VK_F23,      // KEY_F23,
-    VK_F24,      // KEY_F24,
-
-    VK_NUMLOCK,  // KEY_NUM_LOCK,
-    VK_SCROLL,   // KEY_SCROLL_LOCK,
-
-    VK_LBUTTON,  // B_MOUSE_BUTTON_LEFT
-    VK_MBUTTON,  // B_MOUSE_BUTTON_MIDDLE
-    VK_RBUTTON,  // B_MOUSE_BUTTON_RIGHT
-    VK_XBUTTON1, // B_MOUSE_BUTTON_X1
-    VK_XBUTTON2, // B_MOUSE_BUTTON_X2
-};
-
-static BKey_Code b_w32_key_codes[] = {
-    B_KEY_UNKNOWN,
-
-    B_MOUSE_BUTTON_LEFT,   //VK_LBUTTON  0x01    Left mouse button
-    B_MOUSE_BUTTON_RIGHT,  //VK_RBUTTON  0x02    Right mouse button
-    B_KEY_UNKNOWN,         //VK_CANCEL   0x03    Control-break processing
-    B_MOUSE_BUTTON_MIDDLE, //VK_MBUTTON  0x04    Middle mouse button
-    B_MOUSE_BUTTON_X1,     //VK_XBUTTON1     0x05    X1 mouse button
-    B_MOUSE_BUTTON_X2,     //VK_XBUTTON2     0x06    X2 mouse button
-    
-    B_KEY_UNKNOWN, //0x07    Reserved
-    
-    B_KEY_BACKSPACE,   //VK_BACK     0x08    Backspace key
-    B_KEY_TAB,         //VK_TAB  0x09    Tab key
-    B_KEY_LINEFEED, B_KEY_UNKNOWN, //0x0A-0B     Reserved
-    B_KEY_UNKNOWN,     //VK_CLEAR    0x0C    Clear key
-    B_KEY_ENTER,       //VK_RETURN   0x0D    Enter key
-        
-    B_KEY_UNKNOWN, B_KEY_UNKNOWN, //0x0E-0F     Unassigned
-    B_KEY_SHIFT, //VK_SHIFT    0x10    Shift key
-    B_KEY_CTRL,  //VK_CONTROL  0x11    Ctrl key
-    B_KEY_ALT,   //VK_MENU     0x12    Alt key
-    B_KEY_PAUSE, //VK_PAUSE    0x13    Pause key
-    B_KEY_CAPS_LOCK, //VK_CAPITAL  0x14    Caps lock key
-    
-    B_KEY_UNKNOWN, //VK_KANA     0x15    IME Kana mode
-                 //VK_HANGUL   0x15    IME Hangul mode
-    B_KEY_UNKNOWN, //VK_IME_ON   0x16    IME On
-    B_KEY_UNKNOWN, //VK_JUNJA    0x17    IME Junja mode
-    B_KEY_UNKNOWN, //VK_FINAL    0x18    IME final mode
-    B_KEY_UNKNOWN, //VK_HANJA    0x19    IME Hanja mode
-                 //VK_KANJI    0x19    IME Kanji mode
-    B_KEY_UNKNOWN, //VK_IME_OFF  0x1A    IME Off
-    
-    B_KEY_ESCAPE, //VK_ESCAPE   0x1B    Esc key
-    
-    B_KEY_UNKNOWN, //VK_CONVERT  0x1C    IME convert
-    B_KEY_UNKNOWN, //VK_NONCONVERT   0x1D    IME nonconvert
-    B_KEY_UNKNOWN, //VK_ACCEPT   0x1E    IME accept
-    B_KEY_UNKNOWN, //VK_MODECHANGE   0x1F    IME mode change request
-    
-    B_KEY_SPACE,     //VK_SPACE    0x20    Spacebar key
-    B_KEY_PAGE_UP,   //VK_PRIOR    0x21    Page up key
-    B_KEY_PAGE_DOWN, //VK_NEXT     0x22    Page down key
-    B_KEY_END,       //VK_END  0x23    End key
-    B_KEY_HOME,      //VK_HOME     0x24    Home key
-    
-    B_KEY_ARROW_LEFT,  //VK_LEFT     0x25    Left arrow key
-    B_KEY_ARROW_UP,    //VK_UP   0x26    Up arrow key
-    B_KEY_ARROW_RIGHT, //VK_RIGHT    0x27    Right arrow key
-    B_KEY_ARROW_DOWN,  //VK_DOWN     0x28    Down arrow key
-    
-    B_KEY_UNKNOWN, //VK_SELECT   0x29    Select key
-    B_KEY_UNKNOWN, //VK_PRINT    0x2A    Print key
-    B_KEY_UNKNOWN, //VK_EXECUTE  0x2B    Execute key
-    
-    B_KEY_PRINT_SCREEN, //VK_SNAPSHOT     0x2C    Print screen key
-    B_KEY_INSERT,       //VK_INSERT   0x2D    Insert key
-    B_KEY_DELETE,       //VK_DELETE   0x2E    Delete key
-    B_KEY_UNKNOWN,      //VK_HELP     0x2F    Help key
-
-    B_KEY_NUMBER_0,    // 0 key
-    B_KEY_NUMBER_1,    // 1 key
-    B_KEY_NUMBER_2,    // 2 key
-    B_KEY_NUMBER_3,    // 3 key
-    B_KEY_NUMBER_4,    // 4 key
-    B_KEY_NUMBER_5,    // 5 key
-    B_KEY_NUMBER_6,    // 6 key
-    B_KEY_NUMBER_7,    // 7 key
-    B_KEY_NUMBER_8,    // 8 key
-    B_KEY_NUMBER_9,    // 9 key
-
-    // 0x3A-40     Undefined
-    B_KEY_UNKNOWN, B_KEY_UNKNOWN, B_KEY_UNKNOWN, B_KEY_UNKNOWN, B_KEY_UNKNOWN, 
-    B_KEY_UNKNOWN, B_KEY_UNKNOWN,
-
-    B_KEY_A,    // A key
-    B_KEY_B,    // B key
-    B_KEY_C,    // C key
-    B_KEY_D,    // D key
-    B_KEY_E,    // E key
-    B_KEY_F,    // F key
-    B_KEY_G,    // G key
-    B_KEY_H,    // H key
-    B_KEY_I,    // I key
-    B_KEY_J,    // J key
-    B_KEY_K,    // K key
-    B_KEY_L,    // L key
-    B_KEY_M,    // M key
-    B_KEY_N,    // N key
-    B_KEY_O,    // O key
-    B_KEY_P,    // P key
-    B_KEY_Q,    // Q key
-    B_KEY_R,    // R key
-    B_KEY_S,    // S key
-    B_KEY_T,    // T key
-    B_KEY_U,    // U key
-    B_KEY_V,    // V key
-    B_KEY_W,    // W key
-    B_KEY_X,    // X key
-    B_KEY_Y,    // Y key
-    B_KEY_Z,    // Z key
-
-    B_KEY_CMD, // VK_LWIN     0x5B    Left Windows logo key
-    B_KEY_CMD, // VK_RWIN     0x5C    Right Windows logo key
-    B_KEY_CMD, // VK_APPS     0x5D    Application key
-    
-    B_KEY_UNKNOWN, //0x5E    Reserved
-    B_KEY_UNKNOWN, //VK_SLEEP    0x5F    Computer Sleep key
-    
-    B_KEY_NUMPAD_0, // VK_NUMPAD0  0x60    Numeric keypad 0 key
-    B_KEY_NUMPAD_1, // VK_NUMPAD1  0x61    Numeric keypad 1 key
-    B_KEY_NUMPAD_2, // VK_NUMPAD2  0x62    Numeric keypad 2 key
-    B_KEY_NUMPAD_3, // VK_NUMPAD3  0x63    Numeric keypad 3 key
-    B_KEY_NUMPAD_4, // VK_NUMPAD4  0x64    Numeric keypad 4 key
-    B_KEY_NUMPAD_5, // VK_NUMPAD5  0x65    Numeric keypad 5 key
-    B_KEY_NUMPAD_6, // VK_NUMPAD6  0x66    Numeric keypad 6 key
-    B_KEY_NUMPAD_7, // VK_NUMPAD7  0x67    Numeric keypad 7 key
-    B_KEY_NUMPAD_8, // VK_NUMPAD8  0x68    Numeric keypad 8 key
-    B_KEY_NUMPAD_9, // VK_NUMPAD9  0x69    Numeric keypad 9 key
-    B_KEY_NUMPAD_MULTIPLY, // VK_MULTIPLY     0x6A    Multiply key
-    B_KEY_NUMPAD_ADD,      // VK_ADD  0x6B    Add key
-    
-    B_KEY_UNKNOWN, //VK_SEPARATOR    0x6C    Separator key
-    
-    B_KEY_NUMPAD_SUBTRACT, // VK_SUBTRACT     0x6D    Subtract key
-    B_KEY_NUMPAD_DECIMAL,  // VK_DECIMAL  0x6E    Decimal key
-    B_KEY_NUMPAD_DIVIDE,   // VK_DIVIDE   0x6F    Divide key
-    
-    B_KEY_F1,  // VK_F1   0x70    F1 key
-    B_KEY_F2,  // VK_F2   0x71    F2 key
-    B_KEY_F3,  // VK_F3   0x72    F3 key
-    B_KEY_F4,  // VK_F4   0x73    F4 key
-    B_KEY_F5,  // VK_F5   0x74    F5 key
-    B_KEY_F6,  // VK_F6   0x75    F6 key
-    B_KEY_F7,  // VK_F7   0x76    F7 key
-    B_KEY_F8,  // VK_F8   0x77    F8 key
-    B_KEY_F9,  // VK_F9   0x78    F9 key
-    B_KEY_F10, // VK_F10  0x79    F10 key
-    B_KEY_F11, // VK_F11  0x7A    F11 key
-    B_KEY_F12, // VK_F12  0x7B    F12 key
-    B_KEY_F13, // VK_F13  0x7C    F13 key
-    B_KEY_F14, // VK_F14  0x7D    F14 key
-    B_KEY_F15, // VK_F15  0x7E    F15 key
-    B_KEY_F16, // VK_F16  0x7F    F16 key
-    B_KEY_F17, // VK_F17  0x80    F17 key
-    B_KEY_F18, // VK_F18  0x81    F18 key
-    B_KEY_F19, // VK_F19  0x82    F19 key
-    B_KEY_F20, // VK_F20  0x83    F20 key
-    B_KEY_F21, // VK_F21  0x84    F21 key
-    B_KEY_F22, // VK_F22  0x85    F22 key
-    B_KEY_F23, // VK_F23  0x86    F23 key
-    B_KEY_F24, // VK_F24  0x87    F24 key
-
-    // 0x88-8F     Reserved
-    B_KEY_UNKNOWN, B_KEY_UNKNOWN, B_KEY_UNKNOWN, B_KEY_UNKNOWN, B_KEY_UNKNOWN, 
-    B_KEY_UNKNOWN, B_KEY_UNKNOWN, B_KEY_UNKNOWN,
-
-    B_KEY_NUM_LOCK,    // VK_NUMLOCK  0x90    Num lock key
-    B_KEY_SCROLL_LOCK, // VK_SCROLL   0x91    Scroll lock key
-    
-    // 0x92-96     OEM specific
-    B_KEY_UNKNOWN, B_KEY_UNKNOWN, B_KEY_UNKNOWN, B_KEY_UNKNOWN, B_KEY_UNKNOWN,
-    // 0x97-9F     Unassigned
-    B_KEY_UNKNOWN, B_KEY_UNKNOWN, B_KEY_UNKNOWN, B_KEY_UNKNOWN, B_KEY_UNKNOWN, 
-    B_KEY_UNKNOWN, B_KEY_UNKNOWN, B_KEY_UNKNOWN, B_KEY_UNKNOWN,
-
-    B_KEY_SHIFT, // VK_LSHIFT   0xA0    Left Shift key
-    B_KEY_SHIFT, // VK_RSHIFT   0xA1    Right Shift key
-    B_KEY_CTRL,  // VK_LCONTROL     0xA2    Left Ctrl key
-    B_KEY_CTRL,  // VK_RCONTROL     0xA3    Right Ctrl key
-    B_KEY_CMD,   // VK_LMENU    0xA4    Left Alt key
-    B_KEY_CMD,   // VK_RMENU    0xA5    Right Alt key
-    
-    B_KEY_UNKNOWN, // VK_BROWSER_BACK     0xA6    Browser Back key
-    B_KEY_UNKNOWN, // VK_BROWSER_FORWARD  0xA7    Browser Forward key
-    B_KEY_UNKNOWN, // VK_BROWSER_REFRESH  0xA8    Browser Refresh key
-    B_KEY_UNKNOWN, // VK_BROWSER_STOP     0xA9    Browser Stop key
-    B_KEY_UNKNOWN, // VK_BROWSER_SEARCH   0xAA    Browser Search key
-    B_KEY_UNKNOWN, // VK_BROWSER_FAVORITES    0xAB    Browser Favorites key
-    B_KEY_UNKNOWN, // VK_BROWSER_HOME     0xAC    Browser Start and Home key
-    B_KEY_UNKNOWN, // VK_VOLUME_MUTE  0xAD    Volume Mute key
-    B_KEY_UNKNOWN, // VK_VOLUME_DOWN  0xAE    Volume Down key
-    B_KEY_UNKNOWN, // VK_VOLUME_UP    0xAF    Volume Up key
-    B_KEY_UNKNOWN, // VK_MEDIA_NEXT_TRACK     0xB0    Next Track key
-    B_KEY_UNKNOWN, // VK_MEDIA_PREV_TRACK     0xB1    Previous Track key
-    B_KEY_UNKNOWN, // VK_MEDIA_STOP   0xB2    Stop Media key
-    B_KEY_UNKNOWN, // VK_MEDIA_PLAY_PAUSE     0xB3    Play/Pause Media key
-    B_KEY_UNKNOWN, // VK_LAUNCH_MAIL  0xB4    Start Mail key
-    B_KEY_UNKNOWN, // VK_LAUNCH_MEDIA_SELECT  0xB5    Select Media key
-    B_KEY_UNKNOWN, // VK_LAUNCH_APP1  0xB6    Start Application 1 key
-    B_KEY_UNKNOWN, // VK_LAUNCH_APP2  0xB7    Start Application 2 key
-
-    // 0xB8-B9     Reserved
-    B_KEY_UNKNOWN, B_KEY_UNKNOWN,
-
-    B_KEY_SEMI_COLON, // VK_OEM_1    0xBA    It can vary by keyboard. For the US ANSI keyboard , the Semiсolon and Colon key
-    B_KEY_PLUS, // VK_OEM_PLUS     0xBB    For any country/region, the Equals and Plus key
-    B_KEY_COMMA, // VK_OEM_COMMA    0xBC    For any country/region, the Comma and Less Than key
-    B_KEY_DASH, // VK_OEM_MINUS    0xBD    For any country/region, the Dash and Underscore key
-    B_KEY_DOT, // VK_OEM_PERIOD   0xBE    For any country/region, the Period and Greater Than key
-    B_KEY_FORWARD_SLASH, // VK_OEM_2    0xBF    It can vary by keyboard. For the US ANSI keyboard, the Forward Slash and Question Mark key
-    B_KEY_BACK_TICK, // VK_OEM_3    0xC0    It can vary by keyboard. For the US ANSI keyboard, the Grave Accent and Tilde key
-    
-    B_KEY_UNKNOWN, B_KEY_UNKNOWN, // 0xC1-C2     Reserved
-    
-    B_KEY_UNKNOWN, // VK_GAMEPAD_A    0xC3    Gamepad A button
-    B_KEY_UNKNOWN, // VK_GAMEPAD_B    0xC4    Gamepad B button
-    B_KEY_UNKNOWN, // VK_GAMEPAD_X    0xC5    Gamepad X button
-    B_KEY_UNKNOWN, // VK_GAMEPAD_Y    0xC6    Gamepad Y button
-    B_KEY_UNKNOWN, // VK_GAMEPAD_RIGHT_SHOULDER   0xC7    Gamepad Right Shoulder button
-    B_KEY_UNKNOWN, // VK_GAMEPAD_LEFT_SHOULDER    0xC8    Gamepad Left Shoulder button
-    B_KEY_UNKNOWN, // VK_GAMEPAD_LEFT_TRIGGER     0xC9    Gamepad Left Trigger button
-    B_KEY_UNKNOWN, // VK_GAMEPAD_RIGHT_TRIGGER    0xCA    Gamepad Right Trigger button
-    B_KEY_UNKNOWN, // VK_GAMEPAD_DPAD_UP  0xCB    Gamepad D-pad Up button
-    B_KEY_UNKNOWN, // VK_GAMEPAD_DPAD_DOWN    0xCC    Gamepad D-pad Down button
-    B_KEY_UNKNOWN, // VK_GAMEPAD_DPAD_LEFT    0xCD    Gamepad D-pad Left button
-    B_KEY_UNKNOWN, // VK_GAMEPAD_DPAD_RIGHT   0xCE    Gamepad D-pad Right button
-    B_KEY_UNKNOWN, // VK_GAMEPAD_MENU     0xCF    Gamepad Menu/Start button
-    B_KEY_UNKNOWN, // VK_GAMEPAD_VIEW     0xD0    Gamepad View/Back button
-    B_KEY_UNKNOWN, // VK_GAMEPAD_LEFT_THUMBSTICK_BUTTON   0xD1    Gamepad Left Thumbstick button
-    B_KEY_UNKNOWN, // VK_GAMEPAD_RIGHT_THUMBSTICK_BUTTON  0xD2    Gamepad Right Thumbstick button
-    B_KEY_UNKNOWN, // VK_GAMEPAD_LEFT_THUMBSTICK_UP   0xD3    Gamepad Left Thumbstick up
-    B_KEY_UNKNOWN, // VK_GAMEPAD_LEFT_THUMBSTICK_DOWN     0xD4    Gamepad Left Thumbstick down
-    B_KEY_UNKNOWN, // VK_GAMEPAD_LEFT_THUMBSTICK_RIGHT    0xD5    Gamepad Left Thumbstick right
-    B_KEY_UNKNOWN, // VK_GAMEPAD_LEFT_THUMBSTICK_LEFT     0xD6    Gamepad Left Thumbstick left
-    B_KEY_UNKNOWN, // VK_GAMEPAD_RIGHT_THUMBSTICK_UP  0xD7    Gamepad Right Thumbstick up
-    B_KEY_UNKNOWN, // VK_GAMEPAD_RIGHT_THUMBSTICK_DOWN    0xD8    Gamepad Right Thumbstick down
-    B_KEY_UNKNOWN, // VK_GAMEPAD_RIGHT_THUMBSTICK_RIGHT   0xD9    Gamepad Right Thumbstick right
-    B_KEY_UNKNOWN, // VK_GAMEPAD_RIGHT_THUMBSTICK_LEFT    0xDA    Gamepad Right Thumbstick left
-    
-    B_KEY_LEFT_BRACKET,  // VK_OEM_4    0xDB    It can vary by keyboard. For the US ANSI keyboard, the Left Brace key
-    B_KEY_BACK_SLASH,    // VK_OEM_5    0xDC    It can vary by keyboard. For the US ANSI keyboard, the Backslash and Pipe key
-    B_KEY_RIGHT_BRACKET, // VK_OEM_6    0xDD    It can vary by keyboard. For the US ANSI keyboard, the Right Brace key
-    B_KEY_APOSTROPHE,    // VK_OEM_7    0xDE    It can vary by keyboard. For the US ANSI keyboard, the Apostrophe and Double Quotation Mark key
-};
+s32       b_w32_vk_codes[B_KEY_CODE_COUNT];
+BKey_Code b_w32_key_codes[256];
 
 NB_INLINE BKey_Code 
 b_w32_get_key_code(WPARAM vk_code, bool extended) {
@@ -1157,6 +794,371 @@ NB_EXTERN bool bender_init(void) {
 
     b_w32_instance = GetModuleHandleW(null);
 
+    // Init VK codes.
+    b_w32_vk_codes[B_KEY_UNKNOWN] = 0;  // B_KEY_UNKNOWN,  // Not assigned.
+    b_w32_vk_codes[B_KEY_BACKSPACE] = VK_BACK; // B_KEY_BACKSPACE = 8,
+    b_w32_vk_codes[B_KEY_TAB]       = VK_TAB;  // B_KEY_TAB       = 9,
+    b_w32_vk_codes[B_KEY_LINEFEED]  = 10;      // B_KEY_LINEFEED  = 10,
+    b_w32_vk_codes[B_KEY_ENTER] = VK_RETURN, // KEY_ENTER = 13,
+    b_w32_vk_codes[B_KEY_ESCAPE] = VK_ESCAPE,  // KEY_ESCAPE = 21,
+    b_w32_vk_codes[B_KEY_SPACE] = VK_SPACE,  // KEY_SPACE = 32,
+    b_w32_vk_codes[B_KEY_APOSTROPHE] = VK_OEM_7,      // ''' KEY_APOSTROPHE
+    b_w32_vk_codes[B_KEY_PLUS] = VK_OEM_PLUS,   // '+' KEY_PLUS
+    b_w32_vk_codes[B_KEY_COMMA] = VK_OEM_COMMA,  // ',' KEY_COMMA
+    b_w32_vk_codes[B_KEY_DASH] = VK_OEM_MINUS,  // '-' KEY_DASH
+    b_w32_vk_codes[B_KEY_DOT] = VK_OEM_PERIOD, // '.' KEY_DOT
+    b_w32_vk_codes[B_KEY_FORWARD_SLASH] = VK_OEM_2,      // '/' KEY_FORWARD_SLASH
+
+    // ASCII Input keys.
+
+    // 0..9 -> 48..57
+    b_w32_vk_codes['0'] = 48;
+    b_w32_vk_codes['1'] = 49;
+    b_w32_vk_codes['2'] = 50;
+    b_w32_vk_codes['3'] = 51;
+    b_w32_vk_codes['4'] = 52;
+    b_w32_vk_codes['5'] = 53;
+    b_w32_vk_codes['6'] = 54;
+    b_w32_vk_codes['7'] = 55;
+    b_w32_vk_codes['8'] = 56;
+    b_w32_vk_codes['9'] = 57;
+
+    b_w32_vk_codes[B_KEY_COLON] = 0;        // ':' KEY_COLON
+    b_w32_vk_codes[B_KEY_SEMI_COLON] = VK_OEM_1; // ';' KEY_SEMI_COLON
+
+    // A..Z -> 65..90
+    b_w32_vk_codes['A'] = 65;
+    b_w32_vk_codes['B'] = 66;
+    b_w32_vk_codes['C'] = 67;
+    b_w32_vk_codes['D'] = 68;
+    b_w32_vk_codes['E'] = 69;
+    b_w32_vk_codes['F'] = 70;
+    b_w32_vk_codes['G'] = 71;
+    b_w32_vk_codes['H'] = 72;
+    b_w32_vk_codes['I'] = 73;
+    b_w32_vk_codes['J'] = 74;
+    b_w32_vk_codes['K'] = 75;
+    b_w32_vk_codes['L'] = 76;
+    b_w32_vk_codes['M'] = 77;
+    b_w32_vk_codes['N'] = 78;
+    b_w32_vk_codes['O'] = 79;
+    b_w32_vk_codes['P'] = 80;
+    b_w32_vk_codes['Q'] = 81;
+    b_w32_vk_codes['R'] = 82;
+    b_w32_vk_codes['S'] = 83;
+    b_w32_vk_codes['T'] = 84;
+    b_w32_vk_codes['U'] = 85;
+    b_w32_vk_codes['V'] = 86;
+    b_w32_vk_codes['W'] = 87;
+    b_w32_vk_codes['X'] = 88;
+    b_w32_vk_codes['Y'] = 89;
+    b_w32_vk_codes['Z'] = 90;
+
+    b_w32_vk_codes[B_KEY_LEFT_BRACKET] = VK_OEM_4; // '[' KEY_LEFT_BRACKET
+    b_w32_vk_codes[B_KEY_BACK_SLASH] = VK_OEM_5; // '\' KEY_BACK_SLASH
+    b_w32_vk_codes[B_KEY_RIGHT_BRACKET] = VK_OEM_6; // ']' KEY_RIGHT_BRACKET
+    b_w32_vk_codes[B_KEY_BACK_TICK] = VK_OEM_3; // '`' KEY_BACK_TICK
+
+    b_w32_vk_codes[B_KEY_DELETE] = VK_DELETE;  // KEY_DELETE = 127,
+    b_w32_vk_codes[B_KEY_ARROW_LEFT] = VK_LEFT;  // KEY_ARROW_LEFT,
+    b_w32_vk_codes[B_KEY_ARROW_UP] = VK_UP;    // KEY_ARROW_UP,
+    b_w32_vk_codes[B_KEY_ARROW_RIGHT] = VK_RIGHT; // KEY_ARROW_RIGHT,
+    b_w32_vk_codes[B_KEY_ARROW_DOWN] = VK_DOWN;  // KEY_ARROW_DOWN,
+    b_w32_vk_codes[B_KEY_SHIFT] = VK_SHIFT;    // B_KEY_SHIFT,
+    b_w32_vk_codes[B_KEY_CTRL] = VK_CONTROL;  // B_KEY_CTRL,
+    b_w32_vk_codes[B_KEY_ALT] = VK_MENU;     // B_KEY_ALT,
+    b_w32_vk_codes[B_KEY_CMD] = VK_APPS;     // B_KEY_CMD,
+    b_w32_vk_codes[B_KEY_PAUSE] = VK_PAUSE;    // KEY_PAUSE,
+    b_w32_vk_codes[B_KEY_CAPS_LOCK] = VK_CAPITAL;  // KEY_CAPS_LOCK,
+    b_w32_vk_codes[B_KEY_PAGE_UP] = VK_PRIOR; // KEY_PAGE_UP,
+    b_w32_vk_codes[B_KEY_PAGE_DOWN] = VK_NEXT;  // KEY_PAGE_DOWN,
+    b_w32_vk_codes[B_KEY_HOME] = VK_HOME;  // KEY_HOME,
+    b_w32_vk_codes[B_KEY_END] = VK_END;   // KEY_END,
+    b_w32_vk_codes[B_KEY_PRINT_SCREEN] = VK_SNAPSHOT; // KEY_PRINT_SCREEN,
+    b_w32_vk_codes[B_KEY_INSERT] = VK_INSERT;   // KEY_INSERT,
+    b_w32_vk_codes[B_KEY_NUMPAD_0] = VK_NUMPAD0;  // KEY_NUMPAD_0,
+    b_w32_vk_codes[B_KEY_NUMPAD_1] = VK_NUMPAD1;  // KEY_NUMPAD_1,
+    b_w32_vk_codes[B_KEY_NUMPAD_2] = VK_NUMPAD2;  // KEY_NUMPAD_2,
+    b_w32_vk_codes[B_KEY_NUMPAD_3] = VK_NUMPAD3;  // KEY_NUMPAD_3,
+    b_w32_vk_codes[B_KEY_NUMPAD_4] = VK_NUMPAD4;  // KEY_NUMPAD_4,
+    b_w32_vk_codes[B_KEY_NUMPAD_5] = VK_NUMPAD5;  // KEY_NUMPAD_5,
+    b_w32_vk_codes[B_KEY_NUMPAD_6] = VK_NUMPAD6;  // KEY_NUMPAD_6,
+    b_w32_vk_codes[B_KEY_NUMPAD_7] = VK_NUMPAD7;  // KEY_NUMPAD_7,
+    b_w32_vk_codes[B_KEY_NUMPAD_8] = VK_NUMPAD8;  // KEY_NUMPAD_8,
+    b_w32_vk_codes[B_KEY_NUMPAD_9] = VK_NUMPAD9;  // KEY_NUMPAD_9,
+    b_w32_vk_codes[B_KEY_NUMPAD_MULTIPLY] = VK_MULTIPLY;  // KEY_NUMPAD_MULTIPLY,
+    b_w32_vk_codes[B_KEY_NUMPAD_ADD] = VK_ADD;       // KEY_NUMPAD_ADD,
+    b_w32_vk_codes[B_KEY_NUMPAD_SUBTRACT] = VK_SUBTRACT;  // KEY_NUMPAD_SUBTRACT,
+    b_w32_vk_codes[B_KEY_NUMPAD_DECIMAL] = VK_DECIMAL;   // KEY_NUMPAD_DECIMAL,
+    b_w32_vk_codes[B_KEY_NUMPAD_DIVIDE] = VK_DIVIDE;    // KEY_NUMPAD_DIVIDE,
+    b_w32_vk_codes[B_KEY_NUMPAD_ENTER] = VK_RETURN;    // KEY_NUMPAD_ENTER,
+    b_w32_vk_codes[B_KEY_F1] = VK_F1;       // KEY_F1,
+    b_w32_vk_codes[B_KEY_F2] = VK_F2;       // KEY_F2,
+    b_w32_vk_codes[B_KEY_F3] = VK_F3;       // KEY_F3,
+    b_w32_vk_codes[B_KEY_F4] = VK_F4;       // KEY_F4,
+    b_w32_vk_codes[B_KEY_F5] = VK_F5;       // KEY_F5,
+    b_w32_vk_codes[B_KEY_F6] = VK_F6;       // KEY_F6,
+    b_w32_vk_codes[B_KEY_F7] = VK_F7;       // KEY_F7,
+    b_w32_vk_codes[B_KEY_F8] = VK_F8;       // KEY_F8,
+    b_w32_vk_codes[B_KEY_F9] = VK_F9;       // KEY_F9,
+    b_w32_vk_codes[B_KEY_F10] = VK_F10;      // KEY_F10,
+    b_w32_vk_codes[B_KEY_F11] = VK_F11;      // KEY_F11,
+    b_w32_vk_codes[B_KEY_F12] = VK_F12;      // KEY_F12,
+    b_w32_vk_codes[B_KEY_F13] = VK_F13;      // KEY_F13,
+    b_w32_vk_codes[B_KEY_F14] = VK_F14;      // KEY_F14,
+    b_w32_vk_codes[B_KEY_F15] = VK_F15;      // KEY_F15,
+    b_w32_vk_codes[B_KEY_F16] = VK_F16;      // KEY_F16,
+    b_w32_vk_codes[B_KEY_F17] = VK_F17;      // KEY_F17,
+    b_w32_vk_codes[B_KEY_F18] = VK_F18;      // KEY_F18,
+    b_w32_vk_codes[B_KEY_F19] = VK_F19;      // KEY_F19,
+    b_w32_vk_codes[B_KEY_F20] = VK_F20;      // KEY_F20,
+    b_w32_vk_codes[B_KEY_F21] = VK_F21;      // KEY_F21,
+    b_w32_vk_codes[B_KEY_F22] = VK_F22;      // KEY_F22,
+    b_w32_vk_codes[B_KEY_F23] = VK_F23;      // KEY_F23,
+    b_w32_vk_codes[B_KEY_F24] = VK_F24;      // KEY_F24,
+    b_w32_vk_codes[B_KEY_NUM_LOCK] = VK_NUMLOCK;  // KEY_NUM_LOCK,
+    b_w32_vk_codes[B_KEY_SCROLL_LOCK] = VK_SCROLL;   // KEY_SCROLL_LOCK,
+    b_w32_vk_codes[B_MOUSE_BUTTON_LEFT] = VK_LBUTTON;  // B_MOUSE_BUTTON_LEFT
+    b_w32_vk_codes[B_MOUSE_BUTTON_MIDDLE] = VK_MBUTTON;  // B_MOUSE_BUTTON_MIDDLE
+    b_w32_vk_codes[B_MOUSE_BUTTON_RIGHT] = VK_RBUTTON;  // B_MOUSE_BUTTON_RIGHT
+    b_w32_vk_codes[B_MOUSE_BUTTON_X1] = VK_XBUTTON1; // B_MOUSE_BUTTON_X1
+    b_w32_vk_codes[B_MOUSE_BUTTON_X2] = VK_XBUTTON2; // B_MOUSE_BUTTON_X2
+
+
+    // Init Bender key codes.
+    b_w32_key_codes[0] = B_KEY_UNKNOWN;
+
+    b_w32_key_codes[VK_LBUTTON]  = B_MOUSE_BUTTON_LEFT;   //VK_LBUTTON  0x01    Left mouse button
+    b_w32_key_codes[VK_RBUTTON]  = B_MOUSE_BUTTON_RIGHT;  //VK_RBUTTON  0x02    Right mouse button
+    b_w32_key_codes[VK_CANCEL]   = B_KEY_UNKNOWN;         //VK_CANCEL   0x03    Control-break processing
+    b_w32_key_codes[VK_MBUTTON]  = B_MOUSE_BUTTON_MIDDLE; //VK_MBUTTON  0x04    Middle mouse button
+    b_w32_key_codes[VK_XBUTTON1] = B_MOUSE_BUTTON_X1;     //VK_XBUTTON1     0x05    X1 mouse button
+    b_w32_key_codes[VK_XBUTTON2] = B_MOUSE_BUTTON_X2;     //VK_XBUTTON2     0x06    X2 mouse button
+    
+    b_w32_key_codes[0x07] = B_KEY_UNKNOWN; //0x07    Reserved
+    
+    b_w32_key_codes[VK_BACK] = B_KEY_BACKSPACE,   //VK_BACK     0x08    Backspace key
+    b_w32_key_codes[VK_TAB] = B_KEY_TAB,         //VK_TAB  0x09    Tab key
+    
+    //0x0A-0B     Reserved
+    b_w32_key_codes[0x0A] = B_KEY_LINEFEED; 
+    b_w32_key_codes[0x0B] = B_KEY_UNKNOWN;
+
+    b_w32_key_codes[VK_CLEAR] = B_KEY_UNKNOWN;     //VK_CLEAR    0x0C    Clear key
+    b_w32_key_codes[VK_RETURN] = B_KEY_ENTER;       //VK_RETURN   0x0D    Enter key
+        
+    // B_KEY_UNKNOWN, B_KEY_UNKNOWN, //0x0E-0F     Unassigned
+    
+    b_w32_key_codes[VK_SHIFT] = B_KEY_SHIFT; //VK_SHIFT    0x10    Shift key
+    b_w32_key_codes[VK_CONTROL] = B_KEY_CTRL;  //VK_CONTROL  0x11    Ctrl key
+    b_w32_key_codes[VK_MENU] = B_KEY_ALT;   //VK_MENU     0x12    Alt key
+    b_w32_key_codes[VK_PAUSE] = B_KEY_PAUSE; //VK_PAUSE    0x13    Pause key
+    b_w32_key_codes[VK_CAPITAL] = B_KEY_CAPS_LOCK; //VK_CAPITAL  0x14    Caps lock key
+    
+    // B_KEY_UNKNOWN, //VK_KANA     0x15    IME Kana mode
+                   //VK_HANGUL   0x15    IME Hangul mode
+    // B_KEY_UNKNOWN, //VK_IME_ON   0x16    IME On
+    // B_KEY_UNKNOWN, //VK_JUNJA    0x17    IME Junja mode
+    // B_KEY_UNKNOWN, //VK_FINAL    0x18    IME final mode
+    // B_KEY_UNKNOWN, //VK_HANJA    0x19    IME Hanja mode
+                   //VK_KANJI    0x19    IME Kanji mode
+    // B_KEY_UNKNOWN, //VK_IME_OFF  0x1A    IME Off
+    
+    b_w32_key_codes[VK_ESCAPE] = B_KEY_ESCAPE; //VK_ESCAPE   0x1B    Esc key
+    
+    // B_KEY_UNKNOWN, //VK_CONVERT  0x1C    IME convert
+    // B_KEY_UNKNOWN, //VK_NONCONVERT   0x1D    IME nonconvert
+    // B_KEY_UNKNOWN, //VK_ACCEPT   0x1E    IME accept
+    // B_KEY_UNKNOWN, //VK_MODECHANGE   0x1F    IME mode change request
+    
+    b_w32_key_codes[VK_SPACE] = B_KEY_SPACE;     //VK_SPACE    0x20    Spacebar key
+    b_w32_key_codes[VK_PRIOR] = B_KEY_PAGE_UP;   //VK_PRIOR    0x21    Page up key
+    b_w32_key_codes[VK_NEXT] = B_KEY_PAGE_DOWN; //VK_NEXT     0x22    Page down key
+    b_w32_key_codes[VK_END] = B_KEY_END;       //VK_END  0x23    End key
+    b_w32_key_codes[VK_HOME] = B_KEY_HOME;      //VK_HOME     0x24    Home key
+    b_w32_key_codes[VK_LEFT] = B_KEY_ARROW_LEFT;  //VK_LEFT     0x25    Left arrow key
+    b_w32_key_codes[VK_UP] = B_KEY_ARROW_UP;    //VK_UP   0x26    Up arrow key
+    b_w32_key_codes[VK_RIGHT] = B_KEY_ARROW_RIGHT; //VK_RIGHT    0x27    Right arrow key
+    b_w32_key_codes[VK_DOWN] = B_KEY_ARROW_DOWN;  //VK_DOWN     0x28    Down arrow key
+    b_w32_key_codes[VK_SELECT] = B_KEY_UNKNOWN; //VK_SELECT   0x29    Select key
+    b_w32_key_codes[VK_PRINT] = B_KEY_UNKNOWN; //VK_PRINT    0x2A    Print key
+    b_w32_key_codes[VK_EXECUTE] = B_KEY_UNKNOWN; //VK_EXECUTE  0x2B    Execute key
+    b_w32_key_codes[VK_SNAPSHOT] = B_KEY_PRINT_SCREEN; //VK_SNAPSHOT     0x2C    Print screen key
+    b_w32_key_codes[VK_INSERT] = B_KEY_INSERT;       //VK_INSERT   0x2D    Insert key
+    b_w32_key_codes[VK_DELETE] = B_KEY_DELETE;       //VK_DELETE   0x2E    Delete key
+    b_w32_key_codes[VK_HELP] = B_KEY_UNKNOWN;      //VK_HELP     0x2F    Help key
+    b_w32_key_codes['0'] = B_KEY_NUMBER_0;    // 0 key
+    b_w32_key_codes['1'] = B_KEY_NUMBER_1;    // 1 key
+    b_w32_key_codes['2'] = B_KEY_NUMBER_2;    // 2 key
+    b_w32_key_codes['3'] = B_KEY_NUMBER_3;    // 3 key
+    b_w32_key_codes['4'] = B_KEY_NUMBER_4;    // 4 key
+    b_w32_key_codes['5'] = B_KEY_NUMBER_5;    // 5 key
+    b_w32_key_codes['6'] = B_KEY_NUMBER_6;    // 6 key
+    b_w32_key_codes['7'] = B_KEY_NUMBER_7;    // 7 key
+    b_w32_key_codes['8'] = B_KEY_NUMBER_8;    // 8 key
+    b_w32_key_codes['9'] = B_KEY_NUMBER_9;    // 9 key
+
+    // 0x3A-40     Undefined
+    // B_KEY_UNKNOWN, B_KEY_UNKNOWN, B_KEY_UNKNOWN, B_KEY_UNKNOWN, B_KEY_UNKNOWN, 
+    // B_KEY_UNKNOWN, B_KEY_UNKNOWN,
+
+    b_w32_key_codes['A'] = B_KEY_A;    // A key
+    b_w32_key_codes['B'] = B_KEY_B;    // B key
+    b_w32_key_codes['C'] = B_KEY_C;    // C key
+    b_w32_key_codes['D'] = B_KEY_D;    // D key
+    b_w32_key_codes['E'] = B_KEY_E;    // E key
+    b_w32_key_codes['F'] = B_KEY_F;    // F key
+    b_w32_key_codes['G'] = B_KEY_G;    // G key
+    b_w32_key_codes['H'] = B_KEY_H;    // H key
+    b_w32_key_codes['I'] = B_KEY_I;    // I key
+    b_w32_key_codes['J'] = B_KEY_J;    // J key
+    b_w32_key_codes['K'] = B_KEY_K;    // K key
+    b_w32_key_codes['L'] = B_KEY_L;    // L key
+    b_w32_key_codes['M'] = B_KEY_M;    // M key
+    b_w32_key_codes['N'] = B_KEY_N;    // N key
+    b_w32_key_codes['O'] = B_KEY_O;    // O key
+    b_w32_key_codes['P'] = B_KEY_P;    // P key
+    b_w32_key_codes['Q'] = B_KEY_Q;    // Q key
+    b_w32_key_codes['R'] = B_KEY_R;    // R key
+    b_w32_key_codes['S'] = B_KEY_S;    // S key
+    b_w32_key_codes['T'] = B_KEY_T;    // T key
+    b_w32_key_codes['U'] = B_KEY_U;    // U key
+    b_w32_key_codes['V'] = B_KEY_V;    // V key
+    b_w32_key_codes['W'] = B_KEY_W;    // W key
+    b_w32_key_codes['X'] = B_KEY_X;    // X key
+    b_w32_key_codes['Y'] = B_KEY_Y;    // Y key
+    b_w32_key_codes['Z'] = B_KEY_Z;    // Z key
+    b_w32_key_codes[VK_LWIN] = B_KEY_CMD; // VK_LWIN     0x5B    Left Windows logo key
+    b_w32_key_codes[VK_RWIN] = B_KEY_CMD; // VK_RWIN     0x5C    Right Windows logo key
+    b_w32_key_codes[VK_APPS] = B_KEY_CMD; // VK_APPS     0x5D    Application key
+    
+    // B_KEY_UNKNOWN, //0x5E    Reserved
+
+    b_w32_key_codes[VK_SLEEP] = B_KEY_UNKNOWN; //VK_SLEEP    0x5F    Computer Sleep key
+    b_w32_key_codes[VK_NUMPAD0] = B_KEY_NUMPAD_0; // VK_NUMPAD0  0x60    Numeric keypad 0 key
+    b_w32_key_codes[VK_NUMPAD1] = B_KEY_NUMPAD_1; // VK_NUMPAD1  0x61    Numeric keypad 1 key
+    b_w32_key_codes[VK_NUMPAD2] = B_KEY_NUMPAD_2; // VK_NUMPAD2  0x62    Numeric keypad 2 key
+    b_w32_key_codes[VK_NUMPAD3] = B_KEY_NUMPAD_3; // VK_NUMPAD3  0x63    Numeric keypad 3 key
+    b_w32_key_codes[VK_NUMPAD4] = B_KEY_NUMPAD_4; // VK_NUMPAD4  0x64    Numeric keypad 4 key
+    b_w32_key_codes[VK_NUMPAD5] = B_KEY_NUMPAD_5; // VK_NUMPAD5  0x65    Numeric keypad 5 key
+    b_w32_key_codes[VK_NUMPAD6] = B_KEY_NUMPAD_6; // VK_NUMPAD6  0x66    Numeric keypad 6 key
+    b_w32_key_codes[VK_NUMPAD7] = B_KEY_NUMPAD_7; // VK_NUMPAD7  0x67    Numeric keypad 7 key
+    b_w32_key_codes[VK_NUMPAD8] = B_KEY_NUMPAD_8; // VK_NUMPAD8  0x68    Numeric keypad 8 key
+    b_w32_key_codes[VK_NUMPAD9] = B_KEY_NUMPAD_9; // VK_NUMPAD9  0x69    Numeric keypad 9 key
+    b_w32_key_codes[VK_MULTIPLY] = B_KEY_NUMPAD_MULTIPLY; // VK_MULTIPLY     0x6A    Multiply key
+    b_w32_key_codes[VK_ADD] = B_KEY_NUMPAD_ADD;      // VK_ADD  0x6B    Add key
+    b_w32_key_codes[VK_SEPARATOR] = B_KEY_UNKNOWN; // VK_SEPARATOR    0x6C    Separator key
+    b_w32_key_codes[VK_SUBTRACT] = B_KEY_NUMPAD_SUBTRACT; // VK_SUBTRACT     0x6D    Subtract key
+    b_w32_key_codes[VK_DECIMAL] = B_KEY_NUMPAD_DECIMAL;  // VK_DECIMAL  0x6E    Decimal key
+    b_w32_key_codes[VK_DIVIDE] = B_KEY_NUMPAD_DIVIDE;   // VK_DIVIDE   0x6F    Divide key
+    b_w32_key_codes[VK_F1] = B_KEY_F1;  // VK_F1   0x70    F1 key
+    b_w32_key_codes[VK_F2] = B_KEY_F2;  // VK_F2   0x71    F2 key
+    b_w32_key_codes[VK_F3] = B_KEY_F3;  // VK_F3   0x72    F3 key
+    b_w32_key_codes[VK_F4] = B_KEY_F4;  // VK_F4   0x73    F4 key
+    b_w32_key_codes[VK_F5] = B_KEY_F5;  // VK_F5   0x74    F5 key
+    b_w32_key_codes[VK_F6] = B_KEY_F6;  // VK_F6   0x75    F6 key
+    b_w32_key_codes[VK_F7] = B_KEY_F7;  // VK_F7   0x76    F7 key
+    b_w32_key_codes[VK_F8] = B_KEY_F8;  // VK_F8   0x77    F8 key
+    b_w32_key_codes[VK_F9] = B_KEY_F9;  // VK_F9   0x78    F9 key
+    b_w32_key_codes[VK_F10] = B_KEY_F10; // VK_F10  0x79    F10 key
+    b_w32_key_codes[VK_F11] = B_KEY_F11; // VK_F11  0x7A    F11 key
+    b_w32_key_codes[VK_F12] = B_KEY_F12; // VK_F12  0x7B    F12 key
+    b_w32_key_codes[VK_F13] = B_KEY_F13; // VK_F13  0x7C    F13 key
+    b_w32_key_codes[VK_F14] = B_KEY_F14; // VK_F14  0x7D    F14 key
+    b_w32_key_codes[VK_F15] = B_KEY_F15; // VK_F15  0x7E    F15 key
+    b_w32_key_codes[VK_F16] = B_KEY_F16; // VK_F16  0x7F    F16 key
+    b_w32_key_codes[VK_F17] = B_KEY_F17; // VK_F17  0x80    F17 key
+    b_w32_key_codes[VK_F18] = B_KEY_F18; // VK_F18  0x81    F18 key
+    b_w32_key_codes[VK_F19] = B_KEY_F19; // VK_F19  0x82    F19 key
+    b_w32_key_codes[VK_F20] = B_KEY_F20; // VK_F20  0x83    F20 key
+    b_w32_key_codes[VK_F21] = B_KEY_F21; // VK_F21  0x84    F21 key
+    b_w32_key_codes[VK_F22] = B_KEY_F22; // VK_F22  0x85    F22 key
+    b_w32_key_codes[VK_F23] = B_KEY_F23; // VK_F23  0x86    F23 key
+    b_w32_key_codes[VK_F24] = B_KEY_F24; // VK_F24  0x87    F24 key
+
+    // 0x88-8F     Reserved
+    // B_KEY_UNKNOWN, B_KEY_UNKNOWN, B_KEY_UNKNOWN, B_KEY_UNKNOWN, B_KEY_UNKNOWN, 
+    // B_KEY_UNKNOWN, B_KEY_UNKNOWN, B_KEY_UNKNOWN,
+    
+    b_w32_key_codes[VK_NUMLOCK] = B_KEY_NUM_LOCK;    // VK_NUMLOCK  0x90    Num lock key
+    b_w32_key_codes[VK_SCROLL] = B_KEY_SCROLL_LOCK; // VK_SCROLL   0x91    Scroll lock key
+    
+    // 0x92-96     OEM specific
+    // B_KEY_UNKNOWN, B_KEY_UNKNOWN, B_KEY_UNKNOWN, B_KEY_UNKNOWN, B_KEY_UNKNOWN,
+
+    // 0x97-9F     Unassigned
+    // B_KEY_UNKNOWN, B_KEY_UNKNOWN, B_KEY_UNKNOWN, B_KEY_UNKNOWN, B_KEY_UNKNOWN, 
+    // B_KEY_UNKNOWN, B_KEY_UNKNOWN, B_KEY_UNKNOWN, B_KEY_UNKNOWN,
+
+    b_w32_key_codes[VK_LSHIFT] = B_KEY_SHIFT; // VK_LSHIFT   0xA0    Left Shift key
+    b_w32_key_codes[VK_RSHIFT] = B_KEY_SHIFT; // VK_RSHIFT   0xA1    Right Shift key
+    b_w32_key_codes[VK_LCONTROL] = B_KEY_CTRL;  // VK_LCONTROL     0xA2    Left Ctrl key
+    b_w32_key_codes[VK_RCONTROL] = B_KEY_CTRL;  // VK_RCONTROL     0xA3    Right Ctrl key
+    b_w32_key_codes[VK_LMENU] = B_KEY_CMD;   // VK_LMENU    0xA4    Left Alt key
+    b_w32_key_codes[VK_RMENU] = B_KEY_CMD;   // VK_RMENU    0xA5    Right Alt key
+    // B_KEY_UNKNOWN, // VK_BROWSER_BACK     0xA6    Browser Back key
+    // B_KEY_UNKNOWN, // VK_BROWSER_FORWARD  0xA7    Browser Forward key
+    // B_KEY_UNKNOWN, // VK_BROWSER_REFRESH  0xA8    Browser Refresh key
+    // B_KEY_UNKNOWN, // VK_BROWSER_STOP     0xA9    Browser Stop key
+    // B_KEY_UNKNOWN, // VK_BROWSER_SEARCH   0xAA    Browser Search key
+    // B_KEY_UNKNOWN, // VK_BROWSER_FAVORITES    0xAB    Browser Favorites key
+    // B_KEY_UNKNOWN, // VK_BROWSER_HOME     0xAC    Browser Start and Home key
+    // B_KEY_UNKNOWN, // VK_VOLUME_MUTE  0xAD    Volume Mute key
+    // B_KEY_UNKNOWN, // VK_VOLUME_DOWN  0xAE    Volume Down key
+    // B_KEY_UNKNOWN, // VK_VOLUME_UP    0xAF    Volume Up key
+    // B_KEY_UNKNOWN, // VK_MEDIA_NEXT_TRACK     0xB0    Next Track key
+    // B_KEY_UNKNOWN, // VK_MEDIA_PREV_TRACK     0xB1    Previous Track key
+    // B_KEY_UNKNOWN, // VK_MEDIA_STOP   0xB2    Stop Media key
+    // B_KEY_UNKNOWN, // VK_MEDIA_PLAY_PAUSE     0xB3    Play/Pause Media key
+    // B_KEY_UNKNOWN, // VK_LAUNCH_MAIL  0xB4    Start Mail key
+    // B_KEY_UNKNOWN, // VK_LAUNCH_MEDIA_SELECT  0xB5    Select Media key
+    // B_KEY_UNKNOWN, // VK_LAUNCH_APP1  0xB6    Start Application 1 key
+    // B_KEY_UNKNOWN, // VK_LAUNCH_APP2  0xB7    Start Application 2 key
+
+    // 0xB8-B9     Reserved
+    // B_KEY_UNKNOWN, B_KEY_UNKNOWN,
+
+    b_w32_key_codes[VK_OEM_1] = B_KEY_SEMI_COLON; // VK_OEM_1    0xBA    It can vary by keyboard. For the US ANSI keyboard , the Semiсolon and Colon key
+    b_w32_key_codes[VK_OEM_PLUS] = B_KEY_PLUS; // VK_OEM_PLUS     0xBB    For any country/region, the Equals and Plus key
+    b_w32_key_codes[VK_OEM_COMMA] = B_KEY_COMMA; // VK_OEM_COMMA    0xBC    For any country/region, the Comma and Less Than key
+    b_w32_key_codes[VK_OEM_MINUS] = B_KEY_DASH; // VK_OEM_MINUS    0xBD    For any country/region, the Dash and Underscore key
+    b_w32_key_codes[VK_OEM_PERIOD] = B_KEY_DOT; // VK_OEM_PERIOD   0xBE    For any country/region, the Period and Greater Than key
+    b_w32_key_codes[VK_OEM_2] = B_KEY_FORWARD_SLASH; // VK_OEM_2    0xBF    It can vary by keyboard. For the US ANSI keyboard, the Forward Slash and Question Mark key
+    b_w32_key_codes[VK_OEM_3] = B_KEY_BACK_TICK; // VK_OEM_3    0xC0    It can vary by keyboard. For the US ANSI keyboard, the Grave Accent and Tilde key
+    
+    // 0xC1-C2     Reserved
+    // B_KEY_UNKNOWN, 
+    // B_KEY_UNKNOWN, 
+
+    b_w32_key_codes[VK_GAMEPAD_A] = B_KEY_UNKNOWN; // VK_GAMEPAD_A    0xC3    Gamepad A button
+    b_w32_key_codes[VK_GAMEPAD_B] = B_KEY_UNKNOWN; // VK_GAMEPAD_B    0xC4    Gamepad B button
+    b_w32_key_codes[VK_GAMEPAD_X] = B_KEY_UNKNOWN; // VK_GAMEPAD_X    0xC5    Gamepad X button
+    b_w32_key_codes[VK_GAMEPAD_Y] = B_KEY_UNKNOWN; // VK_GAMEPAD_Y    0xC6    Gamepad Y button
+    b_w32_key_codes[VK_GAMEPAD_RIGHT_SHOULDER] = B_KEY_UNKNOWN; // VK_GAMEPAD_RIGHT_SHOULDER   0xC7    Gamepad Right Shoulder button
+    b_w32_key_codes[VK_GAMEPAD_LEFT_SHOULDER] = B_KEY_UNKNOWN; // VK_GAMEPAD_LEFT_SHOULDER    0xC8    Gamepad Left Shoulder button
+    b_w32_key_codes[VK_GAMEPAD_LEFT_TRIGGER] = B_KEY_UNKNOWN; // VK_GAMEPAD_LEFT_TRIGGER     0xC9    Gamepad Left Trigger button
+    b_w32_key_codes[VK_GAMEPAD_RIGHT_TRIGGER] = B_KEY_UNKNOWN; // VK_GAMEPAD_RIGHT_TRIGGER    0xCA    Gamepad Right Trigger button
+    b_w32_key_codes[VK_GAMEPAD_DPAD_UP] = B_KEY_UNKNOWN; // VK_GAMEPAD_DPAD_UP  0xCB    Gamepad D-pad Up button
+    b_w32_key_codes[VK_GAMEPAD_DPAD_DOWN] = B_KEY_UNKNOWN; // VK_GAMEPAD_DPAD_DOWN    0xCC    Gamepad D-pad Down button
+    b_w32_key_codes[VK_GAMEPAD_DPAD_LEFT] = B_KEY_UNKNOWN; // VK_GAMEPAD_DPAD_LEFT    0xCD    Gamepad D-pad Left button
+    b_w32_key_codes[VK_GAMEPAD_DPAD_RIGHT] = B_KEY_UNKNOWN; // VK_GAMEPAD_DPAD_RIGHT   0xCE    Gamepad D-pad Right button
+    b_w32_key_codes[VK_GAMEPAD_MENU] = B_KEY_UNKNOWN; // VK_GAMEPAD_MENU     0xCF    Gamepad Menu/Start button
+    b_w32_key_codes[VK_GAMEPAD_VIEW] = B_KEY_UNKNOWN; // VK_GAMEPAD_VIEW     0xD0    Gamepad View/Back button
+    b_w32_key_codes[VK_GAMEPAD_LEFT_THUMBSTICK_BUTTON] = B_KEY_UNKNOWN; // VK_GAMEPAD_LEFT_THUMBSTICK_BUTTON   0xD1    Gamepad Left Thumbstick button
+    b_w32_key_codes[VK_GAMEPAD_RIGHT_THUMBSTICK_BUTTON] = B_KEY_UNKNOWN; // VK_GAMEPAD_RIGHT_THUMBSTICK_BUTTON  0xD2    Gamepad Right Thumbstick button
+    b_w32_key_codes[VK_GAMEPAD_LEFT_THUMBSTICK_UP] = B_KEY_UNKNOWN; // VK_GAMEPAD_LEFT_THUMBSTICK_UP   0xD3    Gamepad Left Thumbstick up
+    b_w32_key_codes[VK_GAMEPAD_LEFT_THUMBSTICK_DOWN] = B_KEY_UNKNOWN; // VK_GAMEPAD_LEFT_THUMBSTICK_DOWN     0xD4    Gamepad Left Thumbstick down
+    b_w32_key_codes[VK_GAMEPAD_LEFT_THUMBSTICK_RIGHT] = B_KEY_UNKNOWN; // VK_GAMEPAD_LEFT_THUMBSTICK_RIGHT    0xD5    Gamepad Left Thumbstick right
+    b_w32_key_codes[VK_GAMEPAD_LEFT_THUMBSTICK_LEFT] = B_KEY_UNKNOWN; // VK_GAMEPAD_LEFT_THUMBSTICK_LEFT     0xD6    Gamepad Left Thumbstick left
+    b_w32_key_codes[VK_GAMEPAD_RIGHT_THUMBSTICK_UP] = B_KEY_UNKNOWN; // VK_GAMEPAD_RIGHT_THUMBSTICK_UP  0xD7    Gamepad Right Thumbstick up
+    b_w32_key_codes[VK_GAMEPAD_RIGHT_THUMBSTICK_DOWN] = B_KEY_UNKNOWN; // VK_GAMEPAD_RIGHT_THUMBSTICK_DOWN    0xD8    Gamepad Right Thumbstick down
+    b_w32_key_codes[VK_GAMEPAD_RIGHT_THUMBSTICK_RIGHT] = B_KEY_UNKNOWN; // VK_GAMEPAD_RIGHT_THUMBSTICK_RIGHT   0xD9    Gamepad Right Thumbstick right
+    b_w32_key_codes[VK_GAMEPAD_RIGHT_THUMBSTICK_LEFT] = B_KEY_UNKNOWN; // VK_GAMEPAD_RIGHT_THUMBSTICK_LEFT    0xDA    Gamepad Right Thumbstick left
+    b_w32_key_codes[VK_OEM_4] = B_KEY_LEFT_BRACKET;  // VK_OEM_4    0xDB    It can vary by keyboard. For the US ANSI keyboard, the Left Brace key
+    b_w32_key_codes[VK_OEM_5] = B_KEY_BACK_SLASH;    // VK_OEM_5    0xDC    It can vary by keyboard. For the US ANSI keyboard, the Backslash and Pipe key
+    b_w32_key_codes[VK_OEM_6] = B_KEY_RIGHT_BRACKET; // VK_OEM_6    0xDD    It can vary by keyboard. For the US ANSI keyboard, the Right Brace key
+    b_w32_key_codes[VK_OEM_7] = B_KEY_APOSTROPHE;    // VK_OEM_7    0xDE    It can vary by keyboard. For the US ANSI keyboard, the Apostrophe and Double Quotation Mark key
+
     b_initted = true;
     return b_initted;
 }
@@ -1291,8 +1293,8 @@ bender_create_window(const char *title,
     }
 
     // Display the window.
-    UpdateWindow(hwnd);
     ShowWindow(hwnd, show_command);
+    UpdateWindow(hwnd);
 
 #if 0
     if (!w32_input_initted) {
