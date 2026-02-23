@@ -290,44 +290,50 @@ b_w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
         case WM_SYSKEYDOWN:
         case WM_KEYDOWN:
         {
-            u32 vk_code = (u32)wparam;
-            bool was_down = (lparam & (1 << 30)) != 0; // Was key down last frame.
-            bool extended = (HIWORD(lparam) & KF_EXTENDED) == KF_EXTENDED;
+            if (wparam < 256) {
+                u32 vk_code = (u32)wparam;
+                bool was_down = (lparam & (1 << 30)) != 0; // Was key down last frame.
+                bool extended = (HIWORD(lparam) & KF_EXTENDED) == KF_EXTENDED;
 
-            BKey_Code key_code = B_KEY_UNKNOWN;
-            if (vk_code < nb_array_count(b_w32_key_codes)) {
-                key_code = b_w32_get_key_code(vk_code, extended);
+                BKey_Code key_code = B_KEY_UNKNOWN;
+                if (vk_code < nb_array_count(b_w32_key_codes)) {
+                    key_code = b_w32_get_key_code(vk_code, extended);
+                }
+
+                // @Cleanup: Query modifiers state.
+                if (key_code == B_KEY_ALT)   b_input_state.alt_state   = true;
+                if (key_code == B_KEY_CMD)   b_input_state.cmd_state   = true;
+                if (key_code == B_KEY_CTRL)  b_input_state.ctrl_state  = true;
+                if (key_code == B_KEY_SHIFT) b_input_state.shift_state = true;
+
+                if (key_code != B_KEY_UNKNOWN)
+                    b_w32_send_keyboard_event(key_code, true, was_down, B_KEY_STATE_START|B_KEY_STATE_DOWN);
             }
-
-            // @Cleanup: Query modifiers state.
-            if (key_code == B_KEY_ALT)   b_input_state.alt_state   = true;
-            if (key_code == B_KEY_CMD)   b_input_state.cmd_state   = true;
-            if (key_code == B_KEY_CTRL)  b_input_state.ctrl_state  = true;
-            if (key_code == B_KEY_SHIFT) b_input_state.shift_state = true;
-
-            b_w32_send_keyboard_event(key_code, true, was_down, B_KEY_STATE_START|B_KEY_STATE_DOWN);
             return 0;
         } break;
 
         case WM_SYSKEYUP:
         case WM_KEYUP:
         {
-            u32 vk_code = (u32)wparam;
-            bool was_down = true; // Always true for WM_KEYUP.
-            bool extended = (HIWORD(lparam) & KF_EXTENDED) == KF_EXTENDED;
+            if (wparam < 256) {
+                u32 vk_code = (u32)wparam;
+                bool was_down = true; // Always true for WM_KEYUP.
+                bool extended = (HIWORD(lparam) & KF_EXTENDED) == KF_EXTENDED;
 
-            BKey_Code key_code = B_KEY_UNKNOWN;
-            if (vk_code < nb_array_count(b_w32_key_codes)) {
-                key_code = b_w32_get_key_code(vk_code, extended);
+                BKey_Code key_code = B_KEY_UNKNOWN;
+                if (vk_code < nb_array_count(b_w32_key_codes)) {
+                    key_code = b_w32_get_key_code(vk_code, extended);
+                }
+
+                // @Cleanup: Query modifiers state.
+                if (key_code == B_KEY_ALT)   b_input_state.alt_state   = false;
+                if (key_code == B_KEY_CMD)   b_input_state.cmd_state   = false;
+                if (key_code == B_KEY_CTRL)  b_input_state.ctrl_state  = false;
+                if (key_code == B_KEY_SHIFT) b_input_state.shift_state = false;
+
+                if (key_code != B_KEY_UNKNOWN)
+                    b_w32_send_keyboard_event(key_code, false, was_down, B_KEY_STATE_END);
             }
-
-            // @Cleanup: Query modifiers state.
-            if (key_code == B_KEY_ALT)   b_input_state.alt_state   = false;
-            if (key_code == B_KEY_CMD)   b_input_state.cmd_state   = false;
-            if (key_code == B_KEY_CTRL)  b_input_state.ctrl_state  = false;
-            if (key_code == B_KEY_SHIFT) b_input_state.shift_state = false;
-
-            b_w32_send_keyboard_event(key_code, false, was_down, B_KEY_STATE_END);
             return 0;
         } break;
 

@@ -59,3 +59,5 @@ NB:
 [X] nb_log_push_ident()
 [X] nb_log_push_mode()
 C dynamic array
+Print unicode in windows console (UTF-16)
+Debug info for memory allocations
