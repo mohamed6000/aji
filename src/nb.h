@@ -271,22 +271,22 @@ typedef u8  b8;   // For consistency.
 
 #if OS_WINDOWS
     #if COMPILER_CL
-    #define NB_SHARED_EXPORT __declspec(dllexport)
+    #define NB_EXPORT __declspec(dllexport)
     #elif COMPILER_CLANG
-    #define NB_SHARED_EXPORT __declspec(dllexport)
+    #define NB_EXPORT __declspec(dllexport)
     #elif COMPILER_GCC
-    #define NB_SHARED_EXPORT __declspec(dllexport)
+    #define NB_EXPORT __declspec(dllexport)
     #else
-    #error Undefined NB_SHARED_EXPORT for this compiler
+    #error Undefined NB_EXPORT for this compiler
     #endif
 #elif OS_LINUX || OS_MAC
     #if COMPILER_GCC || COMPILER_CLANG
-    #define NB_SHARED_EXPORT __attribute__((visibility("default")))
+    #define NB_EXPORT __attribute__((visibility("default")))
     #else
-    #error Undefined NB_SHARED_EXPORT for this compiler
+    #error Undefined NB_EXPORT for this compiler
     #endif
 #else
-#error Undefined NB_SHARED_EXPORT for this compiler
+#error Undefined NB_EXPORT for this compiler
 #endif
 
 

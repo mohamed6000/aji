@@ -1,9 +1,9 @@
-// #define NB_STRIP_GENERAL_PREFIX
 #include "nb.h"
-
 #include "bender.h"
-
 #include "renderman.h"
+
+
+
 
 //
 // This file is only here for the purpose of testing the engine API.
@@ -154,9 +154,14 @@ int main(void) {
 }
 
 
+
 #define NB_IMPLEMENTATION
 #include "nb.h"
-
 #include "bender/bender_windows.c"
-
 #include "renderman/renderman_d3d9.cpp"
+
+
+#if OS_WINDOWS
+// NB_EXTERN NB_EXPORT DWORD NvOptimusEnablement = 0x00000001;
+// NB_EXTERN NB_EXPORT int AmdPowerXpressRequestHighPerformance = 1;
+#endif

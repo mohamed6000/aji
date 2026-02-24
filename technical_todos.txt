@@ -33,7 +33,7 @@ Software graphics driver
 Vector graphics rendering
 
 Font renderer
-Mesh font rendering
+Mesh/Polygon font rendering
 Unicode support
 Text shaping (Arabic)
 Freetype font driver
@@ -47,7 +47,8 @@ Render circles
 Render spheres
 Render lines
 Render triangles
-Render points
+Render coordinate axes
+Render points (represented as small crosses or spheres)
 Render group, commands, fbo, shader
 Renderer state change
 

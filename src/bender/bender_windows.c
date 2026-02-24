@@ -96,10 +96,10 @@ NB_INLINE u32 b_float_to_u32_color_channel(float f) {
     return u;
 }
 
-s32       b_w32_vk_codes[B_KEY_CODE_COUNT];
-BKey_Code b_w32_key_codes[256];
+s32 b_w32_vk_codes[B_KEY_CODE_COUNT];
+u16 b_w32_key_codes[256];
 
-NB_INLINE BKey_Code 
+NB_INLINE u16 
 b_w32_get_key_code(WPARAM vk_code, bool extended) {
     if (extended) {
         if (vk_code == VK_RETURN) return B_KEY_NUMPAD_ENTER;
@@ -109,7 +109,7 @@ b_w32_get_key_code(WPARAM vk_code, bool extended) {
 }
 
 NB_INLINE void 
-b_w32_send_keyboard_event(BKey_Code key_code, 
+b_w32_send_keyboard_event(u16 key_code, 
                           bool is_down, 
                           bool repeat, 
                           u32  key_current_state) {
@@ -247,7 +247,7 @@ b_w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
         case WM_ACTIVATEAPP:
             if (wparam) {
                 // Maybe we should keep track of held down keystrokes instead of doing this...
-                for (s64 index = 0; index < B_KEY_CODE_COUNT; index++) {
+                for (u16 index = 0; index < B_KEY_CODE_COUNT; index++) {
                     u32 *it = &b_input_state.button_states[index];
                     if (!(*it & B_KEY_STATE_DOWN)) continue;
 
@@ -259,7 +259,7 @@ b_w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
                     if (!(state & 0x8000)) {
                         // Release key event.
 
-                        BKey_Code key_code = (BKey_Code)index;
+                        u16 key_code = index;
 
                         if (key_code == B_KEY_ALT)   b_input_state.alt_state   = false;
                         if (key_code == B_KEY_CMD)   b_input_state.cmd_state   = false;
@@ -295,7 +295,7 @@ b_w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
                 bool was_down = (lparam & (1 << 30)) != 0; // Was key down last frame.
                 bool extended = (HIWORD(lparam) & KF_EXTENDED) == KF_EXTENDED;
 
-                BKey_Code key_code = B_KEY_UNKNOWN;
+                u16 key_code = B_KEY_UNKNOWN;
                 if (vk_code < nb_array_count(b_w32_key_codes)) {
                     key_code = b_w32_get_key_code(vk_code, extended);
                 }
@@ -320,7 +320,7 @@ b_w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
                 bool was_down = true; // Always true for WM_KEYUP.
                 bool extended = (HIWORD(lparam) & KF_EXTENDED) == KF_EXTENDED;
 
-                BKey_Code key_code = B_KEY_UNKNOWN;
+                u16 key_code = B_KEY_UNKNOWN;
                 if (vk_code < nb_array_count(b_w32_key_codes)) {
                     key_code = b_w32_get_key_code(vk_code, extended);
                 }
@@ -414,13 +414,13 @@ b_w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
             return 0;
 
         case WM_XBUTTONDOWN:
-            b_w32_send_keyboard_event((wparam < (1 << 17)) ? B_MOUSE_BUTTON_X1 : B_MOUSE_BUTTON_X2, 
+            b_w32_send_keyboard_event((u16)((wparam < (1 << 17)) ? B_MOUSE_BUTTON_X1 : B_MOUSE_BUTTON_X2), 
                 true, false, B_KEY_STATE_DOWN|B_KEY_STATE_START);
             SetCapture(hwnd);
             return TRUE;
 
         case WM_XBUTTONUP:
-            b_w32_send_keyboard_event((wparam < (1 << 17)) ? B_MOUSE_BUTTON_X1 : B_MOUSE_BUTTON_X2, 
+            b_w32_send_keyboard_event((u16)((wparam < (1 << 17)) ? B_MOUSE_BUTTON_X1 : B_MOUSE_BUTTON_X2), 
                 false, true, B_KEY_STATE_END);
             ReleaseCapture();
             return TRUE;

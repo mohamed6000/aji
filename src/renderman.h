@@ -14,6 +14,7 @@ NB_EXTERN bool rm_init(u32 window_id);
 // (The window must be set for rendering)
 NB_EXTERN void rm_swap_buffers(u32 window_id);
 
+// Resize the rendering buffer.
 NB_EXTERN void rm_backbuffer_resize(s32 width, s32 height);
 
 // Clear the current render target to the specified color.

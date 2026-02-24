@@ -78,8 +78,7 @@ BEvent_Type NB_ENUM_TYPE(u8) {
     B_EVENT_COUNT
 } BEvent_Type;
 
-typedef enum 
-BKey_Code NB_ENUM_TYPE(u16) {
+typedef enum BKey_Code {
     B_KEY_UNKNOWN = 0,  // Not assigned.
 
     B_KEY_BACKSPACE = 8,
@@ -229,15 +228,13 @@ BKey_Code NB_ENUM_TYPE(u16) {
     B_KEY_CODE_COUNT
 } BKey_Code;
 
-typedef enum 
-BTouch_Type NB_ENUM_TYPE(u8) {
+typedef enum BTouch_Type {
     B_TOUCH_PRESSED  = 1,
     B_TOUCH_RELEASED = 2,
     B_TOUCH_MOVED    = 3,
 } BTouch_Type;
 
-enum
-BMod_Flags NB_ENUM_TYPE(u8) {
+enum BMod_Flags {
     B_MOD_ALT_PRESSED   = 0x1,
     B_MOD_CMD_PRESSED   = 0x2,  // CMD on MacOS, Win on Windows, Meta on linux.
     B_MOD_CTRL_PRESSED  = 0x4,

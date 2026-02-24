@@ -153,6 +153,27 @@ d3d_check_format_support(IDirect3DDevice9 *device, D3DFORMAT format) {
     return result;
 }
 
+char *
+d3d_get_gpu_string(IDirect3DDevice9 *device) {
+    char *result = null;
+    IDirect3D9 *d3d = null;
+    D3DDEVICE_CREATION_PARAMETERS params = {};
+    D3DADAPTER_IDENTIFIER9 ident;
+
+    IDirect3DDevice9_GetDirect3D(device, &d3d);
+    if (d3d) {
+        if (IDirect3DDevice9_GetCreationParameters(device, &params) == D3D_OK) {
+            if (IDirect3D9_GetAdapterIdentifier(d3d, params.AdapterOrdinal, 0, &ident) == D3D_OK) {
+                result = tprint("%s", ident.Description);
+            }
+
+            IDirect3D9_Release(d3d);
+        }
+    }
+
+    return result;
+}
+
 static bool 
 d3d_immediate_mode_init(void) {
     HRESULT hr;
@@ -321,19 +342,31 @@ static IDirect3DDevice9 *d3d_device_create(UINT adapter) {
                                  rm_state.vertex_hw_processing_enabled ? D3DCREATE_HARDWARE_VERTEXPROCESSING : D3DCREATE_SOFTWARE_VERTEXPROCESSING,
                                  &rm_state.d3d_params,
                                  &device);
-    if (FAILED(hr) && rm_state.vertex_hw_processing_enabled) {
+    if (FAILED(hr)) {
+        nb_log_print(NB_LOG_ERROR, "D3D9", "Failed to create d3d9 device.\nTrying to create a device with depth stencil format: D3DFMT_D16.");
+        rm_state.d3d_params.AutoDepthStencilFormat = D3DFMT_D16;
         hr = IDirect3D9_CreateDevice(rm_state.d3d9, 
                                      adapter,
                                      D3DDEVTYPE_HAL,
                                      rm_state.main_window_handle,
-                                     D3DCREATE_SOFTWARE_VERTEXPROCESSING,
+                                     rm_state.vertex_hw_processing_enabled ? D3DCREATE_HARDWARE_VERTEXPROCESSING : D3DCREATE_SOFTWARE_VERTEXPROCESSING,
                                      &rm_state.d3d_params,
                                      &device);
+        if (FAILED(hr)) {
+            nb_log_print(NB_LOG_ERROR, "D3D9", "Failed to create d3d9 device.\nTrying to create a device with software vertex processing.");
+            hr = IDirect3D9_CreateDevice(rm_state.d3d9, 
+                                         adapter,
+                                         D3DDEVTYPE_HAL,
+                                         rm_state.main_window_handle,
+                                         D3DCREATE_SOFTWARE_VERTEXPROCESSING,
+                                         &rm_state.d3d_params,
+                                         &device);
+        }
     }
 
-    if (FAILED(hr)) {
-        Log("Failed to IDirect3D9_CreateDevice.");
-        Log("%s", hresult_to_message(hr));
+    if (FAILED(hr) || !device) {
+        nb_log_print(NB_LOG_ERROR, "D3D9", "Failed to IDirect3D9_CreateDevice.");
+        nb_log_print(NB_LOG_ERROR, "D3D9", "%s", hresult_to_message(hr));
         return null;
     }
 
@@ -355,7 +388,8 @@ NB_EXTERN bool rm_init(u32 window_id) {
 
     HRESULT hr;
     UINT adapter = D3DADAPTER_DEFAULT;
-    D3DFORMAT format = D3DFMT_UNKNOWN;//D3DFMT_X8R8G8B8;
+    // D3DFORMAT format = D3DFMT_UNKNOWN;//D3DFMT_X8R8G8B8;
+    D3DFORMAT format = D3DFMT_A8R8G8B8;//D3DFMT_X8R8G8B8;
 
     // Check the device capabilities.
     D3DCAPS9 caps = {0};
@@ -436,11 +470,26 @@ NB_EXTERN bool rm_init(u32 window_id) {
 
     // hr = IDirect3D9_CheckDeviceType(...);
 
+    D3DADAPTER_IDENTIFIER9 identifier;
+    if (IDirect3D9_GetAdapterIdentifier(rm_state.d3d9, 0, 0, &identifier) == D3D_OK) {
+        nb_log_print(NB_LOG_NONE, "D3D9", "Driver: %s", identifier.Driver);
+        nb_log_print(NB_LOG_NONE, "D3D9", "Description: %s", identifier.Description);
+        nb_log_print(NB_LOG_NONE, "D3D9", "Device Name: %s", identifier.DeviceName);
+        nb_log_print(NB_LOG_NONE, "D3D9", "Driver Version: %d.%d.%d.%d",
+                     HIWORD(identifier.DriverVersion.HighPart),
+                     LOWORD(identifier.DriverVersion.HighPart),
+                     HIWORD(identifier.DriverVersion.LowPart),
+                     LOWORD(identifier.DriverVersion.LowPart));
+    }
+
     rm_state.d3d_device = d3d_device_create(D3DADAPTER_DEFAULT);
     if (!rm_state.d3d_device) return false;
 
     rm_state.has_rgba_support = d3d_check_format_support(rm_state.d3d_device,
                                                          D3DFMT_A8B8G8R8);
+
+    // char *gpu = d3d_get_gpu_string(rm_state.d3d_device);
+    // nb_log_print(NB_LOG_NONE, "D3D9", "Graphics card: %s", gpu);
 
     if (!d3d_immediate_mode_init()) {
         return false;
