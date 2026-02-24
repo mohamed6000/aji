@@ -197,7 +197,7 @@ b_w32_process_raw_input(HRAWINPUT handle) {
 }
 
 NB_EXTERN char *
-b_w32_wide_to_utf8(WCHAR *s, 
+b_w32_wide_to_utf8(wchar_t *s, 
                    size_t src_length, 
                    NB_Allocator allocator) {
     if (!s) return null;
@@ -1276,11 +1276,9 @@ bender_create_window(const char *title,
     s32 client_width  = rect.right  - rect.left;
     s32 client_height = rect.bottom - rect.top;
 
-    WCHAR *w32_utf8_to_wide(const char *s, NB_Allocator allocator);
-
     HWND hwnd = CreateWindowExW(ex_style,
                                 BENDER_DEFAULT_WINDOW_CLASS_NAME,
-                                w32_utf8_to_wide(title, nb_temporary_allocator),
+                                nb_w32_utf8_to_wide(title, nb_temporary_allocator),
                                 style,
                                 window_x, window_y,
                                 client_width, client_height,
@@ -1798,16 +1796,16 @@ bender_init_display_modes(u32 target_adapter_index) {
 
 NB_EXTERN void 
 bender_messagebox_info(const char *title, const char *message) {
-    WCHAR *wide_title   = w32_utf8_to_wide(title, nb_temporary_allocator);
-    WCHAR *wide_message = w32_utf8_to_wide(message, nb_temporary_allocator);
+    WCHAR *wide_title   = nb_w32_utf8_to_wide(title, nb_temporary_allocator);
+    WCHAR *wide_message = nb_w32_utf8_to_wide(message, nb_temporary_allocator);
 
     MessageBoxW(null, wide_message, wide_title, MB_OK|MB_ICONINFORMATION);
 }
 
 NB_EXTERN bool 
 bender_messagebox_confirm(const char *title, const char *message) {
-    WCHAR *wide_title   = w32_utf8_to_wide(title, nb_temporary_allocator);
-    WCHAR *wide_message = w32_utf8_to_wide(message, nb_temporary_allocator);
+    WCHAR *wide_title   = nb_w32_utf8_to_wide(title, nb_temporary_allocator);
+    WCHAR *wide_message = nb_w32_utf8_to_wide(message, nb_temporary_allocator);
 
     int result = MessageBoxW(null, wide_message, wide_title, MB_YESNO|MB_ICONINFORMATION);
     return (result == IDYES);
@@ -1815,8 +1813,8 @@ bender_messagebox_confirm(const char *title, const char *message) {
 
 NB_EXTERN u32 
 bender_messagebox_abort(const char *title, const char *message) {
-    WCHAR *wide_title   = w32_utf8_to_wide(title, nb_temporary_allocator);
-    WCHAR *wide_message = w32_utf8_to_wide(message, nb_temporary_allocator);
+    WCHAR *wide_title   = nb_w32_utf8_to_wide(title, nb_temporary_allocator);
+    WCHAR *wide_message = nb_w32_utf8_to_wide(message, nb_temporary_allocator);
 
     int result = MessageBoxW(null, wide_message, wide_title, MB_ABORTRETRYIGNORE | MB_ICONERROR | MB_SYSTEMMODAL);
     

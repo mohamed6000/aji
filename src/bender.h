@@ -339,6 +339,8 @@ bender_get_input_button_state(BKey_Code key_code) {
 #define bender_ctrl_pressed(event)  (((event).modifier_flags & B_MOD_CTRL_PRESSED)  != 0)
 #define bender_shift_pressed(event) (((event).modifier_flags & B_MOD_SHIFT_PRESSED) != 0)
 
+
+
 // Helper functions (Useful for other APIs or engines).
 NB_EXTERN void *b_get_window_handle(u32 index);
 
@@ -353,5 +355,11 @@ bender_get_next_event(BInput_State *input, BEvent *event) {
 
     return false;
 }
+
+
+// These helpers are implemented for specific platforms.
+NB_EXTERN char *
+b_w32_wide_to_utf8(wchar_t *s, size_t src_length, 
+                   NB_Allocator NB_DEFAULT_VALUE(allocator, NB_GET_ALLOCATOR()));
 
 #endif  // BENDER_INCLUDE_H

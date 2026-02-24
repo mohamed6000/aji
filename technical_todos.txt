@@ -21,6 +21,7 @@ renderman:
 [] D3D9 graphics driver
 [] Vertex Pools/Arrays
 [] Render quads
+3D perspective projection
 
 3D forward+ renderer
 OpenGL graphics driver

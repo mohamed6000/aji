@@ -368,6 +368,7 @@ typedef u8  b8;   // For consistency.
 NB_EXTERN char *nb_get_stacktrace(void);
 
 
+
 #ifndef NB_NO_ASSERT
 #if NB_ENABLE_ASSERTS
 // https://nullprogram.com/blog/2022/06/26/
@@ -707,6 +708,10 @@ NB_EXTERN void
 nb_set_console_text_color_ansi(NB_System_Console_Text_Color color, 
                                bool NB_DEFAULT_VALUE(to_standard_error, false));
 
+NB_EXTERN wchar_t *nb_w32_utf8_to_wide(const char *s, 
+                                       NB_Allocator NB_DEFAULT_VALUE(allocator, NB_GET_ALLOCATOR()));
+
+
 // Temporary storage helpers.
 NB_INLINE s64 nb_get_temporary_storage_mark(void) {
     return nb_temporary_storage.occupied;
@@ -739,12 +744,15 @@ mprint():
 
 #define NB_PRINT_INITIAL_GUESS 256
 
-char *mprint(const char *fmt, ...) NB_IS_PRINTF_LIKE(1, 2);
-char *mprint_guess(int initial_guess, const char *fmt, ...) NB_IS_PRINTF_LIKE(2, 3);
+NB_EXTERN char *mprint(const char *fmt, ...) NB_IS_PRINTF_LIKE(1, 2);
+NB_EXTERN char *mprint_guess(int initial_guess, const char *fmt, ...) NB_IS_PRINTF_LIKE(2, 3);
 NB_EXTERN char *mprint_valist(const char *fmt, va_list arg_list);
 
 NB_EXTERN char *tprint(const char *fmt, ...) NB_IS_PRINTF_LIKE(1, 2);
 NB_EXTERN char *tprint_valist(const char *fmt, va_list arg_list);
+
+NB_EXTERN int nb_sprint(char *buf, int size, const char *fmt, ...) NB_IS_PRINTF_LIKE(3, 4);
+NB_EXTERN int nb_sprint_valist(char *buf, int size, const char *fmt, va_list arg_list);
 
 NB_EXTERN void print(const char *fmt, ...) NB_IS_PRINTF_LIKE(1, 2);
 
@@ -1355,7 +1363,8 @@ NB_EXTERN char *nb_get_stacktrace(void) {
 
 #endif  // NB_ENABLE_ASSERTS
 
-WCHAR *w32_utf8_to_wide(const char *s, NB_Allocator allocator) {
+NB_EXTERN wchar_t *
+nb_w32_utf8_to_wide(const char *s, NB_Allocator allocator) {
     if (!s) return null;
     s64 byte_count = nb_string_length(s);
 
@@ -1730,9 +1739,10 @@ nb_get_partition_index_for_qsort(u8 *data,
     return i + 1;
 }
 
-void nb_qsort(void *data, s64 count, 
-              s64 stride, 
-              s64 (*qsort_compare)(void *, void *)) {
+NB_EXTERN void 
+nb_qsort(void *data, s64 count, 
+         s64 stride, 
+         s64 (*qsort_compare)(void *, void *)) {
     if (count < 2) return;
 
     u8 *start = (u8 *)data;
@@ -1757,9 +1767,10 @@ void nb_qsort(void *data, s64 count,
     nb_qsort(start + i*stride, count-i, stride, qsort_compare);
 }
 
-void nb_qsort_it(void *data, s64 count, 
-                 s64 stride, 
-                 s64 (*qsort_compare)(void *, void *)) {
+NB_EXTERN void 
+nb_qsort_it(void *data, s64 count, 
+            s64 stride, 
+            s64 (*qsort_compare)(void *, void *)) {
     if (count < 2) return;
 
     s64 *qsort_stack = nb_new_array(s64, count * 2, nb_temporary_allocator);
@@ -1817,7 +1828,8 @@ nb_default_logger(const char *message, ...) {
     nb_write_string("\n", to_standard_error);
 }
 
-int nb_sprint(char *buf, int size, const char *fmt, ...) {
+NB_EXTERN int 
+nb_sprint(char *buf, int size, const char *fmt, ...) {
     int result = 0;
 
     va_list args;
@@ -1832,7 +1844,8 @@ int nb_sprint(char *buf, int size, const char *fmt, ...) {
     return result;
 }
 
-int nb_sprint_valist(char *buf, int size, const char *fmt, va_list arg_list) {
+NB_EXTERN int 
+nb_sprint_valist(char *buf, int size, const char *fmt, va_list arg_list) {
     int result = 0;
 
     va_list args;
@@ -1847,7 +1860,7 @@ int nb_sprint_valist(char *buf, int size, const char *fmt, va_list arg_list) {
     return result;
 }
 
-char *mprint(const char *fmt, ...) {
+NB_EXTERN char *mprint(const char *fmt, ...) {
     char *result = null;
     int size = NB_PRINT_INITIAL_GUESS;
 
@@ -1876,7 +1889,8 @@ char *mprint(const char *fmt, ...) {
     return result;
 }
 
-char *mprint_guess(int size, const char *fmt, ...) {
+NB_EXTERN char *
+mprint_guess(int size, const char *fmt, ...) {
     assert(size > 0);
     
     char *result = null;
@@ -1906,7 +1920,8 @@ char *mprint_guess(int size, const char *fmt, ...) {
     return result;
 }
 
-NB_EXTERN char *mprint_valist(const char *fmt, va_list arg_list) {
+NB_EXTERN char *
+mprint_valist(const char *fmt, va_list arg_list) {
     char *result = null;
     int size = NB_PRINT_INITIAL_GUESS;
 
@@ -1936,7 +1951,8 @@ NB_EXTERN char *mprint_valist(const char *fmt, va_list arg_list) {
     return result;
 }
 
-NB_EXTERN char *tprint(const char *fmt, ...) {
+NB_EXTERN char *
+tprint(const char *fmt, ...) {
     char *result = null;
 
     // Initial guess.
@@ -1971,7 +1987,8 @@ NB_EXTERN char *tprint(const char *fmt, ...) {
     return result;
 }
 
-NB_EXTERN char *tprint_valist(const char *fmt, va_list arg_list) {
+NB_EXTERN char *
+tprint_valist(const char *fmt, va_list arg_list) {
     char *result = null;
     int size = NB_PRINT_INITIAL_GUESS;
     NB_Allocator allocator = nb_temporary_allocator;
