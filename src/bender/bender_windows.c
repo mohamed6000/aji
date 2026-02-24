@@ -34,8 +34,8 @@ typedef struct {
 } Bender_Window_Record;
 
 static Bender_Window_Record *b_window_record_storage;
-static u32 b_window_record_count = 1;
-static u32 b_window_record_allocated;
+static u32 b_window_record_count     = 0;
+static u32 b_window_record_allocated = 0;
 static HINSTANCE b_w32_instance;
 static WCHAR BENDER_DEFAULT_WINDOW_CLASS_NAME[] = L"BENDER_DEFAULT_WINDOW_CLASS";
 
@@ -67,11 +67,11 @@ NB_INLINE void b_push_event(BEvent event) {
 
 NB_INLINE Bender_Window_Record *
 b_get_window_record(u32 index) {
+    assert(index != -1);
     assert(index < b_window_record_count);
+
     Bender_Window_Record *result = null;
-    if (index) {
-        result = b_window_record_storage + index;
-    }
+    result = b_window_record_storage + index;
 
     return result;
 }
@@ -1178,7 +1178,7 @@ bender_create_window(const char *title,
                      u32 window_parent_index, 
                      u32 window_creation_flags, 
                      const float background_color[3]) {
-    u32 result = 0;  // In our API 0 is not valid id.
+    u32 result = (u32)-1;
 
     if (!b_initted) {
         // If we didn't call b_init at startup, now is the time.
@@ -1310,7 +1310,7 @@ bender_create_window(const char *title,
 #endif
 
     if (!b_window_record_storage) {
-        b_window_record_allocated = 4;
+        b_window_record_allocated = 1;
         b_window_record_storage = nb_new_array(Bender_Window_Record, 
                                                b_window_record_allocated, 
                                                NB_GET_ALLOCATOR());
@@ -1327,7 +1327,7 @@ bender_create_window(const char *title,
     }
 
     result = b_window_record_count;
-    b_window_record_count += 1; // 0 is an invalid ID in our API.
+    b_window_record_count += 1;
 
     Bender_Window_Record *record = b_window_record_storage + result;
     record->handle   = hwnd;
@@ -1391,7 +1391,7 @@ NB_EXTERN void bender_update_window_events(void) {
     b_input_state.event_count = 0;
 
     for (s64 index = 0; index < nb_array_count(b_input_state.button_states); index++) {
-        u32 *state = &b_input_state.button_states[index];
+        u32 *state = b_input_state.button_states + index;
 
         if ((*state & B_KEY_STATE_END) || !b_input_state.application_has_focus) {
             *state &= ~(B_KEY_STATE_DOWN|B_KEY_STATE_START|B_KEY_STATE_END);
@@ -1455,6 +1455,9 @@ NB_EXTERN void
 bender_get_window_size(u32 window_id, 
                        s32 *width_return, 
                        s32 *height_return) {
+    assert(width_return  != null);
+    assert(height_return != null);
+
     Bender_Window_Record *record = b_get_window_record(window_id);
     HWND hwnd = record->handle;
 
@@ -1468,6 +1471,9 @@ NB_EXTERN void
 bender_get_mouse_pointer_position(u32 window_id, 
                                   s32 *x_return, 
                                   s32 *y_return) {
+    assert(x_return != null);
+    assert(y_return != null);
+
     Bender_Window_Record *record = b_get_window_record(window_id);
     HWND hwnd = record->handle;
 
@@ -1510,6 +1516,9 @@ NB_EXTERN void
 bender_get_mouse_pointer_position_right_handed(u32 window_id, 
                                                s32 *x_return, 
                                                s32 *y_return) {
+    assert(x_return != null);
+    assert(y_return != null);
+
     Bender_Window_Record *record = b_get_window_record(window_id);
     HWND hwnd = record->handle;
 

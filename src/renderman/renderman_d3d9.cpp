@@ -610,7 +610,7 @@ NB_EXTERN void rm_begin_rendering_2d(float render_target_width,
     rm_state.pixels_to_proj_matrix[3][3] = 1;
 }
 
-NB_EXTERN void rm_end_frame(void) {
+NB_EXTERN void rm_immediate_frame_end(void) {
     HRESULT hr;
 
     // Test device lost state.
@@ -685,7 +685,7 @@ NB_EXTERN void rm_end_frame(void) {
     }
 }
 
-NB_EXTERN void rm_set_viewport(float x0, float y0, float x1, float y1) {
+NB_EXTERN void rm_viewport_set(float x0, float y0, float x1, float y1) {
     D3DVIEWPORT9 vp;
     vp.X = (DWORD)x0;
     vp.Y = (DWORD)y0;

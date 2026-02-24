@@ -26,9 +26,10 @@ NB_EXTERN void rm_begin_rendering_2d(float render_target_width,
                                      float render_target_height);
 
 // Draws the entire frame.
-NB_EXTERN void rm_end_frame(void);
+NB_EXTERN void rm_immediate_frame_end(void);
 
-NB_EXTERN void rm_set_viewport(float x0, float y0, float x1, float y1);
+// Sets the current drawing view.
+NB_EXTERN void rm_viewport_set(float x0, float y0, float x1, float y1);
 
 // Pushes a quad to the immediate vertex buffer.
 NB_EXTERN void rm_immediate_quad(float x0, float y0, float x1, float y1,

@@ -27,7 +27,7 @@ int main(void) {
 
     BInput_State *input = bender_get_input_state();
 
-    if (id) {
+    if (id != -1) {
         bool ap_running = true;
         while (ap_running) {
             bender_update_window_events();
@@ -51,6 +51,7 @@ int main(void) {
 
                     if (event.x != render_target_width ||
                         event.y != render_target_height) {
+                        print("Resizing backbuffer: %dx%d\n", event.x, event.y);
                         rm_backbuffer_resize(event.x, event.y);
                     }
 
@@ -130,7 +131,7 @@ int main(void) {
             }
 
 
-            rm_set_viewport(0,0, (float)render_target_width, (float)render_target_height);
+            rm_viewport_set(0,0, (float)render_target_width, (float)render_target_height);
             rm_clear_render_target(0.18f, 0.34f, 0.34f, 1);
 
             rm_begin_rendering_2d((float)render_target_width, (float)render_target_height);
@@ -143,7 +144,7 @@ int main(void) {
                               0.75f*render_target_height,
                               1, 1, 1, 0.75f);
 
-            rm_end_frame();
+            rm_immediate_frame_end();
 
             rm_swap_buffers(id);
         }
