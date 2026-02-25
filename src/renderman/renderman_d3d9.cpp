@@ -841,14 +841,17 @@ rm_texture_create(Renderman_Format format, u32 x, u32 y, u32 z,
                                             &texture,
                                             null);
         if (hr != D3D_OK) {
-            nb_log_print(NB_LOG_ERROR, "D3D9", "Failed to create the texture %u.", result);
+            nb_log_print(NB_LOG_ERROR, "D3D9", "Failed to create the texture %u.", rm_state.texture_pointer_count);
             nb_log_print(NB_LOG_ERROR, "D3D9", "%s", d3d_hresult_to_message(hr));
             return result;
         }
     }
 
     if (data) {
-        // @@@
+        if (IDirect3DTexture9_LockRect(texture, 0, &locked_rect, NULL, 0) == D3D_OK) {
+            memcpy(locked_rect.pBits, data, x*y*bytes_per_pixel);
+            IDirect3DTexture9_UnlockRect(texture, 0);
+        }
     } else {
         if (IDirect3DTexture9_LockRect(texture, 0, &locked_rect, NULL, 0) == D3D_OK) {
             // u32 rows = (x * y * bytes_per_pixel) / locked_rect.Pitch;
