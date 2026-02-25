@@ -36,4 +36,64 @@ NB_EXTERN void rm_viewport_set(float x0, float y0, float x1, float y1);
 NB_EXTERN void rm_immediate_quad(float x0, float y0, float x1, float y1,
                                  float r, float g, float b, float a);
 
+
+
+// GPU resource management.
+
+// RenderMan texture formats.
+typedef enum {
+    RM_FORMAT_R8,
+    RM_FORMAT_RG8,
+    RM_FORMAT_RGB8,
+    RM_FORMAT_RGBA8,
+
+    RM_FORMAT_R16,
+    RM_FORMAT_RG16,
+    RM_FORMAT_RGB16,
+    RM_FORMAT_RGBA16,
+
+    RM_FORMAT_R32,
+    RM_FORMAT_RG32,
+    RM_FORMAT_RGB32,
+    RM_FORMAT_RGBA32,
+
+    RM_FORMAT_DEPTH16,
+    RM_FORMAT_DEPTH32,
+    RM_FORMAT_DEPTH24_STENCIL8,
+} Renderman_Format;
+
+// Return the size in bytes.
+NB_INLINE u32 rm_get_format_size(Renderman_Format format) {
+    u32 result;
+
+    switch (format) {
+        case RM_FORMAT_R8:      result = 1; break;
+        case RM_FORMAT_RG8:     result = 2; break;
+        case RM_FORMAT_RGB8:    result = 3; break;
+        case RM_FORMAT_RGBA8:   result = 4; break;
+
+        case RM_FORMAT_R16:     result = 2; break;
+        case RM_FORMAT_RG16:    result = 4; break;
+        case RM_FORMAT_RGB16:   result = 6; break;
+        case RM_FORMAT_RGBA16:  result = 8; break;
+
+        case RM_FORMAT_R32:     result = 4; break;
+        case RM_FORMAT_RG32:    result = 8; break;
+        case RM_FORMAT_RGB32:   result = 12; break;
+        case RM_FORMAT_RGBA32:  result = 16; break;
+
+        case RM_FORMAT_DEPTH16:          result = 2; break;
+        case RM_FORMAT_DEPTH32:          result = 4; break;
+        case RM_FORMAT_DEPTH24_STENCIL8: result = 4; break;
+
+        default: result = 0; break;
+    }
+
+    return result;
+}
+
+NB_EXTERN u32 rm_texture_create(Renderman_Format format, u32 x, u32 y, u32 z, bool filter, bool wrap, void *data);
+NB_EXTERN void rm_texture_free(u32 texture_id);
+NB_EXTERN void rm_texture_update(u32 texture_id, Renderman_Format format, u32 x, u32 y, u32 z, void *data);
+
 #endif  // RENDERMAN_INCLUDE_H

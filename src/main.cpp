@@ -15,6 +15,9 @@ int main(void) {
                                   0, B_WINDOW_BACKGROUND_COLOR);
 
     rm_init(id);
+
+    u32 texture_id = rm_texture_create(RM_FORMAT_RGBA8, 4, 4, 1, false, false, null);
+    if (texture_id == -1) return 0;
     
     // u32 win2_id = bender_create_window("child", 200, 200, -1, -1, id, 0, B_WINDOW_BACKGROUND_COLOR);
 
