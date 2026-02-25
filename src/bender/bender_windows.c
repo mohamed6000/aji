@@ -202,6 +202,9 @@ b_w32_wide_to_utf8(wchar_t *s,
                    NB_Allocator allocator) {
     if (!s) return null;
 
+    char *result = null;
+    NB_Allocator old_allocator = NB_SET_ALLOCATOR(allocator);
+
     if (!src_length) src_length = wcslen(s);
     int required_length = WideCharToMultiByte(CP_UTF8,
                                               0,
@@ -211,7 +214,7 @@ b_w32_wide_to_utf8(wchar_t *s,
                                               0,
                                               null, null);
     if (required_length) {
-        char *result = nb_new_array(char, required_length+1, allocator);
+        result = nb_new_array(char, required_length+1);
         WideCharToMultiByte(CP_UTF8,
                             0,
                             s,
@@ -220,10 +223,10 @@ b_w32_wide_to_utf8(wchar_t *s,
                             required_length,
                             null, null);
         result[required_length] = 0;
-        return result;
     }
 
-    return null;
+    NB_SET_ALLOCATOR(old_allocator);
+    return result;
 }
 
 
@@ -1309,9 +1312,7 @@ bender_create_window(const char *title,
 
     if (!b_window_record_storage) {
         b_window_record_allocated = 1;
-        b_window_record_storage = nb_new_array(Bender_Window_Record, 
-                                               b_window_record_allocated, 
-                                               NB_GET_ALLOCATOR());
+        b_window_record_storage = nb_new_array(Bender_Window_Record, b_window_record_allocated);
         if (!b_window_record_storage) return result;
     }
 
@@ -1320,8 +1321,7 @@ bender_create_window(const char *title,
         b_window_record_allocated += 4;
         b_window_record_storage = (Bender_Window_Record *)nb_realloc(b_window_record_storage, 
             b_window_record_allocated*size_of(Bender_Window_Record),
-            old_count*size_of(Bender_Window_Record),
-            NB_GET_ALLOCATOR());
+            old_count*size_of(Bender_Window_Record));
     }
 
     result = b_window_record_count;

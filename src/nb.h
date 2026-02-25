@@ -525,10 +525,24 @@ typedef struct NB_Allocator {
     void *data;
 } NB_Allocator;
 
-extern nb_thread_local NB_Allocator nb_current_allocator;
+extern NB_Allocator nb_current_allocator;
 
+#if 0
 #define NB_SET_ALLOCATOR(a) do { nb_current_allocator = a; } while (0)
 #define NB_GET_ALLOCATOR() (nb_current_allocator)
+#endif
+
+NB_INLINE NB_Allocator NB_SET_ALLOCATOR(NB_Allocator a) {
+    NB_Allocator old_allocator;
+    
+    old_allocator = nb_current_allocator;
+    nb_current_allocator = a;
+    return old_allocator;
+}
+
+NB_INLINE NB_Allocator NB_GET_ALLOCATOR(void) {
+    return nb_current_allocator;
+}
 
 // Heap allocator.
 NB_EXTERN void *
@@ -541,33 +555,20 @@ nb_heap_allocator(NB_Allocator_Mode mode,
 #define nb_heap_realloc(mem, size, old_size) nb_heap_allocator(NB_ALLOCATOR_RESIZE, (size), (old_size), (mem), null)
 #define nb_heap_free(mem) nb_heap_allocator(NB_ALLOCATOR_FREE, 0, 0, (mem), null)
 
-#if COMPILER_CL
-#define nb_new(Type, ...) (Type *)nb_new_alloc(size_of(Type), __VA_ARGS__)
-#else
-#define nb_new(Type, ...) (Type *)nb_new_alloc(size_of(Type), ##__VA_ARGS__)
-#endif
+
+// The new* helpers uses the currently bound allocator (default is nb_heap_allocator).
+
+#define nb_new(Type) (Type *)nb_current_allocator.proc(NB_ALLOCATOR_ALLOCATE, size_of(Type), 0, null, nb_current_allocator.data)
 
 #ifndef New
 #define New nb_new
 #endif
 
-#if COMPILER_CL
-#define nb_new_array(Type, count, ...) (Type *)nb_new_alloc((count) * size_of(Type), __VA_ARGS__)
-#else
-#define nb_new_array(Type, count, ...) (Type *)nb_new_alloc((count) * size_of(Type), ##__VA_ARGS__)
-#endif
+#define nb_new_array(Type, count) (Type *)nb_current_allocator.proc(NB_ALLOCATOR_ALLOCATE, (count)*size_of(Type), 0, null, nb_current_allocator.data)
 
-#if COMPILER_CL
-#define nb_realloc(m, new_size, old_size, ...) nb_mem_realloc((m), (new_size), (old_size), __VA_ARGS__)
-#else
-#define nb_realloc(m, new_size, old_size, ...) nb_mem_realloc((m), (new_size), (old_size), ##__VA_ARGS__)
-#endif
+#define nb_realloc(m, new_size, old_size) nb_current_allocator.proc(NB_ALLOCATOR_RESIZE, (new_size), (old_size), (m), nb_current_allocator.data)
 
-#if COMPILER_CL
-#define nb_free(m, ...) nb_mem_free((m), __VA_ARGS__)
-#else
-#define nb_free(m, ...) nb_mem_free((m), ##__VA_ARGS__)
-#endif
+#define nb_free(m) nb_current_allocator.proc(NB_ALLOCATOR_FREE, 0, 0, (m), nb_current_allocator.data)
 
 
 
@@ -586,6 +587,9 @@ typedef struct NB_Temporary_Storage {
 
 extern nb_thread_local NB_Temporary_Storage nb_temporary_storage;
 extern nb_thread_local NB_Allocator nb_temporary_allocator;
+
+NB_EXTERN void *nb_talloc(NB_Temporary_Storage *ts, s64 size);
+NB_EXTERN void *nb_talloc_align(NB_Temporary_Storage *ts, s64 size, s64 alignment);
 
 NB_EXTERN NB_ALLOCATOR_PROC(nb_temporary_storage_proc);
 
@@ -767,29 +771,6 @@ NB_INLINE u32 nb_safe_truncate_u64(u64 value) {
     return result;
 }
 
-
-
-NB_INLINE void *
-nb_new_alloc(s64 size, 
-             NB_Allocator NB_DEFAULT_VALUE(a, NB_GET_ALLOCATOR())) {
-    assert(a.proc != null);
-    return a.proc(NB_ALLOCATOR_ALLOCATE, size, 0, null, a.data);
-}
-
-NB_INLINE void *
-nb_mem_realloc(void *mem, 
-               s64 new_size, s64 old_size, 
-               NB_Allocator NB_DEFAULT_VALUE(a, NB_GET_ALLOCATOR())) {
-    assert(a.proc != null);
-    return a.proc(NB_ALLOCATOR_RESIZE, new_size, old_size, mem, a.data);
-}
-
-NB_INLINE void 
-nb_mem_free(void *mem, 
-            NB_Allocator NB_DEFAULT_VALUE(a, NB_GET_ALLOCATOR())) {
-    assert(a.proc != null);
-    a.proc(NB_ALLOCATOR_FREE, 0, 0, mem, a.data);
-}
 
 
 /******** Quick Sort ********/
@@ -1151,7 +1132,7 @@ NB_EXTERN u32 nb_logger_push_mode(u32 mode) {
     return result;
 }
 
-nb_thread_local NB_Allocator nb_current_allocator = {nb_heap_allocator, null};
+NB_Allocator nb_current_allocator = {nb_heap_allocator, null};
 
 // @Cleanup:
 nb_thread_local NB_Temporary_Storage nb_temporary_storage;
@@ -1365,16 +1346,21 @@ NB_EXTERN char *nb_get_stacktrace(void) {
 
 NB_EXTERN wchar_t *
 nb_w32_utf8_to_wide(const char *s, NB_Allocator allocator) {
-    if (!s) return null;
-    s64 byte_count = nb_string_length(s);
+    NB_Allocator old_allocator = NB_SET_ALLOCATOR(allocator);
+    wchar_t *result = null;
 
-    int len = MultiByteToWideChar(CP_UTF8, 0, s, (int)byte_count, null, 0);
-    if (len <= 0) return null;
+    if (s) {
+        s64 byte_count = nb_string_length(s);
 
-    WCHAR *result = nb_new_array(WCHAR, len+1, allocator);
-    MultiByteToWideChar(CP_UTF8, 0, s, (int)byte_count, result, len);
-    result[len] = 0;
+        int len = MultiByteToWideChar(CP_UTF8, 0, s, (int)byte_count, null, 0);
+        if (len > 0) {
+            result = nb_new_array(wchar_t, len+1);
+            MultiByteToWideChar(CP_UTF8, 0, s, (int)byte_count, result, len);
+            result[len] = 0;
+        }
+    }
 
+    NB_SET_ALLOCATOR(old_allocator);
     return result;
 }
 
@@ -1597,6 +1583,64 @@ nb_heap_allocator(NB_Allocator_Mode mode,
 
 
 
+NB_EXTERN void *
+nb_talloc(NB_Temporary_Storage *ts, s64 nbytes) {
+    assert(ts->allocator.proc != null);
+
+    if (!ts->data) {
+        if (!ts->size) ts->size = NB_TS_SIZE_DEFAULT;
+
+        ts->data = (u8 *)ts->allocator.proc(NB_ALLOCATOR_ALLOCATE, 
+                                            ts->size, 0, 
+                                            null, 
+                                            ts->allocator.data);
+        if (!ts->data) return null;
+    }
+
+#if NB_DEBUG
+    if (nbytes > (ts->size - ts->occupied)) {
+        ts->high_water_mark += nbytes;
+
+        u32 old_mode = nb_logger_push_mode(NB_LOG_WARNING);
+        const char *old_ident = nb_logger_push_ident("Temporary_Storage");
+
+#if OS_WINDOWS && COMPILER_GCC
+        Log("Attempting to allocate from the heap, highest water mark: %I64d\n", 
+            ts->high_water_mark);
+#else
+        Log("Attempting to allocate from the heap, highest water mark: %" PRId64 "\n", 
+            ts->high_water_mark);
+#endif
+
+        nb_logger_push_mode(old_mode);
+        nb_logger_push_ident(old_ident);
+        return nb_heap_allocator(NB_ALLOCATOR_ALLOCATE, nbytes, 0, null, null);
+    }
+#else
+    // @Cleanup:
+    // assert(nbytes <= (ts->size - ts->occupied));
+#endif // NB_DEBUG
+
+    void *result = ts->data + ts->occupied;
+    ts->occupied += nbytes;
+    return result;
+}
+
+NB_EXTERN void *
+nb_talloc_align(NB_Temporary_Storage *ts, s64 size, s64 alignment) {
+    s64 nbytes = size;
+
+    s64 extra = (alignment - (nbytes % alignment)) % alignment;
+    nbytes += extra;
+
+    if (!ts->allocator.proc) {
+        ts->allocator.proc = nb_heap_allocator;
+        ts->allocator.data = null;
+    }
+
+    return nb_talloc(ts, nbytes);
+}
+
 NB_EXTERN NB_ALLOCATOR_PROC(nb_temporary_storage_proc) {
     UNUSED(allocator_data);
 
@@ -1615,6 +1659,7 @@ NB_EXTERN NB_ALLOCATOR_PROC(nb_temporary_storage_proc) {
 
     switch (mode) {
         case NB_ALLOCATOR_ALLOCATE: {
+/*
             if (!ts->data) {
                 if (!ts->size) ts->size = NB_TS_SIZE_DEFAULT;
 
@@ -1652,6 +1697,8 @@ NB_EXTERN NB_ALLOCATOR_PROC(nb_temporary_storage_proc) {
             void *result = ts->data + ts->occupied;
             ts->occupied += nbytes;
             return result;
+*/
+            return nb_talloc(ts, nbytes);
         } break;
 
         case NB_ALLOCATOR_RESIZE: {
@@ -1659,6 +1706,7 @@ NB_EXTERN NB_ALLOCATOR_PROC(nb_temporary_storage_proc) {
             // a new chunk of memory using the new size.
 
 
+/*
             // @Cutnpaste: from ALLOCATOR_ALLOCATE.
 #if NB_DEBUG
             if (nbytes > (ts->size - ts->occupied)) {
@@ -1686,6 +1734,9 @@ NB_EXTERN NB_ALLOCATOR_PROC(nb_temporary_storage_proc) {
 
             void *result = ts->data + ts->occupied;
             ts->occupied += nbytes;
+*/
+
+            void *result = nb_talloc(ts, nbytes);
 
             if (old_memory && (old_size > 0)) {
                 memcpy(result, old_memory, (umm)nb_min(old_size, nbytes));
@@ -1773,7 +1824,9 @@ nb_qsort_it(void *data, s64 count,
             s64 (*qsort_compare)(void *, void *)) {
     if (count < 2) return;
 
-    s64 *qsort_stack = nb_new_array(s64, count * 2, nb_temporary_allocator);
+    // s64 *qsort_stack = nb_new_array(s64, count * 2);
+    s64 mark = nb_get_temporary_storage_mark();
+    s64 *qsort_stack = (s64 *)nb_talloc(&nb_temporary_storage, size_of(s64) * count * 2);
 
     // Push.
     qsort_stack[0] = 0;
@@ -1799,6 +1852,8 @@ nb_qsort_it(void *data, s64 count,
             qsort_stack[++top] = high;
         }
     }
+
+    nb_set_temporary_storage_mark(mark);
 }
 
 NB_EXTERN void 
@@ -1814,15 +1869,17 @@ nb_default_logger(const char *message, ...) {
 #if 0
     nb_write_string(message);
 #else
-    s64 mark = nb_get_temporary_storage_mark();
+    static char buffer[4096];
+    
     va_list args;
     va_start(args, message);
 
-    char *s = tprint_valist(message, args);
+    int len = nb_sprint_valist(buffer, nb_array_count(buffer), 
+                               message, args);
     va_end(args);
 
-    nb_write_string(s, to_standard_error);
-    nb_set_temporary_storage_mark(mark);
+    assert(len <= nb_array_count(buffer));
+    nb_write_string_count(buffer, len, to_standard_error);
 #endif
 
     nb_write_string("\n", to_standard_error);
@@ -1834,11 +1891,7 @@ nb_sprint(char *buf, int size, const char *fmt, ...) {
 
     va_list args;
     va_start(args, fmt);
-#if OS_WINDOWS
-    result = _vsnprintf(buf, size, fmt, args);
-#else
     result = vsnprintf(buf, size, fmt, args);
-#endif
     va_end(args);
 
     return result;
@@ -1850,11 +1903,7 @@ nb_sprint_valist(char *buf, int size, const char *fmt, va_list arg_list) {
 
     va_list args;
     va_copy(args, arg_list);
-#if OS_WINDOWS
-    result = _vsnprintf(buf, size, fmt, args);
-#else
     result = vsnprintf(buf, size, fmt, args);
-#endif
     va_end(args);
 
     return result;
@@ -1865,16 +1914,12 @@ NB_EXTERN char *mprint(const char *fmt, ...) {
     int size = NB_PRINT_INITIAL_GUESS;
 
     while (1) {
-        result = nb_new_array(char, size, NB_GET_ALLOCATOR());
+        result = nb_new_array(char, size);
         if (!result) return null;
         
         va_list args;
         va_start(args, fmt);
-#if OS_WINDOWS
-        int len = _vsnprintf(result, size, fmt, args);
-#else
         int len = vsnprintf(result, size, fmt, args);
-#endif
         va_end(args);
 
         if ((len >= 0) && (size >= len+1)) {
@@ -1882,7 +1927,7 @@ NB_EXTERN char *mprint(const char *fmt, ...) {
             break;
         }
 
-        nb_free(result, NB_GET_ALLOCATOR());
+        nb_free(result);
         size *= 2;
     }
 
@@ -1896,16 +1941,12 @@ mprint_guess(int size, const char *fmt, ...) {
     char *result = null;
 
     while (1) {
-        result = nb_new_array(char, size, NB_GET_ALLOCATOR());
+        result = nb_new_array(char, size);
         if (!result) return null;
         
         va_list args;
         va_start(args, fmt);
-#if OS_WINDOWS
-        int len = _vsnprintf(result, size, fmt, args);
-#else
         int len = vsnprintf(result, size, fmt, args);
-#endif
         va_end(args);
 
         if ((len >= 0) && (size >= len+1)) {
@@ -1913,7 +1954,7 @@ mprint_guess(int size, const char *fmt, ...) {
             break;
         }
 
-        nb_free(result, NB_GET_ALLOCATOR());
+        nb_free(result);
         size *= 2;
     }
 
@@ -1926,17 +1967,12 @@ mprint_valist(const char *fmt, va_list arg_list) {
     int size = NB_PRINT_INITIAL_GUESS;
 
     while (1) {
-        result = nb_new_array(char, size, NB_GET_ALLOCATOR());
+        result = nb_new_array(char, size);
         if (!result) return null;
         
         va_list args;
-#if OS_WINDOWS
-        args = arg_list;
-        int len = _vsnprintf(result, size, fmt, args);
-#else
         va_copy(args, arg_list);
         int len = vsnprintf(result, size, fmt, args);
-#endif
         va_end(args);
 
         if ((len >= 0) && (size >= len+1)) {
@@ -1944,7 +1980,7 @@ mprint_valist(const char *fmt, va_list arg_list) {
             break;
         }
 
-        nb_free(result, NB_GET_ALLOCATOR());
+        nb_free(result);
         size *= 2;
     }
 
@@ -1957,25 +1993,22 @@ tprint(const char *fmt, ...) {
 
     // Initial guess.
     int size = NB_PRINT_INITIAL_GUESS;
-    NB_Allocator allocator = nb_temporary_allocator;
     NB_Temporary_Storage *ts = &nb_temporary_storage;
 
     while (1) {
         s64 mark = nb_get_temporary_storage_mark();
-        result = nb_new_array(char, size, allocator);
-        if (!result) return null;
+        // result = nb_new_array(char, size);
+        result = (char *)nb_talloc_align(ts, size, /*alignment=*/8);
+        if (!result) break;
         
         va_list args;
         va_start(args, fmt);
-#if OS_WINDOWS
-        int len = _vsnprintf(result, size, fmt, args);
-#else
+
         int len = vsnprintf(result, size, fmt, args);
-#endif
+
         va_end(args);
 
         if ((len >= 0) && (size >= len+1)) {
-            ts->occupied -= (size - len - 1);
             size = len;
             break;
         }
@@ -1990,27 +2023,21 @@ tprint(const char *fmt, ...) {
 NB_EXTERN char *
 tprint_valist(const char *fmt, va_list arg_list) {
     char *result = null;
+    
     int size = NB_PRINT_INITIAL_GUESS;
-    NB_Allocator allocator = nb_temporary_allocator;
     NB_Temporary_Storage *ts = &nb_temporary_storage;
 
     while (1) {
         s64 mark = nb_get_temporary_storage_mark();
-        result = nb_new_array(char, size, allocator);
-        if (!result) return null;
+        result = (char *)nb_talloc_align(ts, size, /*alignment=*/8);
+        if (!result) break;
 
         va_list args;
-#if OS_WINDOWS
-        args = arg_list;
-        int len = _vsnprintf(result, size, fmt, args);
-#else
         va_copy(args, arg_list);
         int len = vsnprintf(result, size, fmt, args);
-#endif
         va_end(args);
 
         if ((len >= 0) && (size >= len+1)) {
-            ts->occupied -= (size - len - 1);
             size = len;
             break;
         }
@@ -2098,9 +2125,6 @@ NB_EXTERN void print(const char *fmt, ...) {
 #define reset_temporary_storage nb_reset_temporary_storage
 
 #define safe_truncate_u64 nb_safe_truncate_u64
-#define new_alloc   nb_new_alloc
-#define mem_realloc nb_mem_realloc
-#define mem_free    nb_mem_free
 
 #define find_least_significant_set_bit nb_find_least_significant_set_bit
 #define swap_two_memory_blocks         nb_swap_two_memory_blocks

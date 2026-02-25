@@ -388,8 +388,8 @@ NB_EXTERN bool rm_init(u32 window_id) {
 
     HRESULT hr;
     UINT adapter = D3DADAPTER_DEFAULT;
-    // D3DFORMAT format = D3DFMT_UNKNOWN;//D3DFMT_X8R8G8B8;
-    D3DFORMAT format = D3DFMT_A8R8G8B8;//D3DFMT_X8R8G8B8;
+    D3DFORMAT tested_formats[] = {D3DFMT_UNKNOWN, D3DFMT_X8R8G8B8, D3DFMT_A8R8G8B8};
+    D3DFORMAT format = tested_formats[2];
 
     // Check the device capabilities.
     D3DCAPS9 caps = {0};
@@ -411,12 +411,17 @@ NB_EXTERN bool rm_init(u32 window_id) {
     rm_state.d3d_params.Windowed   = TRUE;
     rm_state.d3d_params.SwapEffect = D3DSWAPEFFECT_DISCARD;//D3DSWAPEFFECT_COPY;
     rm_state.d3d_params.BackBufferFormat = format;
+    rm_state.d3d_params.BackBufferCount  = 1;
     rm_state.d3d_params.hDeviceWindow    = hwnd;
     rm_state.d3d_params.BackBufferWidth  = client_rect.right  - client_rect.left;
     rm_state.d3d_params.BackBufferHeight = client_rect.bottom - client_rect.top;
+    rm_state.d3d_params.MultiSampleType  = D3DMULTISAMPLE_NONE;
+    rm_state.d3d_params.MultiSampleQuality = 0;
+    rm_state.d3d_params.Flags = 0;
     rm_state.d3d_params.EnableAutoDepthStencil = TRUE;
     rm_state.d3d_params.AutoDepthStencilFormat = D3DFMT_D24S8;
-    rm_state.d3d_params.PresentationInterval   = D3DPRESENT_INTERVAL_ONE;  // vsync on.
+    rm_state.d3d_params.FullScreen_RefreshRateInHz = D3DPRESENT_RATE_DEFAULT;
+    rm_state.d3d_params.PresentationInterval = D3DPRESENT_INTERVAL_ONE;  // vsync on.
     // rm_state.d3d_params.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;  // vsync off.
 
 
