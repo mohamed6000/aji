@@ -92,6 +92,8 @@ NB_INLINE u32 rm_get_format_size(Renderman_Format format) {
     return result;
 }
 
+#define RM_CREATE_CUBE_MAP (u32)-1
+
 NB_EXTERN u32 rm_texture_create(Renderman_Format format, u32 x, u32 y, u32 z, bool filter, bool wrap, void *data);
 NB_EXTERN void rm_texture_free(u32 texture_id);
 NB_EXTERN void rm_texture_update(u32 texture_id, Renderman_Format format, u32 x, u32 y, u32 z, void *data);

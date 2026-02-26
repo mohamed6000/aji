@@ -14,7 +14,7 @@
 
 #define DXERROR9(v,n,d) {v, TEXT(n), TEXT(d)},
 #define DXERROR9LAST(v,n,d) {v, TEXT(n), TEXT(d)}
-#include "dxerr_d3d9.c"
+#include "dxerr_d3d9.c"  // @Todo: dxerr header file.
 
 typedef struct {
     float x, y, z;
@@ -32,7 +32,6 @@ typedef struct {
     IDirect3DVertexShader9      *vertex_shader;
     IDirect3DPixelShader9       *pixel_shader;
     D3DPRESENT_PARAMETERS       d3d_params;
-    HWND main_window_handle;
 
     IDirect3DTexture9 **texture_pointers;
     u32 texture_pointer_allocated;
@@ -186,6 +185,29 @@ d3d_get_gpu_string(IDirect3DDevice9 *device) {
     return result;
 }
 
+static void d3d_immediate_mode_device_state_set(void) {
+    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_FILLMODE,  D3DFILL_SOLID);
+    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_SHADEMODE, D3DSHADE_GOURAUD);
+    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ZWRITEENABLE,    FALSE);
+    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ALPHATESTENABLE, FALSE);
+    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_CULLMODE, D3DCULL_NONE);
+    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ZENABLE, FALSE);
+    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ALPHABLENDENABLE, TRUE);
+    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_BLENDOP,   D3DBLENDOP_ADD);
+    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_SRCBLEND,  D3DBLEND_SRCALPHA);
+    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_SEPARATEALPHABLENDENABLE, TRUE);
+    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_SRCBLENDALPHA,  D3DBLEND_ONE);
+    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_DESTBLENDALPHA, D3DBLEND_INVSRCALPHA);
+    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_SCISSORTESTENABLE, TRUE);
+    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_FOGENABLE,         FALSE);
+    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_RANGEFOGENABLE,    FALSE);
+    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_SPECULARENABLE,    FALSE);
+    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_STENCILENABLE,     FALSE);
+    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_CLIPPING,          TRUE);
+    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_LIGHTING,          FALSE);
+}
+
 static bool 
 d3d_immediate_mode_init(void) {
     HRESULT hr;
@@ -297,27 +319,7 @@ d3d_immediate_mode_init(void) {
     }
 
 
-    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_FILLMODE,  D3DFILL_SOLID);
-    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_SHADEMODE, D3DSHADE_GOURAUD);
-    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ZWRITEENABLE,    FALSE);
-    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ALPHATESTENABLE, FALSE);
-    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_CULLMODE, D3DCULL_NONE);
-    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ZENABLE, FALSE);
-    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ALPHABLENDENABLE, TRUE);
-    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_BLENDOP,   D3DBLENDOP_ADD);
-    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_SRCBLEND,  D3DBLEND_SRCALPHA);
-    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
-    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_SEPARATEALPHABLENDENABLE, TRUE);
-    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_SRCBLENDALPHA,  D3DBLEND_ONE);
-    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_DESTBLENDALPHA, D3DBLEND_INVSRCALPHA);
-    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_SCISSORTESTENABLE, TRUE);
-    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_FOGENABLE,         FALSE);
-    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_RANGEFOGENABLE,    FALSE);
-    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_SPECULARENABLE,    FALSE);
-    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_STENCILENABLE,     FALSE);
-    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_CLIPPING,          TRUE);
-    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_LIGHTING,          FALSE);
-
+    d3d_immediate_mode_device_state_set();
 
     return true;
 }
@@ -344,14 +346,14 @@ static void d3d_immediate_mode_release(void) {
     }
 }
 
-static IDirect3DDevice9 *d3d_device_create(UINT adapter) {
+static IDirect3DDevice9 *d3d_device_create(UINT adapter, HWND hwnd) {
     HRESULT hr;
     IDirect3DDevice9 *device = null;
 
     hr = IDirect3D9_CreateDevice(rm_state.d3d9, 
                                  adapter,
                                  D3DDEVTYPE_HAL,
-                                 rm_state.main_window_handle,
+                                 hwnd,
                                  rm_state.vertex_hw_processing_enabled ? D3DCREATE_HARDWARE_VERTEXPROCESSING : D3DCREATE_SOFTWARE_VERTEXPROCESSING,
                                  &rm_state.d3d_params,
                                  &device);
@@ -361,7 +363,7 @@ static IDirect3DDevice9 *d3d_device_create(UINT adapter) {
         hr = IDirect3D9_CreateDevice(rm_state.d3d9, 
                                      adapter,
                                      D3DDEVTYPE_HAL,
-                                     rm_state.main_window_handle,
+                                     hwnd,
                                      rm_state.vertex_hw_processing_enabled ? D3DCREATE_HARDWARE_VERTEXPROCESSING : D3DCREATE_SOFTWARE_VERTEXPROCESSING,
                                      &rm_state.d3d_params,
                                      &device);
@@ -370,7 +372,7 @@ static IDirect3DDevice9 *d3d_device_create(UINT adapter) {
             hr = IDirect3D9_CreateDevice(rm_state.d3d9, 
                                          adapter,
                                          D3DDEVTYPE_HAL,
-                                         rm_state.main_window_handle,
+                                         hwnd,
                                          D3DCREATE_SOFTWARE_VERTEXPROCESSING,
                                          &rm_state.d3d_params,
                                          &device);
@@ -416,7 +418,6 @@ NB_EXTERN bool rm_init(u32 window_id) {
     rm_state.vertex_hw_processing_enabled = (caps.DevCaps & D3DDEVCAPS_HWTRANSFORMANDLIGHT) != 0;
 
     HWND hwnd = (HWND)b_get_window_handle(window_id);
-    rm_state.main_window_handle = hwnd;
 
     RECT client_rect;
     GetClientRect(hwnd, &client_rect);
@@ -500,14 +501,11 @@ NB_EXTERN bool rm_init(u32 window_id) {
                      LOWORD(identifier.DriverVersion.LowPart));
     }
 
-    rm_state.d3d_device = d3d_device_create(D3DADAPTER_DEFAULT);
+    rm_state.d3d_device = d3d_device_create(D3DADAPTER_DEFAULT, hwnd);
     if (!rm_state.d3d_device) return false;
 
     rm_state.has_rgba_support = d3d_check_format_support(rm_state.d3d_device,
                                                          D3DFMT_A8B8G8R8);
-
-    // char *gpu = d3d_get_gpu_string(rm_state.d3d_device);
-    // nb_log_print(NB_LOG_NONE, "D3D9", "Graphics card: %s", gpu);
 
     if (!d3d_immediate_mode_init()) {
         return false;
@@ -543,17 +541,6 @@ NB_EXTERN void rm_finish(void) {
         IDirect3D9_Release(rm_state.d3d9);
         rm_state.d3d9 = null;
     }
-}
-
-static void d3d_reset_device(void) {
-    HRESULT hr;
-
-    d3d_immediate_mode_release();
-
-    hr = IDirect3DDevice9_Reset(rm_state.d3d_device, &rm_state.d3d_params);
-    assert(hr != D3DERR_INVALIDCALL);
-
-    d3d_immediate_mode_init();
 }
 
 #if 0
@@ -609,23 +596,49 @@ NB_EXTERN void rm_swap_buffers(u32 window_id) {
     }
 }
 
-NB_EXTERN void rm_backbuffer_resize(s32 width, s32 height) {
+static void d3d_reset_device(void) {
     HRESULT hr;
 
-    d3d_immediate_mode_release();
+    // Release immediate mode default resources.
+    if (rm_state.immediate_vb) {
+        IDirect3DVertexBuffer9_Release(rm_state.immediate_vb);
+        rm_state.immediate_vb = null;
+    }
 
     hr = IDirect3DDevice9_Reset(rm_state.d3d_device, &rm_state.d3d_params);
     assert(hr != D3DERR_INVALIDCALL);
 
-    IDirect3DDevice9_Release(rm_state.d3d_device);
+    // Init immediate mode default resources.
+
+    // Immediate non-FVF vertex buffer.
+    hr = IDirect3DDevice9_CreateVertexBuffer(rm_state.d3d_device, 
+                                             size_of(rm_state.immediate_vertices),
+                                             D3DUSAGE_DYNAMIC|D3DUSAGE_WRITEONLY,
+                                             0, // No more FVF D3DFVF_XYZ,
+                                             D3DPOOL_DEFAULT,
+                                             &rm_state.immediate_vb, null);
+    if (FAILED(hr)) {
+        Log("Failed to create the immediate vertex buffer.");
+        Log("%s", d3d_hresult_to_message(hr));
+        return;
+    }
+
+
+    d3d_immediate_mode_device_state_set();
+}
+
+NB_EXTERN void rm_backbuffer_resize(s32 width, s32 height) {
+    //
+    // @Note: We only need to recreate the D3DPOOL_DEFAULT resources.
+    // This is good for texture memory (D3DPOOL_MANAGED), but we still
+    // need to re-bind the sampler states.
+    //
 
     rm_state.d3d_params.BackBufferWidth  = width;
     rm_state.d3d_params.BackBufferHeight = height;
 
-    rm_state.d3d_device = d3d_device_create(D3DADAPTER_DEFAULT);
-    if (!rm_state.d3d_device) return;
-
-    d3d_immediate_mode_init();
+    // @Note: d3d_reset_device uses rm_state.d3d_params
+    d3d_reset_device();
 }
 
 NB_EXTERN void rm_clear_render_target(float r, float g, float b, float a) {
@@ -693,6 +706,15 @@ NB_EXTERN void rm_immediate_frame_end(void) {
             IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_SCISSORTESTENABLE, FALSE);
 
             // @Todo: Renderer state changes.
+
+
+            IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_MINFILTER, D3DTEXF_POINT);
+            IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_MAGFILTER, D3DTEXF_POINT);
+            IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
+            IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
+
+            IDirect3DDevice9_SetTexture(rm_state.d3d_device, /*slot=*/0, (IDirect3DBaseTexture9 *)rm_state.texture_pointers[0]);
+
 
             void *locked_vb = null;
             if (SUCCEEDED(IDirect3DVertexBuffer9_Lock(rm_state.immediate_vb, 
@@ -827,46 +849,136 @@ rm_texture_create(Renderman_Format format, u32 x, u32 y, u32 z,
 
     result = (u32)-1;
     texture = null;
-    d3d_format = d3d9_format_from_renderman(format);
-    bytes_per_pixel = rm_get_format_size(format);
+    d3d_format = D3DFMT_UNKNOWN;
+    bytes_per_pixel = 0;
+
+    switch (format) {
+        case RM_FORMAT_R8:
+            d3d_format = D3DFMT_L8;
+            bytes_per_pixel = 1;
+        break;
+        
+        case RM_FORMAT_RG8:
+            d3d_format = D3DFMT_A8L8;
+            bytes_per_pixel = 2;
+        break;
+        
+        case RM_FORMAT_RGB8:
+            // d3d_format = D3DFMT_R8G8B8;
+            d3d_format = D3DFMT_X8R8G8B8;
+            bytes_per_pixel = 4; //3;
+        break;
+        
+        case RM_FORMAT_RGBA8:
+            d3d_format = D3DFMT_A8R8G8B8;
+            bytes_per_pixel = 4;
+        break;
+        
+        case RM_FORMAT_R16:
+            d3d_format = D3DFMT_R16F;
+            bytes_per_pixel = 2;
+        break;
+        
+        case RM_FORMAT_RG16:
+            d3d_format = D3DFMT_G16R16F;
+            bytes_per_pixel = 4; 
+        break;
+        
+        case RM_FORMAT_RGB16:
+            d3d_format = D3DFMT_A16B16G16R16F;
+            bytes_per_pixel = 6; 
+        break;
+        
+        case RM_FORMAT_RGBA16:
+            d3d_format = D3DFMT_A16B16G16R16F;
+            bytes_per_pixel = 8;
+        break;
+        
+        case RM_FORMAT_R32:
+            d3d_format = D3DFMT_R32F;
+            bytes_per_pixel = 4;
+        break;
+        
+        case RM_FORMAT_RG32:
+            d3d_format = D3DFMT_G32R32F;
+            bytes_per_pixel = 8;
+        break;
+        
+        case RM_FORMAT_RGB32:
+            d3d_format = D3DFMT_A32B32G32R32F;
+            bytes_per_pixel = 12;
+        break;
+        
+        case RM_FORMAT_RGBA32:
+            d3d_format = D3DFMT_A32B32G32R32F;
+            bytes_per_pixel = 16;
+        break;
+        
+        case RM_FORMAT_DEPTH16:
+            d3d_format = D3DFMT_D16;
+            bytes_per_pixel = 2;
+        break;
+        
+        case RM_FORMAT_DEPTH32:
+            d3d_format = D3DFMT_D32;
+            bytes_per_pixel = 4;
+        break;
+        
+        case RM_FORMAT_DEPTH24_STENCIL8: 
+            d3d_format = D3DFMT_D24S8;
+            bytes_per_pixel = 4;
+        break;
+    }
+
+    // @Todo: Convert RGBA to BGRA, because RGBA is not well supported 
+    // by D3D9 devices.
     
     if (z == 1) {  // 2D Texture.
         // @Note: Textures created with D3DPOOL_DEFAULT are not lockable.
         hr = IDirect3DDevice9_CreateTexture(rm_state.d3d_device,
                                             x, y,
-                                            0,
+                                            1,
                                             0,
                                             d3d_format,
                                             D3DPOOL_MANAGED,
                                             &texture,
                                             null);
         if (hr != D3D_OK) {
-            nb_log_print(NB_LOG_ERROR, "D3D9", "Failed to create the texture %u.", rm_state.texture_pointer_count);
+            nb_log_print(NB_LOG_ERROR, "D3D9", "Failed to create the texture.");
             nb_log_print(NB_LOG_ERROR, "D3D9", "%s", d3d_hresult_to_message(hr));
             return result;
         }
+    } else if (z == RM_CREATE_CUBE_MAP) {
+
     }
+
+    assert(texture != null);
 
     if (data) {
         if (IDirect3DTexture9_LockRect(texture, 0, &locked_rect, NULL, 0) == D3D_OK) {
-            memcpy(locked_rect.pBits, data, x*y*bytes_per_pixel);
+            u32 texture_pitch = x * bytes_per_pixel;
+
+            for (u32 row = 0; row < y; ++row) {
+                memcpy((u8 *)locked_rect.pBits + row * locked_rect.Pitch,
+                       (u8 *)data + row * texture_pitch,
+                       texture_pitch);
+            }
+
             IDirect3DTexture9_UnlockRect(texture, 0);
         }
     } else {
         if (IDirect3DTexture9_LockRect(texture, 0, &locked_rect, NULL, 0) == D3D_OK) {
-            // u32 rows = (x * y * bytes_per_pixel) / locked_rect.Pitch;
-            u32 *dest = (u32 *)locked_rect.pBits;
-
             for (u32 j = 0; j < y; ++j) {
                 for (u32 i = 0; i < x; ++i) {
-                    u32 to = j * x + i;
                     u32 black = 0xff121212;
                     u32 white = 0xffffffff;
 
+                    u32 *dest = (u32 *)((u8 *)locked_rect.pBits + j * locked_rect.Pitch + i * bytes_per_pixel);
+
                     if ((i+j) % 2) {
-                        memcpy(&dest[to], &black, bytes_per_pixel);
+                        memcpy(dest, &black, bytes_per_pixel);
                     } else {
-                        memcpy(&dest[to], &white, bytes_per_pixel);
+                        memcpy(dest, &white, bytes_per_pixel);
                     }
                 }
             }
@@ -877,21 +989,34 @@ rm_texture_create(Renderman_Format format, u32 x, u32 y, u32 z,
 
     if (!rm_state.texture_pointers || !rm_state.texture_pointer_allocated) {
         rm_state.texture_pointer_allocated = 8;
-        rm_state.texture_pointer_count = 0;
+        rm_state.texture_pointer_count = 1;
         rm_state.texture_pointers = nb_new_array(IDirect3DTexture9 *, rm_state.texture_pointer_allocated);
     }
 
-    if (rm_state.texture_pointer_count >= rm_state.texture_pointer_allocated) {
-        u32 old_size = rm_state.texture_pointer_allocated;
-        rm_state.texture_pointer_allocated *= 2;
-        rm_state.texture_pointers = (IDirect3DTexture9 **)nb_realloc(rm_state.texture_pointers,
-                                               rm_state.texture_pointer_allocated*size_of(IDirect3DTexture9 *),
-                                               old_size*size_of(IDirect3DTexture9 *));
+    if (rm_state.texture_pointer_count) {
+        for (u32 index = 0; index < rm_state.texture_pointer_count; ++index) {
+            IDirect3DTexture9 *ptr = rm_state.texture_pointers[index];
+            if (ptr == null) {
+                result = index;
+                break;
+            }
+        }
+
+        if (result == -1) {
+            if (rm_state.texture_pointer_count >= rm_state.texture_pointer_allocated) {
+                u32 old_size = rm_state.texture_pointer_allocated;
+                rm_state.texture_pointer_allocated *= 2;
+                rm_state.texture_pointers = (IDirect3DTexture9 **)nb_realloc(rm_state.texture_pointers,
+                                                       rm_state.texture_pointer_allocated*size_of(IDirect3DTexture9 *),
+                                                       old_size*size_of(IDirect3DTexture9 *));
+            }
+
+            result = rm_state.texture_pointer_count;
+            rm_state.texture_pointer_count += 1;
+        }
     }
 
-    result = rm_state.texture_pointer_count;
-    rm_state.texture_pointer_count += 1;
-
+    assert(result != -1);
     rm_state.texture_pointers[result] = texture;
 
     if (filter) {
@@ -905,13 +1030,13 @@ rm_texture_create(Renderman_Format format, u32 x, u32 y, u32 z,
     if (wrap) {
         IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_ADDRESSU, D3DTADDRESS_WRAP);
         IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_ADDRESSV, D3DTADDRESS_WRAP);
-        if (z == -1) {
+        if (z == RM_CREATE_CUBE_MAP) {
             IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_ADDRESSW, D3DTADDRESS_WRAP);
         }
     } else {
         IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
         IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
-        if (z == -1) {
+        if (z == RM_CREATE_CUBE_MAP) {
             IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_ADDRESSW, D3DTADDRESS_CLAMP);
         }
     }
@@ -923,11 +1048,17 @@ rm_texture_create(Renderman_Format format, u32 x, u32 y, u32 z,
     return result;
 }
 
-/*
 NB_EXTERN void rm_texture_free(u32 texture_id) {
+    IDirect3DTexture9 *texture;
 
+    assert(texture_id != -1);
+    texture = rm_state.texture_pointers[texture_id];
+    rm_state.texture_pointers[texture_id] = null;
+
+    IDirect3DTexture9_Release(texture);
 }
 
+/*
 NB_EXTERN void rm_texture_update(u32 texture_id, u32 format, u32 x, u32 y, u32 z, void *data) {
 
 }

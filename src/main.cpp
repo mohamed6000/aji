@@ -11,16 +11,34 @@
 //
 
 int main(void) {
-    u32 id = bender_create_window("AJI", 640, 480, -1, -1, 0, 
+    u32 id = bender_create_window("AJI", 1600, 900, -1, -1, 0, 
                                   0, B_WINDOW_BACKGROUND_COLOR);
 
     rm_init(id);
 
-    u32 pixels[] = {0xffff0000, 0xff000000, 0xff00ff00, 0xff0000ff};
+    // u32 pixels[] = {0xffff0000, 0xff000000, 0xff00ff00, 0xff0000ff};
 
-    u32 texture_id = rm_texture_create(RM_FORMAT_RGBA8, 2, 2, 1, false, false, &pixels);
+    u32 texture_id = rm_texture_create(RM_FORMAT_RGB8, 32, 32, 1, false, false, null);
     if (texture_id == -1) return 0;
     
+/*
+    rm_texture_free(texture_id);
+
+    texture_id = rm_texture_create(RM_FORMAT_RGBA8, 2, 2, 1, false, false, null);
+    texture_id = rm_texture_create(RM_FORMAT_RGBA8, 2, 2, 1, false, false, null);
+    texture_id = rm_texture_create(RM_FORMAT_RGBA8, 2, 2, 1, false, false, null);
+    texture_id = rm_texture_create(RM_FORMAT_RGBA8, 2, 2, 1, false, false, null);
+    texture_id = rm_texture_create(RM_FORMAT_RGBA8, 2, 2, 1, false, false, null);
+    texture_id = rm_texture_create(RM_FORMAT_RGBA8, 2, 2, 1, false, false, null);
+    texture_id = rm_texture_create(RM_FORMAT_RGBA8, 2, 2, 1, false, false, null);
+    rm_texture_free(3);
+    texture_id = rm_texture_create(RM_FORMAT_RGBA8, 2, 2, 1, false, false, null);
+    texture_id = rm_texture_create(RM_FORMAT_RGBA8, 2, 2, 1, false, false, null);
+    texture_id = rm_texture_create(RM_FORMAT_RGBA8, 2, 2, 1, false, false, null);
+    texture_id = rm_texture_create(RM_FORMAT_RGBA8, 2, 2, 1, false, false, null);
+    texture_id = rm_texture_create(RM_FORMAT_RGBA8, 2, 2, 1, false, false, null);
+*/
+
     // u32 win2_id = bender_create_window("child", 200, 200, -1, -1, id, 0, B_WINDOW_BACKGROUND_COLOR);
 
     s32 render_target_width  = 0;
