@@ -52,34 +52,42 @@ static bool rm_initted;
 
 
 // @Todo: One shader source.
-char rm_vertex_shader_source[] = 
-"float4x4 wvp : register(c0);\n"
-"struct VS_Output {\n"
-"   float4 pos   : POSITION;\n"
-"   float2 uv    : TEXCOORD0;\n"
-"   float4 color : COLOR;\n"
-"};\n"
-"VS_Output main(float3 pos : POSITION, float2 uv : TEXCOORD0, float4 color : COLOR) {\n"
-"   VS_Output result;\n"
-"   result.pos   = mul(float4(pos, 1.0f), wvp);\n"
-"   result.uv    = uv;\n"
-"   result.color = color;\n"
-"   return result;\n"
-"}";
+char rm_vertex_shader_source[] = NB_STRINGIFY(
+float4x4 wvp : register(c0);
+
+struct VS_Output {
+    float4 pos   : POSITION;
+    float2 uv    : TEXCOORD0;
+    float4 color : COLOR;
+};
+
+VS_Output main(float3 pos : POSITION, float2 uv : TEXCOORD0, float4 color : COLOR) {
+    VS_Output result;
+    result.pos   = mul(float4(pos, 1.0f), wvp);
+    result.uv    = uv;
+    result.color = color;
+    return result;
+};
+);
+
 
 // @Todo: Account for half pixel offset.
 // https://aras-p.info/blog/2016/04/08/solving-dx9-half-pixel-offset/
 
-char rm_pixel_shader_source[] = 
-"sampler2D rm_sampler : register(s0);\n"
-"struct VS_Output {\n"
-"   float4 pos   : POSITION;\n"
-"   float2 uv    : TEXCOORD0;\n"
-"   float4 color : COLOR;\n"
-"};\n"
-"float4 main(VS_Output input) : COLOR {\n"
-"   return tex2D(rm_sampler, input.uv) * input.color;\n"
-"}\n";
+char rm_pixel_shader_source[] = NB_STRINGIFY(
+sampler2D rm_sampler : register(s0);
+
+struct VS_Output {
+    float4 pos   : POSITION;
+    float2 uv    : TEXCOORD0;
+    float4 color : COLOR;
+};
+
+float4 main(VS_Output input) : COLOR {
+    float4 texel = tex2D(rm_sampler, input.uv);
+    return texel * input.color;
+}
+);
 
 
 static void d3d_log_shader_error(ID3DBlob *shader_error) {
@@ -267,6 +275,8 @@ d3d_immediate_mode_init(void) {
         return false;
     }
 
+    // @Todo: Release compiled shader.
+
 #if LANGUAGE_C
     DWORD *data = (DWORD *)(compiled_shader->lpVtbl->GetBufferPointer(compiled_shader));//ID3D10Blob_GetBufferPointer(compiled_shader);
 #else
@@ -317,6 +327,8 @@ d3d_immediate_mode_init(void) {
         Log("%s", d3d_hresult_to_message(hr));
         return false;
     }
+
+    // @Todo: Release compiled shader.
 
 
     d3d_immediate_mode_device_state_set();
@@ -822,11 +834,11 @@ d3d9_format_from_renderman(Renderman_Format format) {
         case RM_FORMAT_RGBA8:   result = D3DFMT_A8R8G8B8; break;
         case RM_FORMAT_R16:     result = D3DFMT_R16F; break;
         case RM_FORMAT_RG16:    result = D3DFMT_G16R16F; break;
-        case RM_FORMAT_RGB16:   result = D3DFMT_A16B16G16R16F; break; // @Cleanup: Expands to RGBA16.
+        // case RM_FORMAT_RGB16:   result = D3DFMT_A16B16G16R16F; break; // @Cleanup: Expands to RGBA16.
         case RM_FORMAT_RGBA16:  result = D3DFMT_A16B16G16R16F; break;
         case RM_FORMAT_R32:     result = D3DFMT_R32F; break;
         case RM_FORMAT_RG32:    result = D3DFMT_G32R32F; break;
-        case RM_FORMAT_RGB32:   result = D3DFMT_A32B32G32R32F; break; // @Cleanup: Expands to RGBA32.
+        // case RM_FORMAT_RGB32:   result = D3DFMT_A32B32G32R32F; break; // @Cleanup: Expands to RGBA32.
         case RM_FORMAT_RGBA32:  result = D3DFMT_A32B32G32R32F; break;
         case RM_FORMAT_DEPTH16: result = D3DFMT_D16; break;
         case RM_FORMAT_DEPTH32: result = D3DFMT_D32; break;
@@ -847,6 +859,10 @@ rm_texture_create(Renderman_Format format, u32 x, u32 y, u32 z,
     IDirect3DTexture9 *texture;
     D3DLOCKED_RECT locked_rect;
 
+    if (x == 0) x = 1;
+    if (y == 0) y = 1;
+    if (z == 0) z = 1;
+
     result = (u32)-1;
     texture = null;
     d3d_format = D3DFMT_UNKNOWN;
@@ -861,12 +877,6 @@ rm_texture_create(Renderman_Format format, u32 x, u32 y, u32 z,
         case RM_FORMAT_RG8:
             d3d_format = D3DFMT_A8L8;
             bytes_per_pixel = 2;
-        break;
-        
-        case RM_FORMAT_RGB8:
-            // d3d_format = D3DFMT_R8G8B8;
-            d3d_format = D3DFMT_X8R8G8B8;
-            bytes_per_pixel = 4; //3;
         break;
         
         case RM_FORMAT_RGBA8:
@@ -884,11 +894,6 @@ rm_texture_create(Renderman_Format format, u32 x, u32 y, u32 z,
             bytes_per_pixel = 4; 
         break;
         
-        case RM_FORMAT_RGB16:
-            d3d_format = D3DFMT_A16B16G16R16F;
-            bytes_per_pixel = 6; 
-        break;
-        
         case RM_FORMAT_RGBA16:
             d3d_format = D3DFMT_A16B16G16R16F;
             bytes_per_pixel = 8;
@@ -904,9 +909,10 @@ rm_texture_create(Renderman_Format format, u32 x, u32 y, u32 z,
             bytes_per_pixel = 8;
         break;
         
+        case RM_FORMAT_RGB8:
+        case RM_FORMAT_RGB16:
         case RM_FORMAT_RGB32:
-            d3d_format = D3DFMT_A32B32G32R32F;
-            bytes_per_pixel = 12;
+            assert(!"This is rarely used in D3D 9.");
         break;
         
         case RM_FORMAT_RGBA32:
@@ -968,17 +974,139 @@ rm_texture_create(Renderman_Format format, u32 x, u32 y, u32 z,
         }
     } else {
         if (IDirect3DTexture9_LockRect(texture, 0, &locked_rect, NULL, 0) == D3D_OK) {
+            u8 *buffer = (u8 *)locked_rect.pBits;
+            u8 *dest;
+            float *f_dest;
+
             for (u32 j = 0; j < y; ++j) {
                 for (u32 i = 0; i < x; ++i) {
-                    u32 black = 0xff121212;
-                    u32 white = 0xffffffff;
+                    switch (format) {
+                        case RM_FORMAT_R8:
+                            dest = buffer + j * locked_rect.Pitch + i * bytes_per_pixel;
+                            if ((i+j) % 2) {
+                                *dest = 0;
+                            } else {
+                                *dest = 0xFF;
+                            }
+                        break;
 
-                    u32 *dest = (u32 *)((u8 *)locked_rect.pBits + j * locked_rect.Pitch + i * bytes_per_pixel);
+                        case RM_FORMAT_RG8:
+                            dest = buffer + j * locked_rect.Pitch + i * bytes_per_pixel;
+                            if ((i+j) % 2) {
+                                dest[0] = 0;
+                                dest[1] = 0xFF;
+                            } else {
+                                dest[0] = 0xFF;
+                                dest[1] = 0xFF;
+                            }
+                        break;
 
-                    if ((i+j) % 2) {
-                        memcpy(dest, &black, bytes_per_pixel);
-                    } else {
-                        memcpy(dest, &white, bytes_per_pixel);
+                        case RM_FORMAT_RGBA8:
+                            dest = buffer + j * locked_rect.Pitch + i * bytes_per_pixel;
+                            if ((i+j) % 2) {
+                                dest[0] = 0;
+                                dest[1] = 0;
+                                dest[2] = 0;
+                                dest[3] = 0xFF;
+                            } else {
+                                dest[0] = 0xFF;
+                                dest[1] = 0xFF;
+                                dest[2] = 0xFF;
+                                dest[3] = 0xFF;
+                            }
+                        break;
+                        
+                        case RM_FORMAT_R16:
+                            dest = buffer + j * locked_rect.Pitch + i * bytes_per_pixel;
+                            // During sampling D3D9 expands this to 4 component vector (r, 0, 0, 1).
+                            if ((i+j) % 2) {
+                                dest[0] = 0;
+                                dest[1] = 0;
+                            } else {
+                                dest[0] = 0;
+                                dest[1] = 0x3C;
+                            }
+                        break;
+                        
+                        case RM_FORMAT_RG16:
+                            dest = buffer + j * locked_rect.Pitch + i * bytes_per_pixel;
+                            if ((i+j) % 2) {
+                                dest[0] = 0;
+                                dest[1] = 0;
+                                dest[2] = 0;
+                                dest[3] = 0;
+                            } else {
+                                dest[0] = 0;
+                                dest[1] = 0x3C;
+                                dest[2] = 0;
+                                dest[3] = 0x3C;
+                            }
+                        break;
+                        
+                        case RM_FORMAT_RGB8:
+                        case RM_FORMAT_RGB16:
+                        case RM_FORMAT_RGB32:
+                            assert(!"This is rarely used in D3D 9.");
+                        break;
+
+                        case RM_FORMAT_RGBA16:
+                            dest = buffer + j * locked_rect.Pitch + i * bytes_per_pixel;
+                            if ((i+j) % 2) {
+                                dest[0] = 0;
+                                dest[1] = 0;
+                                dest[2] = 0;
+                                dest[3] = 0;
+                                dest[4] = 0;
+                                dest[5] = 0;
+                                dest[6] = 0;
+                                dest[7] = 0x3C;
+                            } else {
+                                dest[0] = 0;
+                                dest[1] = 0x3C;
+                                dest[2] = 0;
+                                dest[3] = 0x3C;
+                                dest[4] = 0;
+                                dest[5] = 0x3C;
+                                dest[6] = 0;
+                                dest[7] = 0x3C;
+                            }
+                        break;
+                        
+                        
+                        case RM_FORMAT_R32:
+                            f_dest = (float *)(buffer + j * locked_rect.Pitch + i * bytes_per_pixel);
+                            if ((i+j) % 2) {
+                                *f_dest = 0;
+                            } else {
+                                *f_dest = 1.0f;
+                            }
+                        break;
+                        
+                        case RM_FORMAT_RG32:
+                            f_dest = (float *)(buffer + j * locked_rect.Pitch + i * bytes_per_pixel);
+                            if ((i+j) % 2) {
+                                f_dest[0] = 1.0f;
+                                f_dest[1] = 0;
+                            } else {
+                                f_dest[0] = 1.0f;
+                                f_dest[1] = 1.0f;
+                            }
+                        break;
+                        
+                        case RM_FORMAT_RGBA32:
+                            f_dest = (float *)(buffer + j * locked_rect.Pitch + i * bytes_per_pixel);
+                            if ((i+j) % 2) {
+                                f_dest[0] = 0;
+                                f_dest[1] = 0;
+                                f_dest[2] = 0;
+                                f_dest[3] = 1.0f;
+                            } else {
+                                f_dest[0] = 1.0f;
+                                f_dest[1] = 1.0f;
+                                f_dest[2] = 1.0f;
+                                f_dest[3] = 1.0f;
+                            }
+                        break;
                     }
                 }
             }
@@ -1019,6 +1147,7 @@ rm_texture_create(Renderman_Format format, u32 x, u32 y, u32 z,
     assert(result != -1);
     rm_state.texture_pointers[result] = texture;
 
+    // @Todo: Texture9_Sampler.
     if (filter) {
         IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
         IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
