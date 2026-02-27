@@ -12,9 +12,7 @@
 #pragma comment(lib, "d3dcompiler.lib")
 #endif
 
-#define DXERROR9(v,n,d) {v, TEXT(n), TEXT(d)},
-#define DXERROR9LAST(v,n,d) {v, TEXT(n), TEXT(d)}
-#include "dxerr_d3d9.c"  // @Todo: dxerr header file.
+#include "dxerr.h"
 
 typedef struct {
     float x, y, z;
@@ -125,8 +123,6 @@ static char *d3d_hresult_to_message(HRESULT hr) {
       (LPWSTR)&message_text, 0,
       null
     );
-
-    UNUSED(message_length);
 
     if (message_text) {
         result = b_w32_wide_to_utf8(message_text, 

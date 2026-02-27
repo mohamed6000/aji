@@ -17,10 +17,12 @@ int main(void) {
     rm_init(id);
 
     // u32 pixels[] = {0xffff0000, 0xff000000, 0xff00ff00, 0xff0000ff};
+    float pixels[] = {1,0,0,1,     0,0,0,1,    0,1,0,1,    0,0,1,1};
 
-    u32 texture_id = rm_texture_create(RM_FORMAT_RGBA8, 20, 20, 1, false, false, null);
+    u32 texture_id = rm_texture_create(RM_FORMAT_RGBA32, 2, 2, 1, false, false, pixels);
     if (texture_id == -1) return 0;
 
+/*
     u32 pixels[] = {
         0xFF0000FF,0xFFFF0000,0xFFFF0000,0xFFFF0000,0xFFFF0000,0xFFFF0000,0xFFFF0000,0xFFFF0000,0xFFFF0000,0xFFFF0000,
         0xFFFF0000,0xFFFF0000,0xFFFF0000,0xFFFF0000,0xFFFF0000,0xFFFF0000,0xFFFF0000,0xFFFF0000,0xFFFF0000,0xFFFF0000,
@@ -34,6 +36,7 @@ int main(void) {
         0xFFFF0000,0xFFFF0000,0xFFFF0000,0xFFFF0000,0xFFFF0000,0xFFFF0000,0xFFFF0000,0xFFFF0000,0xFFFF0000,0xFFFF0000,
     };
     rm_texture_update(texture_id, RM_FORMAT_RGBA8, 10, 10, 0, 10, 10, 1, pixels);
+*/
     
 /*
     rm_texture_free(texture_id);
@@ -198,6 +201,7 @@ int main(void) {
 #include "nb.h"
 #include "bender/bender_windows.c"
 #include "renderman/renderman_d3d9.cpp"
+#include "renderman/dxerr.c"
 
 
 #if OS_WINDOWS

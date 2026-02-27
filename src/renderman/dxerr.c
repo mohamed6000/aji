@@ -18,6 +18,8 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
+#include "dxerr.h"
+
 #ifndef DXERROR
 #define DXERROR(v,n,d) {v, TEXT(n), TEXT(d)},
 #define DXERRORLAST(v,n,d) {v, TEXT(n), TEXT(d)}
@@ -704,13 +706,13 @@ static Error *FindError(unsigned long hr)
 	return &UnknownError;
 }
 
-const TCHAR * __stdcall DXGetErrorString(unsigned long);
+// const TCHAR * __stdcall DXGetErrorString(unsigned long);
 const TCHAR * __stdcall DXGetErrorString(unsigned long hr)
 {
 	return FindError(hr)->Name;
 }
 
-const TCHAR * __stdcall DXGetErrorDescription(unsigned long);
+// const TCHAR * __stdcall DXGetErrorDescription(unsigned long);
 const TCHAR * __stdcall DXGetErrorDescription(unsigned long hr)
 {
 	return FindError(hr)->Description;
