@@ -735,7 +735,7 @@ NB_EXTERN void rm_immediate_frame_end(void) {
                 IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_ADDRESSU, t9->wrap);
                 IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_ADDRESSV, t9->wrap);
 
-                IDirect3DDevice9_SetTexture(rm_state.d3d_device, /*slot=*/0, (IDirect3DBaseTexture9 *)(t9->pointer));
+                IDirect3DDevice9_SetTexture(rm_state.d3d_device, /*slot=*/0, (IDirect3DBaseTexture9 *)(void *)(t9->pointer));
             }
 
 
@@ -1186,8 +1186,77 @@ NB_EXTERN void rm_texture_free(u32 texture_id) {
     IDirect3DTexture9_Release(texture);
 }
 
-/*
-NB_EXTERN void rm_texture_update(u32 texture_id, u32 format, u32 x, u32 y, u32 z, void *data) {
+static void d3d_copy_texture_region(void *dest, void *src, u32 dest_pitch, u32 src_pitch, u32 width, u32 height) {
+    UNUSED(width);
+    u32 row;
 
+    for (row = 0; row < height; ++row) {
+        memcpy((u8 *)dest + row * dest_pitch,
+               (u8 *)src  + row * src_pitch,
+               src_pitch);
+    }
 }
-*/
+
+NB_EXTERN void 
+rm_texture_update(u32 texture_id, Renderman_Format format, 
+                  u32 x_offset, u32 y_offset, u32 z_offset, 
+                  u32 x, u32 y, u32 z, void *data) {
+    UNUSED(z);
+    UNUSED(z_offset);
+
+    IDirect3DTexture9 *texture;
+    D3DLOCKED_RECT locked_rect;
+    RECT updated_rect;
+    u32 bytes_per_pixel;
+
+    assert(texture_id != -1);
+    texture = rm_state.texture_pointers[texture_id].pointer;
+
+    bytes_per_pixel = 0;
+
+    switch (format) {
+        case RM_FORMAT_R8:
+            bytes_per_pixel = 1;
+        break;
+        
+        case RM_FORMAT_RG8:
+        case RM_FORMAT_R16:
+        case RM_FORMAT_DEPTH16:
+            bytes_per_pixel = 2;
+        break;
+        
+        case RM_FORMAT_RGBA8:
+        case RM_FORMAT_RG16:
+        case RM_FORMAT_R32:
+        case RM_FORMAT_DEPTH32:
+        case RM_FORMAT_DEPTH24_STENCIL8: 
+            bytes_per_pixel = 4;
+        break;
+        
+        case RM_FORMAT_RGBA16:
+        case RM_FORMAT_RG32:
+            bytes_per_pixel = 8;
+        break;
+        
+        case RM_FORMAT_RGB8:
+        case RM_FORMAT_RGB16:
+        case RM_FORMAT_RGB32:
+            assert(!"This is rarely used in D3D 9.");
+        break;
+        
+        case RM_FORMAT_RGBA32:
+            bytes_per_pixel = 16;
+        break;
+    }
+
+    updated_rect.left   = x_offset;
+    updated_rect.right  = x_offset + x;
+    updated_rect.top    = y_offset;
+    updated_rect.bottom = y_offset + y;
+
+    if (IDirect3DTexture9_LockRect(texture, 0, &locked_rect, &updated_rect, 0) == D3D_OK) {
+        d3d_copy_texture_region(locked_rect.pBits, data, locked_rect.Pitch, x * bytes_per_pixel, x, y);
+
+        IDirect3DTexture9_UnlockRect(texture, 0);
+    }
+}
