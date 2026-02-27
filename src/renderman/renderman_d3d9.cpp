@@ -25,6 +25,13 @@ typedef struct {
 #define MAX_IMMEDIATE_VERTICES 2048
 
 typedef struct {
+    IDirect3DTexture9 *pointer;
+    u32 min_filter;
+    u32 mag_filter;
+    u32 wrap;
+} RM_Texture9;
+
+typedef struct {
     IDirect3D9                  *d3d9;
     IDirect3DDevice9            *d3d_device;
     IDirect3DVertexBuffer9      *immediate_vb;
@@ -33,7 +40,7 @@ typedef struct {
     IDirect3DPixelShader9       *pixel_shader;
     D3DPRESENT_PARAMETERS       d3d_params;
 
-    IDirect3DTexture9 **texture_pointers;
+    RM_Texture9 *texture_pointers;
     u32 texture_pointer_allocated;
     u32 texture_pointer_count;
 
@@ -720,12 +727,16 @@ NB_EXTERN void rm_immediate_frame_end(void) {
             // @Todo: Renderer state changes.
 
 
-            IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_MINFILTER, D3DTEXF_POINT);
-            IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_MAGFILTER, D3DTEXF_POINT);
-            IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
-            IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
+            {
+                RM_Texture9 *t9 = rm_state.texture_pointers;
 
-            IDirect3DDevice9_SetTexture(rm_state.d3d_device, /*slot=*/0, (IDirect3DBaseTexture9 *)rm_state.texture_pointers[0]);
+                IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_MINFILTER, t9->min_filter);
+                IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_MAGFILTER, t9->mag_filter);
+                IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_ADDRESSU, t9->wrap);
+                IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_ADDRESSV, t9->wrap);
+
+                IDirect3DDevice9_SetTexture(rm_state.d3d_device, /*slot=*/0, (IDirect3DBaseTexture9 *)(t9->pointer));
+            }
 
 
             void *locked_vb = null;
@@ -1118,61 +1129,49 @@ rm_texture_create(Renderman_Format format, u32 x, u32 y, u32 z,
     if (!rm_state.texture_pointers || !rm_state.texture_pointer_allocated) {
         rm_state.texture_pointer_allocated = 8;
         rm_state.texture_pointer_count = 1;
-        rm_state.texture_pointers = nb_new_array(IDirect3DTexture9 *, rm_state.texture_pointer_allocated);
+        rm_state.texture_pointers = nb_new_array(RM_Texture9, rm_state.texture_pointer_allocated);
     }
 
-    if (rm_state.texture_pointer_count) {
+    if (rm_state.texture_pointer_count != 0) {
         for (u32 index = 0; index < rm_state.texture_pointer_count; ++index) {
-            IDirect3DTexture9 *ptr = rm_state.texture_pointers[index];
+            IDirect3DTexture9 *ptr = rm_state.texture_pointers[index].pointer;
             if (ptr == null) {
                 result = index;
                 break;
             }
         }
+    }
 
-        if (result == -1) {
-            if (rm_state.texture_pointer_count >= rm_state.texture_pointer_allocated) {
-                u32 old_size = rm_state.texture_pointer_allocated;
-                rm_state.texture_pointer_allocated *= 2;
-                rm_state.texture_pointers = (IDirect3DTexture9 **)nb_realloc(rm_state.texture_pointers,
-                                                       rm_state.texture_pointer_allocated*size_of(IDirect3DTexture9 *),
-                                                       old_size*size_of(IDirect3DTexture9 *));
-            }
+    if (rm_state.texture_pointer_count >= rm_state.texture_pointer_allocated) {
+        u32 old_size = rm_state.texture_pointer_allocated * size_of(RM_Texture9);
+        rm_state.texture_pointer_allocated *= 2;
+        rm_state.texture_pointers = (RM_Texture9 *)nb_realloc(rm_state.texture_pointers,
+                                       rm_state.texture_pointer_allocated*size_of(RM_Texture9),
+                                       old_size);
+    }
 
-            result = rm_state.texture_pointer_count;
-            rm_state.texture_pointer_count += 1;
-        }
+    if (result == -1) {
+        result = rm_state.texture_pointer_count;
+        rm_state.texture_pointer_count += 1;
     }
 
     assert(result != -1);
-    rm_state.texture_pointers[result] = texture;
+    RM_Texture9 *t9 = rm_state.texture_pointers + result;
+    t9->pointer = texture;
 
-    // @Todo: Texture9_Sampler.
     if (filter) {
-        IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
-        IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+        t9->min_filter = D3DTEXF_LINEAR;
+        t9->mag_filter = D3DTEXF_LINEAR;
     } else {
-        IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_MINFILTER, D3DTEXF_POINT);
-        IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_MAGFILTER, D3DTEXF_POINT);
+        t9->min_filter = D3DTEXF_POINT;
+        t9->mag_filter = D3DTEXF_POINT;
     }
 
     if (wrap) {
-        IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_ADDRESSU, D3DTADDRESS_WRAP);
-        IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_ADDRESSV, D3DTADDRESS_WRAP);
-        if (z == RM_CREATE_CUBE_MAP) {
-            IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_ADDRESSW, D3DTADDRESS_WRAP);
-        }
+        t9->wrap = D3DTADDRESS_WRAP;
     } else {
-        IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
-        IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
-        if (z == RM_CREATE_CUBE_MAP) {
-            IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_ADDRESSW, D3DTADDRESS_CLAMP);
-        }
+        t9->wrap = D3DTADDRESS_CLAMP;
     }
-
-
-    // @Temporary:
-    IDirect3DDevice9_SetTexture(rm_state.d3d_device, /*slot=*/0, (IDirect3DBaseTexture9 *)texture);
 
     return result;
 }
@@ -1181,8 +1180,8 @@ NB_EXTERN void rm_texture_free(u32 texture_id) {
     IDirect3DTexture9 *texture;
 
     assert(texture_id != -1);
-    texture = rm_state.texture_pointers[texture_id];
-    rm_state.texture_pointers[texture_id] = null;
+    texture = rm_state.texture_pointers[texture_id].pointer;
+    rm_state.texture_pointers[texture_id].pointer = null;
 
     IDirect3DTexture9_Release(texture);
 }
