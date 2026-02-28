@@ -208,7 +208,7 @@ d3d_get_gpu_string(IDirect3DDevice9 *device) {
     return result;
 }
 
-static void d3d_immediate_mode_device_state_set(void) {
+static void d3d_default_device_state_set(void) {
     IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_FILLMODE,  D3DFILL_SOLID);
     IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_SHADEMODE, D3DSHADE_GOURAUD);
     IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ZWRITEENABLE,    FALSE);
@@ -229,6 +229,20 @@ static void d3d_immediate_mode_device_state_set(void) {
     IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_STENCILENABLE,     FALSE);
     IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_CLIPPING,          TRUE);
     IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_LIGHTING,          FALSE);
+
+    IDirect3DDevice9_SetTextureStageState(rm_state.d3d_device, 0, D3DTSS_COLOROP,   D3DTOP_MODULATE);
+    IDirect3DDevice9_SetTextureStageState(rm_state.d3d_device, 0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+    IDirect3DDevice9_SetTextureStageState(rm_state.d3d_device, 0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+    IDirect3DDevice9_SetTextureStageState(rm_state.d3d_device, 0, D3DTSS_ALPHAOP,   D3DTOP_MODULATE);
+    IDirect3DDevice9_SetTextureStageState(rm_state.d3d_device, 0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+    IDirect3DDevice9_SetTextureStageState(rm_state.d3d_device, 0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+    IDirect3DDevice9_SetTextureStageState(rm_state.d3d_device, 1, D3DTSS_COLOROP,   D3DTOP_DISABLE);
+    IDirect3DDevice9_SetTextureStageState(rm_state.d3d_device, 1, D3DTSS_ALPHAOP,   D3DTOP_DISABLE);
+
+    IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
+    IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+    IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_ADDRESSU,  D3DTADDRESS_CLAMP);
+    IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_ADDRESSV,  D3DTADDRESS_CLAMP);
 }
 
 static bool 
@@ -271,9 +285,6 @@ d3d_immediate_mode_init(void) {
     rm_shader_set(rm_state.argb_texture_shader);
 
     rm_shader_state_set_depth_test(rm_state.argb_texture_shader, 0);
-
-
-    d3d_immediate_mode_device_state_set();
 
     return true;
 }
@@ -463,6 +474,8 @@ NB_EXTERN bool rm_init(u32 window_id) {
         return false;
     }
 
+    d3d_default_device_state_set();
+
     D3DVIEWPORT9 vp;
     vp.X = vp.Y = 0;
     vp.Width  = rm_state.d3d_params.BackBufferWidth;
@@ -576,7 +589,8 @@ static void d3d_reset_device(void) {
     }
 
 
-    d3d_immediate_mode_device_state_set();
+    d3d_default_device_state_set();
+
     rm_state.current_shader = null;
     rm_state.current_state.depth_test = (u32)-1;
 }
