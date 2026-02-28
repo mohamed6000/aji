@@ -117,4 +117,19 @@ NB_EXTERN void rm_shader_free(RMShader *shader);
 // Bind the current shader.
 NB_EXTERN void rm_shader_set(RMShader *shader);
 
+// Shader states.
+
+typedef enum {
+    RM_NEVER = 1,
+    RM_LESS,
+    RM_EQUAL,
+    RM_LESSEQUAL,
+    RM_GREATER,
+    RM_NOTEQUAL,
+    RM_GREATEREQUAL,
+    RM_ALWAYS,
+} RMFunc;
+
+NB_EXTERN void rm_shader_state_set_depth_test(RMShader *shader, u32 depth_test);
+
 #endif  // RENDERMAN_INCLUDE_H

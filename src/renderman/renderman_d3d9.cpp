@@ -36,14 +36,19 @@ struct RMShader {
 };
 
 typedef struct {
+    u32 depth_test;
+} RMShader_State;
+
+typedef struct {
     IDirect3D9                  *d3d9;
     IDirect3DDevice9            *d3d_device;
     IDirect3DVertexBuffer9      *immediate_vb;
     IDirect3DVertexDeclaration9 *d3d_vertex_layout;
     D3DPRESENT_PARAMETERS       d3d_params;
 
-    RMShader *argb_texture_shader;
+    RMShader_State current_state;
     RMShader *current_shader;
+    RMShader *argb_texture_shader;
 
     RM_Texture9 *texture_pointers;
     u32 texture_pointer_allocated;
@@ -265,6 +270,8 @@ d3d_immediate_mode_init(void) {
     rm_state.argb_texture_shader = rm_shader_create(rm_vertex_shader_source, rm_pixel_shader_source, "ARGB Texture");
     rm_shader_set(rm_state.argb_texture_shader);
 
+    rm_shader_state_set_depth_test(rm_state.argb_texture_shader, 0);
+
 
     d3d_immediate_mode_device_state_set();
 
@@ -449,6 +456,9 @@ NB_EXTERN bool rm_init(u32 window_id) {
     rm_state.has_rgba_support = d3d_check_format_support(rm_state.d3d_device,
                                                          D3DFMT_A8B8G8R8);
 
+    rm_state.current_shader = null;
+    rm_state.current_state.depth_test = (u32)-1;
+
     if (!d3d_immediate_mode_init()) {
         return false;
     }
@@ -568,6 +578,7 @@ static void d3d_reset_device(void) {
 
     d3d_immediate_mode_device_state_set();
     rm_state.current_shader = null;
+    rm_state.current_state.depth_test = (u32)-1;
 }
 
 NB_EXTERN void rm_backbuffer_resize(s32 width, s32 height) {
@@ -1319,4 +1330,20 @@ NB_EXTERN void rm_shader_set(RMShader *shader) {
 
     IDirect3DDevice9_SetVertexShader(rm_state.d3d_device, shader->vs);
     IDirect3DDevice9_SetPixelShader(rm_state.d3d_device, shader->ps);
+}
+
+
+NB_EXTERN void 
+rm_shader_state_set_depth_test(RMShader *shader, u32 depth_test) {
+    // Only apply changes if the shader is currently bound.
+    if (shader == rm_state.current_shader) {
+        if (rm_state.current_state.depth_test != depth_test) {
+            IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ZENABLE, (depth_test != 0));
+            if (depth_test != 0) {
+                IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ZFUNC, depth_test);
+            }
+        }
+    }
+
+    rm_state.current_state.depth_test = depth_test;
 }
