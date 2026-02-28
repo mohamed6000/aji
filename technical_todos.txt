@@ -52,8 +52,10 @@ Render points (represented as small crosses or spheres)
 Render group, commands, fbo, shader
 Renderer state change
 
-Shaders
+[X] Shaders
 [X] Textures
+Shader states
+Shader uniforms
 Framebuffers
 
 

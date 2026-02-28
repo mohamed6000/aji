@@ -29,14 +29,21 @@ typedef struct {
     u32 wrap;
 } RM_Texture9;
 
+struct RMShader {
+    char name[32];
+    IDirect3DVertexShader9 *vs;
+    IDirect3DPixelShader9  *ps;
+};
+
 typedef struct {
     IDirect3D9                  *d3d9;
     IDirect3DDevice9            *d3d_device;
     IDirect3DVertexBuffer9      *immediate_vb;
     IDirect3DVertexDeclaration9 *d3d_vertex_layout;
-    IDirect3DVertexShader9      *vertex_shader;
-    IDirect3DPixelShader9       *pixel_shader;
     D3DPRESENT_PARAMETERS       d3d_params;
+
+    RMShader *argb_texture_shader;
+    RMShader *current_shader;
 
     RM_Texture9 *texture_pointers;
     u32 texture_pointer_allocated;
@@ -255,83 +262,8 @@ d3d_immediate_mode_init(void) {
         return false;
     }
 
-    // Vertex shader.
-    ID3DBlob *compiled_shader = null;
-    ID3DBlob *shader_error    = null;
-    hr = D3DCompile(rm_vertex_shader_source, 
-                    size_of(rm_vertex_shader_source),
-                    /*pSourceName=*/"basic_vs.hlsl", 
-                    /*pDefines=*/null,
-                    /*pInclude=*/null,
-                    "main",
-                    "vs_3_0",
-                    0,
-                    0,
-                    &compiled_shader,
-                    &shader_error);
-    if (FAILED(hr)) {
-        Log("Failed to compile the vertex shader.");
-        Log("%s", d3d_hresult_to_message(hr));
-
-        d3d_log_shader_error(shader_error);
-
-        return false;
-    }
-
-    // @Todo: Release compiled shader.
-
-#if LANGUAGE_C
-    DWORD *data = (DWORD *)(compiled_shader->lpVtbl->GetBufferPointer(compiled_shader));//ID3D10Blob_GetBufferPointer(compiled_shader);
-#else
-    DWORD *data = (DWORD *)compiled_shader->GetBufferPointer();
-#endif
-    hr = IDirect3DDevice9_CreateVertexShader(rm_state.d3d_device,
-                                             data,
-                                             &rm_state.vertex_shader);
-    if (FAILED(hr)) {
-        Log("Failed to IDirect3DDevice9_CreateVertexShader.");
-        Log("%s", d3d_hresult_to_message(hr));
-        return false;
-    }
-
-    // Pixel shader.
-    compiled_shader = null;
-    shader_error    = null;
-    hr = D3DCompile(rm_pixel_shader_source, 
-                    size_of(rm_pixel_shader_source),
-                    /*pSourceName=*/"basic_ps.hlsl", 
-                    /*pDefines=*/null,
-                    /*pInclude=*/null,
-                    "main",
-                    "ps_3_0",
-                    0,
-                    0,
-                    &compiled_shader,
-                    &shader_error);
-    if (FAILED(hr)) {
-        Log("Failed to compile the pixel shader.");
-        Log("%s", d3d_hresult_to_message(hr));
-
-        d3d_log_shader_error(shader_error);
-
-        return false;
-    }
-
-#if LANGUAGE_C
-    data = (DWORD *)(compiled_shader->lpVtbl->GetBufferPointer(compiled_shader));
-#else
-    data = (DWORD *)compiled_shader->GetBufferPointer();
-#endif
-    hr = IDirect3DDevice9_CreatePixelShader(rm_state.d3d_device,
-                                            data,
-                                            &rm_state.pixel_shader);
-    if (FAILED(hr)) {
-        Log("Failed to IDirect3DDevice9_CreatePixelShader.");
-        Log("%s", d3d_hresult_to_message(hr));
-        return false;
-    }
-
-    // @Todo: Release compiled shader.
+    rm_state.argb_texture_shader = rm_shader_create(rm_vertex_shader_source, rm_pixel_shader_source, "ARGB Texture");
+    rm_shader_set(rm_state.argb_texture_shader);
 
 
     d3d_immediate_mode_device_state_set();
@@ -350,14 +282,9 @@ static void d3d_immediate_mode_release(void) {
         rm_state.d3d_vertex_layout = null;
     }
 
-    if (rm_state.vertex_shader) {
-        IDirect3DVertexShader9_Release(rm_state.vertex_shader);
-        rm_state.vertex_shader = null;
-    }
-
-    if (rm_state.pixel_shader) {
-        IDirect3DPixelShader9_Release(rm_state.pixel_shader);
-        rm_state.pixel_shader = null;
+    if (rm_state.argb_texture_shader) {
+        rm_shader_free(rm_state.argb_texture_shader);
+        rm_state.argb_texture_shader = null;
     }
 }
 
@@ -640,6 +567,7 @@ static void d3d_reset_device(void) {
 
 
     d3d_immediate_mode_device_state_set();
+    rm_state.current_shader = null;
 }
 
 NB_EXTERN void rm_backbuffer_resize(s32 width, s32 height) {
@@ -762,8 +690,7 @@ NB_EXTERN void rm_immediate_frame_end(void) {
                                                       0, 
                                                       transposed, 4);
 
-            IDirect3DDevice9_SetVertexShader(rm_state.d3d_device, rm_state.vertex_shader);
-            IDirect3DDevice9_SetPixelShader(rm_state.d3d_device, rm_state.pixel_shader);
+            rm_shader_set(rm_state.argb_texture_shader);
 
             UINT num_primitives = rm_state.num_immediate_vertices / 3;
             IDirect3DDevice9_DrawPrimitive(rm_state.d3d_device,
@@ -943,9 +870,6 @@ rm_texture_create(Renderman_Format format, u32 x, u32 y, u32 z,
         break;
     }
 
-    // @Todo: Convert RGBA to BGRA, because RGBA is not well supported 
-    // by D3D9 devices.
-    
     if (z == 1) {  // 2D Texture.
         // @Note: Textures created with D3DPOOL_DEFAULT are not lockable.
         hr = IDirect3DDevice9_CreateTexture(rm_state.d3d_device,
@@ -1255,4 +1179,144 @@ rm_texture_update(u32 texture_id, Renderman_Format format,
 
         IDirect3DTexture9_UnlockRect(texture, 0);
     }
+}
+
+
+NB_EXTERN RMShader *
+rm_shader_create(const char *vertex_shader_source,
+                                 const char *pixel_shader_source,
+                                 const char *shader_name) {
+    RMShader *shader = null;
+    ID3DBlob *compiled_shader = null, *shader_error = null;
+    HRESULT hr;
+    IDirect3DVertexShader9 *vs;
+    IDirect3DPixelShader9  *ps;
+    DWORD *shader_data;
+    u32 index;
+
+    if (shader_name) {
+        assert(nb_string_length(shader_name) <= 32);
+    } else {
+        shader_name = "Unnamed";
+    }
+
+    // Vertex shader.
+    hr = D3DCompile(vertex_shader_source, 
+                    nb_string_length(vertex_shader_source),
+                    /*pSourceName=*/shader_name, 
+                    /*pDefines=*/null,
+                    /*pInclude=*/null,
+                    "main",
+                    "vs_3_0",
+                    0,
+                    0,
+                    &compiled_shader,
+                    &shader_error);
+    if (FAILED(hr)) {
+        nb_log_print(NB_LOG_ERROR, "D3D9", "Failed to compile the vertex shader.");
+        nb_log_print(NB_LOG_ERROR, "D3D9", "%s", d3d_hresult_to_message(hr));
+
+        d3d_log_shader_error(shader_error);
+
+        return shader;
+    }
+
+#if LANGUAGE_C
+    shader_data = (DWORD *)(compiled_shader->lpVtbl->GetBufferPointer(compiled_shader));//ID3D10Blob_GetBufferPointer(compiled_shader);
+#else
+    shader_data = (DWORD *)compiled_shader->GetBufferPointer();
+#endif
+    hr = IDirect3DDevice9_CreateVertexShader(rm_state.d3d_device,
+                                             shader_data,
+                                             &vs);
+    if (FAILED(hr)) {
+        nb_log_print(NB_LOG_ERROR, "D3D9", "Failed to IDirect3DDevice9_CreateVertexShader.");
+        nb_log_print(NB_LOG_ERROR, "D3D9", "%s", d3d_hresult_to_message(hr));
+        return shader;
+    }
+
+#if LANGUAGE_C
+    compiled_shader->lpVtbl->Release(compiled_shader);
+#else
+    compiled_shader->Release();
+#endif
+
+    // Pixel shader.
+    compiled_shader = null;
+    shader_error    = null;
+    hr = D3DCompile(pixel_shader_source, 
+                    nb_string_length(pixel_shader_source),
+                    /*pSourceName=*/shader_name, 
+                    /*pDefines=*/null,
+                    /*pInclude=*/null,
+                    "main",
+                    "ps_3_0",
+                    0,
+                    0,
+                    &compiled_shader,
+                    &shader_error);
+    if (FAILED(hr)) {
+        nb_log_print(NB_LOG_ERROR, "D3D9", "Failed to compile the pixel shader.");
+        nb_log_print(NB_LOG_ERROR, "D3D9", "%s", d3d_hresult_to_message(hr));
+
+        d3d_log_shader_error(shader_error);
+
+        return shader;
+    }
+
+#if LANGUAGE_C
+    shader_data = (DWORD *)(compiled_shader->lpVtbl->GetBufferPointer(compiled_shader));
+#else
+    shader_data = (DWORD *)compiled_shader->GetBufferPointer();
+#endif
+    hr = IDirect3DDevice9_CreatePixelShader(rm_state.d3d_device,
+                                            shader_data,
+                                            &ps);
+    if (FAILED(hr)) {
+        nb_log_print(NB_LOG_ERROR, "D3D9", "Failed to IDirect3DDevice9_CreatePixelShader.");
+        nb_log_print(NB_LOG_ERROR, "D3D9", "%s", d3d_hresult_to_message(hr));
+        return false;
+    }
+
+#if LANGUAGE_C
+    compiled_shader->lpVtbl->Release(compiled_shader);
+#else
+    compiled_shader->Release();
+#endif
+
+    shader = New(RMShader);
+    
+    for (index = 0; (index < 32) && (shader_name[index] != 0); ++index) {
+        shader->name[index] = shader_name[index];
+    }
+    shader->name[index] = 0;
+
+    shader->vs = vs;
+    shader->ps = ps;
+
+    return shader;
+}
+
+NB_EXTERN void rm_shader_free(RMShader *shader) {
+    assert(shader != null);
+
+    if (shader->vs) IDirect3DVertexShader9_Release(shader->vs);
+    if (shader->ps) IDirect3DPixelShader9_Release(shader->ps);
+
+    nb_free(shader);
+}
+
+NB_EXTERN void rm_shader_set(RMShader *shader) {
+    if (shader == rm_state.current_shader) return;
+
+    rm_state.current_shader = shader;
+
+    if (shader == null) {
+        IDirect3DDevice9_SetVertexShader(rm_state.d3d_device, null);
+        IDirect3DDevice9_SetPixelShader(rm_state.d3d_device, null);
+        return;
+    }
+
+    IDirect3DDevice9_SetVertexShader(rm_state.d3d_device, shader->vs);
+    IDirect3DDevice9_SetPixelShader(rm_state.d3d_device, shader->ps);
 }

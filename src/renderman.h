@@ -100,4 +100,21 @@ NB_EXTERN void rm_texture_update(u32 texture_id, Renderman_Format format,
                                  u32 x_offset, u32 y_offset, u32 z_offset, 
                                  u32 x, u32 y, u32 z, void *data);
 
+
+// Shaders.
+
+typedef struct RMShader RMShader;
+
+// Compiles and creates a shader object from vertex and pixel shader text sources.
+// This uses the default bound allocator.
+NB_EXTERN RMShader *rm_shader_create(const char *vertex_shader_source,
+                                     const char *pixel_shader_source,
+                                     const char *shader_name);
+
+// Free the shader resources.
+NB_EXTERN void rm_shader_free(RMShader *shader);
+
+// Bind the current shader.
+NB_EXTERN void rm_shader_set(RMShader *shader);
+
 #endif  // RENDERMAN_INCLUDE_H
