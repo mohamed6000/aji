@@ -37,6 +37,7 @@ struct RMShader {
 
 typedef struct {
     u32 depth_test;
+    u32 cull_mode;
 } RMShader_State;
 
 typedef struct {
@@ -105,6 +106,12 @@ float4 main(VS_Output input) : COLOR {
     return texel * input.color;
 }
 );
+
+
+static void rm_init_shader_state(RMShader_State *state) {
+    state->depth_test = (u32)-1;
+    state->cull_mode  = (u32)-1;
+}
 
 
 static void d3d_log_shader_error(ID3DBlob *shader_error) {
@@ -468,7 +475,7 @@ NB_EXTERN bool rm_init(u32 window_id) {
                                                          D3DFMT_A8B8G8R8);
 
     rm_state.current_shader = null;
-    rm_state.current_state.depth_test = (u32)-1;
+    rm_init_shader_state(&rm_state.current_state);
 
     if (!d3d_immediate_mode_init()) {
         return false;
@@ -592,7 +599,7 @@ static void d3d_reset_device(void) {
     d3d_default_device_state_set();
 
     rm_state.current_shader = null;
-    rm_state.current_state.depth_test = (u32)-1;
+    rm_init_shader_state(&rm_state.current_state);
 }
 
 NB_EXTERN void rm_backbuffer_resize(s32 width, s32 height) {
@@ -668,7 +675,7 @@ NB_EXTERN void rm_immediate_frame_end(void) {
 
     if (IDirect3DDevice9_BeginScene(rm_state.d3d_device) >= 0) {
         if (rm_state.num_immediate_vertices) {
-            // IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_CULLMODE, D3DCULL_CW);
+            rm_shader_state_set_cull_mode(rm_state.argb_texture_shader, RM_CULL_CW);
             IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ZENABLE, FALSE);
             // IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ALPHABLENDENABLE, FALSE);
             IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_SCISSORTESTENABLE, FALSE);
@@ -1360,4 +1367,15 @@ rm_shader_state_set_depth_test(RMShader *shader, u32 depth_test) {
     }
 
     rm_state.current_state.depth_test = depth_test;
+}
+
+NB_EXTERN void rm_shader_state_set_cull_mode(RMShader *shader, u32 cull_mode) {
+    // Only apply changes if the shader is currently bound.
+    if (shader == rm_state.current_shader) {
+        if (rm_state.current_state.cull_mode != cull_mode) {
+            IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_CULLMODE, D3DCULL_NONE + cull_mode);
+        }
+    }
+
+    rm_state.current_state.cull_mode = cull_mode;
 }

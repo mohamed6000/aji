@@ -130,6 +130,13 @@ typedef enum {
     RM_ALWAYS,
 } RMFunc;
 
+typedef enum {
+    RM_CULL_NONE = 0,  // Do not cull back faces.
+    RM_CULL_CW,        // Cull back faces with clockwise vertices.
+    RM_CULL_CCW,       // Cull back faces with counterclockwise vertices.
+} RMCull;
+
 NB_EXTERN void rm_shader_state_set_depth_test(RMShader *shader, u32 depth_test);
+NB_EXTERN void rm_shader_state_set_cull_mode(RMShader *shader, u32 cull_mode);
 
 #endif  // RENDERMAN_INCLUDE_H
