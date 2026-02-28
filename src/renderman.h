@@ -136,7 +136,14 @@ typedef enum {
     RM_CULL_CCW,       // Cull back faces with counterclockwise vertices.
 } RMCull;
 
+typedef enum {
+    RM_FILL_SOLID = 0,
+    RM_FILL_WIREFRAME,
+    RM_FILL_POINT,
+} RMFill;
+
 NB_EXTERN void rm_shader_state_set_depth_test(RMShader *shader, u32 depth_test);
 NB_EXTERN void rm_shader_state_set_cull_mode(RMShader *shader, u32 cull_mode);
+NB_EXTERN void rm_shader_state_set_fill_mode(RMShader *shader, u32 fill_mode);
 
 #endif  // RENDERMAN_INCLUDE_H

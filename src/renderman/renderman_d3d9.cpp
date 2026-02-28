@@ -29,16 +29,19 @@ typedef struct {
     u32 wrap;
 } RM_Texture9;
 
+typedef struct {
+    u32 depth_test;
+    u32 cull_mode;
+    u32 fill_mode;
+} RMShader_State;
+
 struct RMShader {
     char name[32];
     IDirect3DVertexShader9 *vs;
     IDirect3DPixelShader9  *ps;
-};
 
-typedef struct {
-    u32 depth_test;
-    u32 cull_mode;
-} RMShader_State;
+    RMShader_State state;
+};
 
 typedef struct {
     IDirect3D9                  *d3d9;
@@ -108,9 +111,10 @@ float4 main(VS_Output input) : COLOR {
 );
 
 
-static void rm_init_shader_state(RMShader_State *state) {
-    state->depth_test = (u32)-1;
-    state->cull_mode  = (u32)-1;
+static void rm_shader_state_init(RMShader_State *state) {
+    state->depth_test = 0;
+    state->cull_mode  = RM_CULL_CW;
+    state->fill_mode  = RM_FILL_SOLID;
 }
 
 
@@ -475,7 +479,7 @@ NB_EXTERN bool rm_init(u32 window_id) {
                                                          D3DFMT_A8B8G8R8);
 
     rm_state.current_shader = null;
-    rm_init_shader_state(&rm_state.current_state);
+    rm_shader_state_init(&rm_state.current_state);
 
     if (!d3d_immediate_mode_init()) {
         return false;
@@ -598,8 +602,7 @@ static void d3d_reset_device(void) {
 
     d3d_default_device_state_set();
 
-    rm_state.current_shader = null;
-    rm_init_shader_state(&rm_state.current_state);
+    rm_shader_set(null);
 }
 
 NB_EXTERN void rm_backbuffer_resize(s32 width, s32 height) {
@@ -676,6 +679,8 @@ NB_EXTERN void rm_immediate_frame_end(void) {
     if (IDirect3DDevice9_BeginScene(rm_state.d3d_device) >= 0) {
         if (rm_state.num_immediate_vertices) {
             rm_shader_state_set_cull_mode(rm_state.argb_texture_shader, RM_CULL_CW);
+            rm_shader_state_set_fill_mode(rm_state.argb_texture_shader, RM_FILL_WIREFRAME);
+
             IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ZENABLE, FALSE);
             // IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ALPHABLENDENABLE, FALSE);
             IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_SCISSORTESTENABLE, FALSE);
@@ -1326,6 +1331,8 @@ rm_shader_create(const char *vertex_shader_source,
     shader->vs = vs;
     shader->ps = ps;
 
+    rm_shader_state_init(&shader->state);
+
     return shader;
 }
 
@@ -1338,12 +1345,37 @@ NB_EXTERN void rm_shader_free(RMShader *shader) {
     nb_free(shader);
 }
 
+static void 
+rm_shader_state_set(RMShader_State *state) {
+    static u32 d3d9_fill_modes[3] = {D3DFILL_SOLID, D3DFILL_WIREFRAME, D3DFILL_POINT};
+    
+    if (state->depth_test != rm_state.current_state.depth_test) {
+        IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ZENABLE, (state->depth_test != 0));
+        if (state->depth_test != 0) {
+            IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ZFUNC, state->depth_test);
+        }
+    }
+
+    if (state->cull_mode != rm_state.current_state.cull_mode) {
+        IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_CULLMODE, D3DCULL_NONE + state->cull_mode);
+    }
+
+    if (state->fill_mode != rm_state.current_state.fill_mode) {
+        IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_FILLMODE, d3d9_fill_modes[state->fill_mode]);
+    }
+
+    rm_state.current_state = *state;
+}
+
 NB_EXTERN void rm_shader_set(RMShader *shader) {
     if (shader == rm_state.current_shader) return;
 
     rm_state.current_shader = shader;
 
     if (shader == null) {
+        RMShader_State state;
+        rm_shader_state_init(&state);
+        rm_shader_state_set(&state);
         IDirect3DDevice9_SetVertexShader(rm_state.d3d_device, null);
         IDirect3DDevice9_SetPixelShader(rm_state.d3d_device, null);
         return;
@@ -1351,6 +1383,8 @@ NB_EXTERN void rm_shader_set(RMShader *shader) {
 
     IDirect3DDevice9_SetVertexShader(rm_state.d3d_device, shader->vs);
     IDirect3DDevice9_SetPixelShader(rm_state.d3d_device, shader->ps);
+
+    rm_shader_state_set(&shader->state);
 }
 
 
@@ -1363,19 +1397,35 @@ rm_shader_state_set_depth_test(RMShader *shader, u32 depth_test) {
             if (depth_test != 0) {
                 IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ZFUNC, depth_test);
             }
+            rm_state.current_state.depth_test = depth_test;
         }
     }
 
-    rm_state.current_state.depth_test = depth_test;
+    shader->state.depth_test = depth_test;
 }
 
 NB_EXTERN void rm_shader_state_set_cull_mode(RMShader *shader, u32 cull_mode) {
     // Only apply changes if the shader is currently bound.
     if (shader == rm_state.current_shader) {
-        if (rm_state.current_state.cull_mode != cull_mode) {
+        if (cull_mode != rm_state.current_state.cull_mode) {
             IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_CULLMODE, D3DCULL_NONE + cull_mode);
+            rm_state.current_state.cull_mode = cull_mode;
         }
     }
 
-    rm_state.current_state.cull_mode = cull_mode;
+    shader->state.cull_mode = cull_mode;
+}
+
+NB_EXTERN void rm_shader_state_set_fill_mode(RMShader *shader, u32 fill_mode) {
+    static u32 d3d9_fill_modes[3] = {D3DFILL_SOLID, D3DFILL_WIREFRAME, D3DFILL_POINT};
+
+    // Only apply changes if the shader is currently bound.
+    if (shader == rm_state.current_shader) {
+        if (fill_mode != rm_state.current_state.fill_mode) {
+            IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_FILLMODE, d3d9_fill_modes[fill_mode]);
+            rm_state.current_state.fill_mode = fill_mode;
+        }
+    }
+
+    shader->state.fill_mode = fill_mode;
 }
