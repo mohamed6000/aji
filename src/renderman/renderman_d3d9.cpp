@@ -33,6 +33,9 @@ typedef struct {
     u32 depth_test;
     u32 cull_mode;
     u32 fill_mode;
+    u32 blend_op;
+    u32 blend_src;
+    u32 blend_dest;
 } RMShader_State;
 
 struct RMShader {
@@ -115,6 +118,10 @@ static void rm_shader_state_init(RMShader_State *state) {
     state->depth_test = 0;
     state->cull_mode  = RM_CULL_CW;
     state->fill_mode  = RM_FILL_SOLID;
+
+    state->blend_op   = RM_BLENDOP_ADD;
+    state->blend_src  = RM_BLEND_SRCALPHA;
+    state->blend_dest = RM_BLEND_INVSRCALPHA;
 }
 
 
@@ -679,7 +686,8 @@ NB_EXTERN void rm_immediate_frame_end(void) {
     if (IDirect3DDevice9_BeginScene(rm_state.d3d_device) >= 0) {
         if (rm_state.num_immediate_vertices) {
             rm_shader_state_set_cull_mode(rm_state.argb_texture_shader, RM_CULL_CW);
-            rm_shader_state_set_fill_mode(rm_state.argb_texture_shader, RM_FILL_WIREFRAME);
+            rm_shader_state_set_fill_mode(rm_state.argb_texture_shader, RM_FILL_SOLID);
+            rm_shader_state_set_blend_mode(rm_state.argb_texture_shader, RM_BLENDOP_ADD, RM_BLEND_SRCALPHA, RM_BLEND_INVSRCALPHA);
 
             IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ZENABLE, FALSE);
             // IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ALPHABLENDENABLE, FALSE);
@@ -1364,6 +1372,19 @@ rm_shader_state_set(RMShader_State *state) {
         IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_FILLMODE, d3d9_fill_modes[state->fill_mode]);
     }
 
+    if (state->blend_op   != rm_state.current_state.blend_op  ||
+        state->blend_src  != rm_state.current_state.blend_src ||
+        state->blend_dest != rm_state.current_state.blend_dest) {
+        // Enable blending.
+        IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ALPHABLENDENABLE, (state->blend_op != 0));
+        if (state->blend_op) {
+            IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_SRCBLEND, state->blend_src);
+            IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_DESTBLEND, state->blend_dest);
+
+            IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_BLENDOP, state->blend_op);
+        }
+    }
+
     rm_state.current_state = *state;
 }
 
@@ -1428,4 +1449,33 @@ NB_EXTERN void rm_shader_state_set_fill_mode(RMShader *shader, u32 fill_mode) {
     }
 
     shader->state.fill_mode = fill_mode;
+}
+
+NB_EXTERN void 
+rm_shader_state_set_blend_mode(RMShader *shader, u32 blend_op, u32 blend_src, u32 blend_dest) {
+    if (shader == rm_state.current_shader) {
+        if (blend_op   != rm_state.current_state.blend_op ||
+            blend_src  != rm_state.current_state.blend_src ||
+            blend_dest != rm_state.current_state.blend_dest) {
+            // Enable blending.
+            IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ALPHABLENDENABLE, (blend_op != 0));
+            if (blend_op) {
+                assert(blend_src  > 0); // Specified blend op but not the blend src.
+                assert(blend_dest > 0); // Specified blend op but not the blend dest.
+
+                IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_SRCBLEND, blend_src);
+                IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_DESTBLEND, blend_dest);
+
+                IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_BLENDOP, blend_op);
+            }
+
+            rm_state.current_state.blend_op   = blend_op;
+            rm_state.current_state.blend_src  = blend_src;
+            rm_state.current_state.blend_dest = blend_dest;
+        }
+    }
+
+    shader->state.blend_op   = blend_op;
+    shader->state.blend_src  = blend_src;
+    shader->state.blend_dest = blend_dest;
 }

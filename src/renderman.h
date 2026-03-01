@@ -142,8 +142,32 @@ typedef enum {
     RM_FILL_POINT,
 } RMFill;
 
+typedef enum {
+    RM_BLEND_ZERO = 1,
+    RM_BLEND_ONE,
+    RM_BLEND_SRCCOLOR,
+    RM_BLEND_INVSRCCOLOR,
+    RM_BLEND_SRCALPHA,
+    RM_BLEND_INVSRCALPHA,
+    RM_BLEND_DESTALPHA,
+    RM_BLEND_INVDESTALPHA,
+    RM_BLEND_DESTCOLOR,
+    RM_BLEND_INVDESTCOLOR,
+} RMBlend;
+
+typedef enum {
+    RM_BLENDOP_ADD = 1,
+    RM_BLENDOP_SUBTRACT,
+    RM_BLENDOP_REVSUBTRACT,
+    RM_BLENDOP_MIN,
+    RM_BLENDOP_MAX,
+} RMBlend_Op;
+
 NB_EXTERN void rm_shader_state_set_depth_test(RMShader *shader, u32 depth_test);
 NB_EXTERN void rm_shader_state_set_cull_mode(RMShader *shader, u32 cull_mode);
 NB_EXTERN void rm_shader_state_set_fill_mode(RMShader *shader, u32 fill_mode);
+
+// If blend_op is 0, the blending is disabled and you can pass 0 to the rest of the params.
+NB_EXTERN void rm_shader_state_set_blend_mode(RMShader *shader, u32 blend_op, u32 blend_src, u32 blend_dest);
 
 #endif  // RENDERMAN_INCLUDE_H
