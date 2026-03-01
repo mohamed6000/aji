@@ -170,4 +170,7 @@ NB_EXTERN void rm_shader_state_set_fill_mode(RMShader *shader, u32 fill_mode);
 // If blend_op is 0, the blending is disabled and you can pass 0 to the rest of the params.
 NB_EXTERN void rm_shader_state_set_blend_mode(RMShader *shader, u32 blend_op, u32 blend_src, u32 blend_dest);
 
+// Enable Alpha To Coverage for MSAA, if it's supported by the GPU.
+NB_EXTERN void rm_shader_state_set_alpha_to_coverage(RMShader *shader, bool alpha_to_coverage);
+
 #endif  // RENDERMAN_INCLUDE_H

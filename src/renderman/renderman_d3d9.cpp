@@ -22,6 +22,13 @@ typedef struct {
 
 #define MAX_IMMEDIATE_VERTICES 2048
 
+typedef enum {
+    RM_GRAPHICS_CARD_UNKNOWN = 0,
+    RM_GRAPHICS_CARD_ATI,
+    RM_GRAPHICS_CARD_NVIDIA,
+    RM_GRAPHICS_CARD_INTEL,
+} RM_Graphics_Card_Type;
+
 typedef struct {
     IDirect3DTexture9 *pointer;
     u32 min_filter;
@@ -36,6 +43,7 @@ typedef struct {
     u32 blend_op;
     u32 blend_src;
     u32 blend_dest;
+    bool alpha_to_coverage;
 } RMShader_State;
 
 struct RMShader {
@@ -65,10 +73,13 @@ typedef struct {
     Immediate_Vertex immediate_vertices[MAX_IMMEDIATE_VERTICES];
 
     float pixels_to_proj_matrix[4][4];
+
+    RM_Graphics_Card_Type graphics_card_type;
     
     bool d3d_device_lost;
     bool vertex_hw_processing_enabled;
     bool has_rgba_support;
+    bool has_alpha_to_coverage_support;
 } Renderman_State;
 
 static Renderman_State rm_state;
@@ -122,6 +133,8 @@ static void rm_shader_state_init(RMShader_State *state) {
     state->blend_op   = RM_BLENDOP_ADD;
     state->blend_src  = RM_BLEND_SRCALPHA;
     state->blend_dest = RM_BLEND_INVSRCALPHA;
+
+    state->alpha_to_coverage = false;
 }
 
 
@@ -382,7 +395,7 @@ NB_EXTERN bool rm_init(u32 window_id) {
     HRESULT hr;
     UINT adapter = D3DADAPTER_DEFAULT;
     D3DFORMAT tested_formats[] = {D3DFMT_UNKNOWN, D3DFMT_X8R8G8B8, D3DFMT_A8R8G8B8};
-    D3DFORMAT format = tested_formats[2];
+    D3DFORMAT format = tested_formats[1];
 
     // Check the device capabilities.
     D3DCAPS9 caps = {0};
@@ -477,6 +490,25 @@ NB_EXTERN bool rm_init(u32 window_id) {
                      LOWORD(identifier.DriverVersion.HighPart),
                      HIWORD(identifier.DriverVersion.LowPart),
                      LOWORD(identifier.DriverVersion.LowPart));
+
+        switch (identifier.VendorId) {
+            case 0x1002:
+                rm_state.graphics_card_type = RM_GRAPHICS_CARD_ATI;
+            break;
+
+            case 0x10DE:
+                rm_state.graphics_card_type = RM_GRAPHICS_CARD_NVIDIA;
+            break;
+
+            case 0x8086:
+                rm_state.graphics_card_type = RM_GRAPHICS_CARD_INTEL;
+            break;
+
+            default:
+                rm_state.graphics_card_type = RM_GRAPHICS_CARD_UNKNOWN;
+                nb_log_print(NB_LOG_WARNING, "D3D9", "Uknown vender id: %u", identifier.VendorId);
+            break;
+        }
     }
 
     rm_state.d3d_device = d3d_device_create(D3DADAPTER_DEFAULT, hwnd);
@@ -484,6 +516,15 @@ NB_EXTERN bool rm_init(u32 window_id) {
 
     rm_state.has_rgba_support = d3d_check_format_support(rm_state.d3d_device,
                                                          D3DFMT_A8B8G8R8);
+
+    rm_state.has_alpha_to_coverage_support = false;
+    hr = IDirect3D9_CheckDeviceFormat(rm_state.d3d9, 
+                                      adapter, D3DDEVTYPE_HAL, 
+                                      format, 0, D3DRTYPE_SURFACE,
+                                      (D3DFORMAT)MAKEFOURCC('A', 'T', 'O', 'C'));  // NVidia check.
+    if (hr == D3D_OK) {
+        rm_state.has_alpha_to_coverage_support = true;
+    }
 
     rm_state.current_shader = null;
     rm_shader_state_init(&rm_state.current_state);
@@ -688,6 +729,7 @@ NB_EXTERN void rm_immediate_frame_end(void) {
             rm_shader_state_set_cull_mode(rm_state.argb_texture_shader, RM_CULL_CW);
             rm_shader_state_set_fill_mode(rm_state.argb_texture_shader, RM_FILL_SOLID);
             rm_shader_state_set_blend_mode(rm_state.argb_texture_shader, RM_BLENDOP_ADD, RM_BLEND_SRCALPHA, RM_BLEND_INVSRCALPHA);
+            rm_shader_state_set_alpha_to_coverage(rm_state.argb_texture_shader, false);
 
             IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ZENABLE, FALSE);
             // IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ALPHABLENDENABLE, FALSE);
@@ -1385,6 +1427,21 @@ rm_shader_state_set(RMShader_State *state) {
         }
     }
 
+    if (state->alpha_to_coverage != rm_state.current_state.alpha_to_coverage) {
+        if (rm_state.has_alpha_to_coverage_support) {
+            if (state->alpha_to_coverage) {
+                IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ADAPTIVETESS_Y,
+                                                (D3DFORMAT)MAKEFOURCC('A', 'T', 'O', 'C'));
+
+                // AMD code has not been tested.
+                // IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_POINTSIZE, MAKEFOURCC('A','2','M','1'));
+            } else {
+                IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ADAPTIVETESS_Y,
+                                                D3DFMT_UNKNOWN);
+            }
+        }
+    }
+
     rm_state.current_state = *state;
 }
 
@@ -1478,4 +1535,28 @@ rm_shader_state_set_blend_mode(RMShader *shader, u32 blend_op, u32 blend_src, u3
     shader->state.blend_op   = blend_op;
     shader->state.blend_src  = blend_src;
     shader->state.blend_dest = blend_dest;
+}
+
+NB_EXTERN void 
+rm_shader_state_set_alpha_to_coverage(RMShader *shader, bool alpha_to_coverage) {
+    if (shader == rm_state.current_shader) {
+        if (alpha_to_coverage != rm_state.current_state.alpha_to_coverage) {
+            if (rm_state.has_alpha_to_coverage_support) {
+                if (alpha_to_coverage) {
+                    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ADAPTIVETESS_Y,
+                                                    (D3DFORMAT)MAKEFOURCC('A', 'T', 'O', 'C'));
+
+                    // AMD code has not been tested.
+                    // IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_POINTSIZE, MAKEFOURCC('A','2','M','1'));
+                } else {
+                    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ADAPTIVETESS_Y,
+                                                    D3DFMT_UNKNOWN);
+                }
+
+                rm_state.current_state.alpha_to_coverage = alpha_to_coverage;
+            }
+        }
+    }
+
+    shader->state.alpha_to_coverage = alpha_to_coverage;
 }
