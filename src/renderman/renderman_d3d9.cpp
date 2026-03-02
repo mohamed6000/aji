@@ -43,6 +43,8 @@ typedef struct {
     u32 blend_op;
     u32 blend_src;
     u32 blend_dest;
+    bool color_mask[4];
+    bool depth_write;
     bool alpha_to_coverage;
 } RMShader_State;
 
@@ -80,6 +82,7 @@ typedef struct {
     bool vertex_hw_processing_enabled;
     bool has_rgba_support;
     bool has_alpha_to_coverage_support;
+    bool force_shader_rebind;
 } Renderman_State;
 
 static Renderman_State rm_state;
@@ -133,6 +136,12 @@ static void rm_shader_state_init(RMShader_State *state) {
     state->blend_op   = RM_BLENDOP_ADD;
     state->blend_src  = RM_BLEND_SRCALPHA;
     state->blend_dest = RM_BLEND_INVSRCALPHA;
+
+    state->color_mask[0] = false;
+    state->color_mask[1] = false;
+    state->color_mask[2] = false;
+    state->color_mask[3] = false;
+    state->depth_write   = true;
 
     state->alpha_to_coverage = false;
 }
@@ -620,6 +629,8 @@ NB_EXTERN void rm_swap_buffers(u32 window_id) {
     }
 }
 
+static void rm_shader_state_set(RMShader_State *state);
+
 static void d3d_reset_device(void) {
     HRESULT hr;
 
@@ -650,7 +661,17 @@ static void d3d_reset_device(void) {
 
     d3d_default_device_state_set();
 
-    rm_shader_set(null);
+    rm_state.force_shader_rebind = true;
+    
+    if (rm_state.current_shader)
+        rm_shader_state_set(&rm_state.current_shader->state);
+    else {
+        rm_shader_set(null);
+    }
+
+    rm_state.current_shader = null;
+
+    rm_state.force_shader_rebind = false;
 }
 
 NB_EXTERN void rm_backbuffer_resize(s32 width, s32 height) {
@@ -730,6 +751,7 @@ NB_EXTERN void rm_immediate_frame_end(void) {
             rm_shader_state_set_fill_mode(rm_state.argb_texture_shader, RM_FILL_SOLID);
             rm_shader_state_set_blend_mode(rm_state.argb_texture_shader, RM_BLENDOP_ADD, RM_BLEND_SRCALPHA, RM_BLEND_INVSRCALPHA);
             rm_shader_state_set_alpha_to_coverage(rm_state.argb_texture_shader, false);
+            rm_shader_state_set_mask(rm_state.argb_texture_shader, false, false, false, false, true);
 
             IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ZENABLE, FALSE);
             // IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ALPHABLENDENABLE, FALSE);
@@ -1398,25 +1420,29 @@ NB_EXTERN void rm_shader_free(RMShader *shader) {
 static void 
 rm_shader_state_set(RMShader_State *state) {
     static u32 d3d9_fill_modes[3] = {D3DFILL_SOLID, D3DFILL_WIREFRAME, D3DFILL_POINT};
+    DWORD mask_flags = 0;
     
-    if (state->depth_test != rm_state.current_state.depth_test) {
+    if ((state->depth_test != rm_state.current_state.depth_test) || rm_state.force_shader_rebind) {
         IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ZENABLE, (state->depth_test != 0));
         if (state->depth_test != 0) {
             IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ZFUNC, state->depth_test);
         }
+        print("rm_shader_state_set depth\n");
     }
 
-    if (state->cull_mode != rm_state.current_state.cull_mode) {
+    if ((state->cull_mode != rm_state.current_state.cull_mode) || rm_state.force_shader_rebind) {
         IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_CULLMODE, D3DCULL_NONE + state->cull_mode);
+        print("rm_shader_state_set cull\n");
     }
 
-    if (state->fill_mode != rm_state.current_state.fill_mode) {
+    if ((state->fill_mode != rm_state.current_state.fill_mode) || rm_state.force_shader_rebind) {
         IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_FILLMODE, d3d9_fill_modes[state->fill_mode]);
+        print("rm_shader_state_set fill\n");
     }
 
     if (state->blend_op   != rm_state.current_state.blend_op  ||
         state->blend_src  != rm_state.current_state.blend_src ||
-        state->blend_dest != rm_state.current_state.blend_dest) {
+        state->blend_dest != rm_state.current_state.blend_dest || rm_state.force_shader_rebind) {
         // Enable blending.
         IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ALPHABLENDENABLE, (state->blend_op != 0));
         if (state->blend_op) {
@@ -1425,9 +1451,10 @@ rm_shader_state_set(RMShader_State *state) {
 
             IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_BLENDOP, state->blend_op);
         }
+        print("rm_shader_state_set blend\n");
     }
 
-    if (state->alpha_to_coverage != rm_state.current_state.alpha_to_coverage) {
+    if (state->alpha_to_coverage != rm_state.current_state.alpha_to_coverage || rm_state.force_shader_rebind) {
         if (rm_state.has_alpha_to_coverage_support) {
             if (state->alpha_to_coverage) {
                 IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ADAPTIVETESS_Y,
@@ -1439,7 +1466,24 @@ rm_shader_state_set(RMShader_State *state) {
                 IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ADAPTIVETESS_Y,
                                                 D3DFMT_UNKNOWN);
             }
+            print("rm_shader_state_set alpha_to_coverage\n");
         }
+    }
+
+    if (state->color_mask[0] != rm_state.current_state.color_mask[0] ||
+        state->color_mask[1] != rm_state.current_state.color_mask[1] ||
+        state->color_mask[2] != rm_state.current_state.color_mask[2] ||
+        state->color_mask[3] != rm_state.current_state.color_mask[3] ||
+        state->depth_write   != rm_state.current_state.depth_write   || 
+        rm_state.force_shader_rebind) {
+        IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ZWRITEENABLE, state->depth_write);
+
+        if (state->color_mask[0]) mask_flags |= D3DCOLORWRITEENABLE_RED;
+        if (state->color_mask[1]) mask_flags |= D3DCOLORWRITEENABLE_GREEN;
+        if (state->color_mask[2]) mask_flags |= D3DCOLORWRITEENABLE_BLUE;
+        if (state->color_mask[3]) mask_flags |= D3DCOLORWRITEENABLE_ALPHA;
+        IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_COLORWRITEENABLE, mask_flags);
+        print("rm_shader_state_set mask\n");
     }
 
     rm_state.current_state = *state;
@@ -1475,6 +1519,7 @@ rm_shader_state_set_depth_test(RMShader *shader, u32 depth_test) {
             if (depth_test != 0) {
                 IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ZFUNC, depth_test);
             }
+            printf("rm_shader_state_set_depth_test\n");
             rm_state.current_state.depth_test = depth_test;
         }
     }
@@ -1488,6 +1533,7 @@ NB_EXTERN void rm_shader_state_set_cull_mode(RMShader *shader, u32 cull_mode) {
         if (cull_mode != rm_state.current_state.cull_mode) {
             IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_CULLMODE, D3DCULL_NONE + cull_mode);
             rm_state.current_state.cull_mode = cull_mode;
+            printf("rm_shader_state_set_cull_mode\n");
         }
     }
 
@@ -1502,6 +1548,7 @@ NB_EXTERN void rm_shader_state_set_fill_mode(RMShader *shader, u32 fill_mode) {
         if (fill_mode != rm_state.current_state.fill_mode) {
             IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_FILLMODE, d3d9_fill_modes[fill_mode]);
             rm_state.current_state.fill_mode = fill_mode;
+            printf("rm_shader_state_set_fill_mode\n");
         }
     }
 
@@ -1525,6 +1572,7 @@ rm_shader_state_set_blend_mode(RMShader *shader, u32 blend_op, u32 blend_src, u3
 
                 IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_BLENDOP, blend_op);
             }
+            printf("rm_shader_state_set_blend_mode\n");
 
             rm_state.current_state.blend_op   = blend_op;
             rm_state.current_state.blend_src  = blend_src;
@@ -1553,10 +1601,49 @@ rm_shader_state_set_alpha_to_coverage(RMShader *shader, bool alpha_to_coverage) 
                                                     D3DFMT_UNKNOWN);
                 }
 
+                printf("rm_shader_state_set_alpha_to_coverage\n");
+
                 rm_state.current_state.alpha_to_coverage = alpha_to_coverage;
             }
         }
     }
 
     shader->state.alpha_to_coverage = alpha_to_coverage;
+}
+
+NB_EXTERN void 
+rm_shader_state_set_mask(RMShader *shader, 
+                         bool red, bool green, bool blue, bool alpha, 
+                         bool depth) {
+    DWORD mask_flags = 0;
+
+    if (shader == rm_state.current_shader) {
+        if (red   != rm_state.current_state.color_mask[0] ||
+            green != rm_state.current_state.color_mask[1] ||
+            blue  != rm_state.current_state.color_mask[2] ||
+            alpha != rm_state.current_state.color_mask[3] ||
+            depth != rm_state.current_state.depth_write) {
+            IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ZWRITEENABLE, depth);
+
+            if (red)   mask_flags |= D3DCOLORWRITEENABLE_RED;
+            if (green) mask_flags |= D3DCOLORWRITEENABLE_GREEN;
+            if (blue)  mask_flags |= D3DCOLORWRITEENABLE_BLUE;
+            if (alpha) mask_flags |= D3DCOLORWRITEENABLE_ALPHA;
+            IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_COLORWRITEENABLE, mask_flags);
+
+            printf("rm_shader_state_set_mask\n");
+
+            rm_state.current_state.color_mask[0] = red;
+            rm_state.current_state.color_mask[1] = green;
+            rm_state.current_state.color_mask[2] = blue;
+            rm_state.current_state.color_mask[3] = alpha;
+            rm_state.current_state.depth_write   = depth;
+        }
+    }
+
+    shader->state.color_mask[0] = red;
+    shader->state.color_mask[1] = green;
+    shader->state.color_mask[2] = blue;
+    shader->state.color_mask[3] = alpha;
+    shader->state.depth_write   = depth;
 }

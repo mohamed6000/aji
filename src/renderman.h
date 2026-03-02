@@ -173,4 +173,7 @@ NB_EXTERN void rm_shader_state_set_blend_mode(RMShader *shader, u32 blend_op, u3
 // Enable Alpha To Coverage for MSAA, if it's supported by the GPU.
 NB_EXTERN void rm_shader_state_set_alpha_to_coverage(RMShader *shader, bool alpha_to_coverage);
 
+// Enable/disable writing of frame buffer color components.
+NB_EXTERN void rm_shader_state_set_mask(RMShader *shader, bool red, bool green, bool blue, bool alpha, bool depth);
+
 #endif  // RENDERMAN_INCLUDE_H
