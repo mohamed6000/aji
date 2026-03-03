@@ -119,6 +119,8 @@ NB_EXTERN void rm_shader_free(RMShader *shader);
 // Bind the current shader.
 NB_EXTERN void rm_shader_set(RMShader *shader);
 
+NB_EXTERN void rm_shader_texture_set(RMShader *shader, u32 slot, u32 texture_id);
+
 // Shader states.
 
 typedef enum {

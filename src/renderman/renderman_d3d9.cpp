@@ -81,6 +81,7 @@ typedef struct {
     RM_Texture9 *texture_pointers;
     u32 texture_pointer_allocated;
     u32 texture_pointer_count;
+    u32 bound_texture_ids[16];
 
     u32 num_immediate_vertices;
     Immediate_Vertex immediate_vertices[MAX_IMMEDIATE_VERTICES];
@@ -569,6 +570,10 @@ NB_EXTERN bool rm_init(u32 window_id) {
 
     d3d_default_device_state_set();
 
+    for (u32 index = 0; index < nb_array_count(rm_state.bound_texture_ids); ++index) {
+        rm_state.bound_texture_ids[index] = (u32)-1;
+    }
+
     D3DVIEWPORT9 vp;
     vp.X = vp.Y = 0;
     vp.Width  = rm_state.d3d_params.BackBufferWidth;
@@ -697,6 +702,10 @@ static void d3d_reset_device(void) {
     rm_state.current_shader = null;
 
     rm_state.force_shader_rebind = false;
+
+    for (u32 index = 0; index < nb_array_count(rm_state.bound_texture_ids); ++index) {
+        rm_state.bound_texture_ids[index] = (u32)-1;
+    }
 }
 
 NB_EXTERN void rm_backbuffer_resize(s32 width, s32 height) {
@@ -783,19 +792,8 @@ NB_EXTERN void rm_immediate_frame_end(void) {
             IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ZENABLE, FALSE);
             IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_SCISSORTESTENABLE, FALSE);
 
-            // @Todo: Renderer state changes.
 
-
-            {
-                RM_Texture9 *t9 = rm_state.texture_pointers;
-
-                IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_MINFILTER, t9->min_filter);
-                IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_MAGFILTER, t9->mag_filter);
-                IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_ADDRESSU, t9->wrap);
-                IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_ADDRESSV, t9->wrap);
-
-                IDirect3DDevice9_SetTexture(rm_state.d3d_device, /*slot=*/0, (IDirect3DBaseTexture9 *)(void *)(t9->pointer));
-            }
+            rm_shader_texture_set(rm_state.argb_texture_shader, /*slot=*/0, /*texture_id=*/0);
 
 
             void *locked_vb = null;
@@ -1537,6 +1535,28 @@ NB_EXTERN void rm_shader_set(RMShader *shader) {
     rm_shader_state_set(&shader->state);
 }
 
+NB_EXTERN void rm_shader_texture_set(RMShader *shader, u32 slot, u32 texture_id) {
+    RM_Texture9 *t9;
+
+    assert(texture_id != -1);
+    assert(slot != -1);
+
+    if (shader == rm_state.current_shader) {
+        if (rm_state.bound_texture_ids[slot] != texture_id) {
+            t9 = rm_state.texture_pointers + texture_id;
+
+            IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_MINFILTER, t9->min_filter);
+            IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_MAGFILTER, t9->mag_filter);
+            IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_ADDRESSU,  t9->wrap);
+            IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_ADDRESSV,  t9->wrap);
+
+            IDirect3DDevice9_SetTexture(rm_state.d3d_device, slot, (IDirect3DBaseTexture9 *)(void *)(t9->pointer));
+
+            rm_state.bound_texture_ids[slot] = texture_id;
+        }
+    }
+}
+
 
 NB_EXTERN void 
 rm_shader_state_set_depth_test(RMShader *shader, u32 depth_test) {
@@ -1780,7 +1800,7 @@ NB_EXTERN void rm_shader_state_set_stencil(RMShader *shader,
                     IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_CCW_STENCILPASS, d3d_success);
                 }
             }
-            
+
             printf("rm_shader_state_set_stencil\n");
 
             rm_state.current_state.stencil[index].stencil_func    = d3d_func;

@@ -16,10 +16,10 @@ int main(void) {
 
     rm_init(id);
 
-    u32 pixels[] = {0xffff0000, 0xff000000, 0xff00ff00, 0xff0000ff};
+    // u32 pixels[] = {0xffff0000, 0xff000000, 0xff00ff00, 0xff0000ff};
     // float pixels[] = {1,0,0,1,     0,0,0,1,    0,1,0,1,    0,0,1,1};
 
-    u32 texture_id = rm_texture_create(RM_FORMAT_RGBA8, 2, 2, 1, false, false, pixels);
+    u32 texture_id = rm_texture_create(RM_FORMAT_RGBA8, 32, 32, 1, false, false, null);
     if (texture_id == -1) return 0;
 
 /*
@@ -205,6 +205,6 @@ int main(void) {
 
 
 #if OS_WINDOWS
-NB_EXTERN NB_EXPORT DWORD NvOptimusEnablement = 0x00000001;
+// NB_EXTERN NB_EXPORT DWORD NvOptimusEnablement = 0x00000001;
 // NB_EXTERN NB_EXPORT int AmdPowerXpressRequestHighPerformance = 1;
 #endif
