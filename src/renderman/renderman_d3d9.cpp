@@ -37,12 +37,23 @@ typedef struct {
 } RM_Texture9;
 
 typedef struct {
+    u32 stencil_func;
+    u32 reference;
+    u32 read_mask;
+    u32 write_mask;
+    u32 stencil_fail_op;
+    u32 depth_fail_op;
+    u32 success_op;
+} RMStencil_State;
+
+typedef struct {
     u32 depth_test;
     u32 cull_mode;
     u32 fill_mode;
     u32 blend_op;
     u32 blend_src;
     u32 blend_dest;
+    RMStencil_State stencil[2]; // Two states: front & back.
     bool color_mask[4];
     bool depth_write;
     bool alpha_to_coverage;
@@ -82,6 +93,7 @@ typedef struct {
     bool vertex_hw_processing_enabled;
     bool has_rgba_support;
     bool has_alpha_to_coverage_support;
+    bool has_twosided_stencil_support;
     bool force_shader_rebind;
 } Renderman_State;
 
@@ -129,13 +141,25 @@ float4 main(VS_Output input) : COLOR {
 
 
 static void rm_shader_state_init(RMShader_State *state) {
+    int i;
+
     state->depth_test = 0;
-    state->cull_mode  = RM_CULL_CW;
+    state->cull_mode  = RM_CW;
     state->fill_mode  = RM_FILL_SOLID;
 
-    state->blend_op   = RM_BLENDOP_ADD;
-    state->blend_src  = RM_BLEND_SRCALPHA;
-    state->blend_dest = RM_BLEND_INVSRCALPHA;
+    state->blend_op   = RM_ADD;
+    state->blend_src  = RM_SRC_ALPHA;
+    state->blend_dest = RM_ONE_MINUS_SRC_ALPHA;
+
+    for (i = 0; i < 2; ++i) {
+        state->stencil[i].stencil_func    = D3DCMP_ALWAYS;
+        state->stencil[i].reference       = 0;
+        state->stencil[i].read_mask       = 0;
+        state->stencil[i].write_mask      = 0;
+        state->stencil[i].stencil_fail_op = D3DSTENCILOP_KEEP;
+        state->stencil[i].depth_fail_op   = D3DSTENCILOP_KEEP;
+        state->stencil[i].success_op      = D3DSTENCILOP_KEEP;
+    }
 
     state->color_mask[0] = false;
     state->color_mask[1] = false;
@@ -416,6 +440,7 @@ NB_EXTERN bool rm_init(u32 window_id) {
     }
     
     rm_state.vertex_hw_processing_enabled = (caps.DevCaps & D3DDEVCAPS_HWTRANSFORMANDLIGHT) != 0;
+    rm_state.has_twosided_stencil_support = (caps.DevCaps & D3DSTENCILCAPS_TWOSIDED) != 0;
 
     HWND hwnd = (HWND)b_get_window_handle(window_id);
 
@@ -688,9 +713,13 @@ NB_EXTERN void rm_backbuffer_resize(s32 width, s32 height) {
     d3d_reset_device();
 }
 
-NB_EXTERN void rm_clear_render_target(float r, float g, float b, float a) {
+NB_EXTERN void rm_clear_render_target(float r, float g, float b, float a,
+                                      bool depth, bool stencil) {
+    u32 clear_flags = D3DCLEAR_TARGET;
+    if (depth) clear_flags |= D3DCLEAR_ZBUFFER;
+    if (stencil) clear_flags |= D3DCLEAR_STENCIL;
     IDirect3DDevice9_Clear(rm_state.d3d_device, 0, null, 
-                           D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER,
+                           clear_flags,
                            D3DCOLOR_COLORVALUE(r,g,b,a),
                            1.0f, 0);
 }
@@ -747,14 +776,11 @@ NB_EXTERN void rm_immediate_frame_end(void) {
 
     if (IDirect3DDevice9_BeginScene(rm_state.d3d_device) >= 0) {
         if (rm_state.num_immediate_vertices) {
-            rm_shader_state_set_cull_mode(rm_state.argb_texture_shader, RM_CULL_CW);
-            rm_shader_state_set_fill_mode(rm_state.argb_texture_shader, RM_FILL_SOLID);
-            rm_shader_state_set_blend_mode(rm_state.argb_texture_shader, RM_BLENDOP_ADD, RM_BLEND_SRCALPHA, RM_BLEND_INVSRCALPHA);
-            rm_shader_state_set_alpha_to_coverage(rm_state.argb_texture_shader, false);
-            rm_shader_state_set_mask(rm_state.argb_texture_shader, false, false, false, false, true);
+            rm_shader_state_set_cull_mode(rm_state.argb_texture_shader, RM_CW);
+            rm_shader_state_set_blend_mode(rm_state.argb_texture_shader, RM_ADD, RM_SRC_ALPHA, RM_ONE_MINUS_SRC_ALPHA);
+
 
             IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ZENABLE, FALSE);
-            // IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ALPHABLENDENABLE, FALSE);
             IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_SCISSORTESTENABLE, FALSE);
 
             // @Todo: Renderer state changes.
@@ -1486,6 +1512,8 @@ rm_shader_state_set(RMShader_State *state) {
         print("rm_shader_state_set mask\n");
     }
 
+    // @Todo: Add stencil state...
+
     rm_state.current_state = *state;
 }
 
@@ -1646,4 +1674,130 @@ rm_shader_state_set_mask(RMShader *shader,
     shader->state.color_mask[2] = blue;
     shader->state.color_mask[3] = alpha;
     shader->state.depth_write   = depth;
+}
+
+//
+// @Note: This was not thouroughly tested, and lacks for the case
+// of has_twosided_stencil_support = false, we should fallback to
+// traditional 2-pass method: CW, CCW...
+//
+NB_EXTERN void rm_shader_state_set_stencil(RMShader *shader, 
+                                           bool front, 
+                                           u32 stencil_func, 
+                                           u32 reference,
+                                           u32 read_mask,
+                                           u32 write_mask,
+                                           u32 stencil_fail_op,
+                                           u32 depth_fail_op,
+                                           u32 success_op) {
+    static u32 d3d_stencil_func[] = {
+        0,
+        D3DCMP_NEVER,
+        D3DCMP_LESS,
+        D3DCMP_EQUAL,
+        D3DCMP_LESSEQUAL,
+        D3DCMP_GREATER,
+        D3DCMP_NOTEQUAL,
+        D3DCMP_GREATEREQUAL,
+        D3DCMP_ALWAYS,
+    };
+    static u32 d3d_stencil_op[] = {
+        0,
+        D3DSTENCILOP_KEEP,
+        D3DSTENCILOP_ZERO,
+        D3DSTENCILOP_REPLACE,
+        D3DSTENCILOP_INCRSAT,
+        D3DSTENCILOP_DECRSAT,
+        D3DSTENCILOP_INVERT,
+        D3DSTENCILOP_INCR,
+        D3DSTENCILOP_DECR,
+    };
+    u32 d3d_func, d3d_stencil_fail, d3d_depth_fail, d3d_success;
+    int index;
+
+    assert(stencil_func < nb_array_count(d3d_stencil_func));
+    assert(stencil_fail_op < nb_array_count(d3d_stencil_op));
+    assert(depth_fail_op < nb_array_count(d3d_stencil_op));
+    assert(success_op < nb_array_count(d3d_stencil_op));
+
+    d3d_func = d3d_stencil_func[stencil_func];
+    d3d_stencil_fail = d3d_stencil_op[stencil_fail_op];
+    d3d_depth_fail   = d3d_stencil_op[depth_fail_op];
+    d3d_success      = d3d_stencil_op[success_op];
+
+    index = 0;
+    if (!front) index = 1;
+
+    if (shader == rm_state.current_shader) {
+        if (d3d_func != rm_state.current_state.stencil[index].stencil_func            ||
+            reference != rm_state.current_state.stencil[index].reference              ||
+            read_mask != rm_state.current_state.stencil[index].read_mask              ||
+            write_mask != rm_state.current_state.stencil[index].write_mask            ||
+            d3d_stencil_fail != rm_state.current_state.stencil[index].stencil_fail_op ||
+            d3d_depth_fail != rm_state.current_state.stencil[index].depth_fail_op     ||
+            d3d_success != rm_state.current_state.stencil[index].success_op) {
+
+            // Enable stencil testing.
+            IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_STENCILENABLE, (stencil_func != 0));
+
+            if (rm_state.has_twosided_stencil_support) {
+                IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_TWOSIDEDSTENCILMODE, (stencil_func != 0));
+            }
+
+            if (stencil_func != 0) {
+                // Set the comparison reference value.
+                IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_STENCILREF, reference);
+
+                // Specify a stencil mask.
+                IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_STENCILMASK, read_mask);
+
+                IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_STENCILWRITEMASK, write_mask);
+
+
+                if (front) {
+                    // Specify the stencil comparison function.
+                    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_STENCILFUNC, d3d_func);
+
+                    // If stencil test fails.
+                    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_STENCILFAIL, d3d_stencil_fail);
+
+                    // If stencil test passes and z-test fails.
+                    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_STENCILZFAIL, d3d_depth_fail);
+
+                    // if both stencil and z-tests pass.
+                    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_STENCILPASS, d3d_success);
+                } else if (rm_state.has_twosided_stencil_support) {
+                    // Specify the stencil comparison function.
+                    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_CCW_STENCILFUNC, d3d_func);
+
+                    // If stencil test fails.
+                    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_CCW_STENCILFAIL, d3d_stencil_fail);
+
+                    // If stencil test passes and z-test fails.
+                    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_CCW_STENCILZFAIL, d3d_depth_fail);
+
+                    // if both stencil and z-tests pass.
+                    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_CCW_STENCILPASS, d3d_success);
+                }
+            }
+            
+            printf("rm_shader_state_set_stencil\n");
+
+            rm_state.current_state.stencil[index].stencil_func    = d3d_func;
+            rm_state.current_state.stencil[index].reference       = reference;
+            rm_state.current_state.stencil[index].read_mask       = read_mask;
+            rm_state.current_state.stencil[index].write_mask      = write_mask;
+            rm_state.current_state.stencil[index].stencil_fail_op = d3d_stencil_fail;
+            rm_state.current_state.stencil[index].depth_fail_op   = d3d_depth_fail;
+            rm_state.current_state.stencil[index].success_op      = d3d_success;
+        }
+    }
+
+    shader->state.stencil[index].stencil_func    = d3d_func;
+    shader->state.stencil[index].reference       = reference;
+    shader->state.stencil[index].read_mask       = read_mask;
+    shader->state.stencil[index].write_mask      = write_mask;
+    shader->state.stencil[index].stencil_fail_op = d3d_stencil_fail;
+    shader->state.stencil[index].depth_fail_op   = d3d_depth_fail;
+    shader->state.stencil[index].success_op      = d3d_success;
 }

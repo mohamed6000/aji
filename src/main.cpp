@@ -172,7 +172,7 @@ int main(void) {
 
 
             rm_viewport_set(0,0, (float)render_target_width, (float)render_target_height);
-            rm_clear_render_target(0.18f, 0.34f, 0.34f, 1);
+            rm_clear_render_target(0.18f, 0.34f, 0.34f, 1, true, true);
 
             rm_begin_rendering_2d((float)render_target_width, (float)render_target_height);
 
@@ -205,6 +205,6 @@ int main(void) {
 
 
 #if OS_WINDOWS
-// NB_EXTERN NB_EXPORT DWORD NvOptimusEnablement = 0x00000001;
+NB_EXTERN NB_EXPORT DWORD NvOptimusEnablement = 0x00000001;
 // NB_EXTERN NB_EXPORT int AmdPowerXpressRequestHighPerformance = 1;
 #endif

@@ -18,7 +18,9 @@ NB_EXTERN void rm_swap_buffers(u32 window_id);
 NB_EXTERN void rm_backbuffer_resize(s32 width, s32 height);
 
 // Clear the current render target to the specified color.
-NB_EXTERN void rm_clear_render_target(float r, float g, float b, float a);
+NB_EXTERN void rm_clear_render_target(float r, float g, float b, float a,
+                                      bool NB_DEFAULT_VALUE(depth, false),
+                                      bool NB_DEFAULT_VALUE(stencil, false));
 
 
 
@@ -123,57 +125,89 @@ typedef enum {
     RM_NEVER = 1,
     RM_LESS,
     RM_EQUAL,
-    RM_LESSEQUAL,
+    RM_LESS_EQUAL,
     RM_GREATER,
-    RM_NOTEQUAL,
-    RM_GREATEREQUAL,
+    RM_NOT_EQUAL,
+    RM_GREATER_EQUAL,
     RM_ALWAYS,
-} RMFunc;
+} RM_Composite;
 
 typedef enum {
-    RM_CULL_NONE = 0,  // Do not cull back faces.
-    RM_CULL_CW,        // Cull back faces with clockwise vertices.
-    RM_CULL_CCW,       // Cull back faces with counterclockwise vertices.
-} RMCull;
+    // RM_NONE = 0,  // Do not cull back faces.
+    RM_CW,        // Cull back faces with clockwise vertices.
+    RM_CCW,       // Cull back faces with counterclockwise vertices.
+} RM_Winding;
 
 typedef enum {
     RM_FILL_SOLID = 0,
     RM_FILL_WIREFRAME,
     RM_FILL_POINT,
-} RMFill;
+} RM_Fill;
 
 typedef enum {
-    RM_BLEND_ZERO = 1,
-    RM_BLEND_ONE,
-    RM_BLEND_SRCCOLOR,
-    RM_BLEND_INVSRCCOLOR,
-    RM_BLEND_SRCALPHA,
-    RM_BLEND_INVSRCALPHA,
-    RM_BLEND_DESTALPHA,
-    RM_BLEND_INVDESTALPHA,
-    RM_BLEND_DESTCOLOR,
-    RM_BLEND_INVDESTCOLOR,
-} RMBlend;
+    RM_ZERO = 1,
+    RM_ONE,
+    RM_SRC_COLOR,
+    RM_ONE_MINUS_SRC_COLOR,
+    RM_SRC_ALPHA,
+    RM_ONE_MINUS_SRC_ALPHA,
+    RM_DEST_ALPHA,
+    RM_ONE_MINUS_DEST_ALPHA,
+    RM_DEST_COLOR,
+    RM_ONE_MINUS_DEST_COLOR,
+} RM_Blend_Factor;
 
 typedef enum {
-    RM_BLENDOP_ADD = 1,
-    RM_BLENDOP_SUBTRACT,
-    RM_BLENDOP_REVSUBTRACT,
-    RM_BLENDOP_MIN,
-    RM_BLENDOP_MAX,
-} RMBlend_Op;
+    RM_ADD = 1,
+    RM_SUBTRACT,
+    RM_REV_SUBTRACT,
+    RM_MIN,
+    RM_MAX,
+} RM_Blend_Op;
 
 NB_EXTERN void rm_shader_state_set_depth_test(RMShader *shader, u32 depth_test);
 NB_EXTERN void rm_shader_state_set_cull_mode(RMShader *shader, u32 cull_mode);
 NB_EXTERN void rm_shader_state_set_fill_mode(RMShader *shader, u32 fill_mode);
 
 // If blend_op is 0, the blending is disabled and you can pass 0 to the rest of the params.
-NB_EXTERN void rm_shader_state_set_blend_mode(RMShader *shader, u32 blend_op, u32 blend_src, u32 blend_dest);
+NB_EXTERN void rm_shader_state_set_blend_mode(RMShader *shader, 
+                                              u32 blend_op, 
+                                              u32 blend_src, 
+                                              u32 blend_dest);
 
 // Enable Alpha To Coverage for MSAA, if it's supported by the GPU.
-NB_EXTERN void rm_shader_state_set_alpha_to_coverage(RMShader *shader, bool alpha_to_coverage);
+NB_EXTERN void
+rm_shader_state_set_alpha_to_coverage(RMShader *shader, 
+                                      bool alpha_to_coverage);
 
 // Enable/disable writing of frame buffer color components.
-NB_EXTERN void rm_shader_state_set_mask(RMShader *shader, bool red, bool green, bool blue, bool alpha, bool depth);
+NB_EXTERN void rm_shader_state_set_mask(RMShader *shader, 
+                                        bool red, 
+                                        bool green, 
+                                        bool blue, 
+                                        bool alpha, 
+                                        bool depth);
+
+enum {
+    RM_SO_KEEP = 1,
+    RM_SO_ZERO,
+    RM_SO_REPLACE,
+    RM_SO_INCR,  // Maps to D3DSTENCILOP_INCRSAT in Direct3D 9.
+    RM_SO_DECR,
+    RM_SO_INVERT,
+    RM_SO_INCR_WRAP, // Maps to D3DSTENCILOP_INCR in Direct3D 9.
+    RM_SO_DECR_WRAP,
+} RM_Stencil_Op;
+
+// Enables stencil if stencil_func != 0.
+NB_EXTERN void rm_shader_state_set_stencil(RMShader *shader, 
+                                           bool front, 
+                                           u32 stencil_func, 
+                                           u32 reference,
+                                           u32 read_mask,
+                                           u32 write_mask,
+                                           u32 stencil_fail_op,
+                                           u32 depth_fail_op,
+                                           u32 success_op);
 
 #endif  // RENDERMAN_INCLUDE_H
