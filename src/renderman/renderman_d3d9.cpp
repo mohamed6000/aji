@@ -785,15 +785,15 @@ NB_EXTERN void rm_immediate_frame_end(void) {
 
     if (IDirect3DDevice9_BeginScene(rm_state.d3d_device) >= 0) {
         if (rm_state.num_immediate_vertices) {
-            rm_shader_state_set_cull_mode(rm_state.argb_texture_shader, RM_CW);
-            rm_shader_state_set_blend_mode(rm_state.argb_texture_shader, RM_ADD, RM_SRC_ALPHA, RM_ONE_MINUS_SRC_ALPHA);
+            // rm_shader_state_set_cull_mode(rm_state.argb_texture_shader, RM_CW);
+            // rm_shader_state_set_blend_mode(rm_state.argb_texture_shader, RM_ADD, RM_SRC_ALPHA, RM_ONE_MINUS_SRC_ALPHA);
 
 
             IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ZENABLE, FALSE);
             IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_SCISSORTESTENABLE, FALSE);
 
 
-            rm_shader_texture_set(rm_state.argb_texture_shader, /*slot=*/0, /*texture_id=*/0);
+            // rm_shader_texture_set(rm_state.argb_texture_shader, /*slot=*/0, /*texture_id=*/0);
 
 
             void *locked_vb = null;
@@ -823,7 +823,7 @@ NB_EXTERN void rm_immediate_frame_end(void) {
                                                       0, 
                                                       transposed, 4);
 
-            rm_shader_set(rm_state.argb_texture_shader);
+            // rm_shader_set(rm_state.argb_texture_shader);
 
             UINT num_primitives = rm_state.num_immediate_vertices / 3;
             IDirect3DDevice9_DrawPrimitive(rm_state.d3d_device,
@@ -1555,6 +1555,12 @@ NB_EXTERN void rm_shader_texture_set(RMShader *shader, u32 slot, u32 texture_id)
             rm_state.bound_texture_ids[slot] = texture_id;
         }
     }
+}
+
+NB_EXTERN RMShader *rm_render_preset_get(RM_Presets preset) {
+    RMShader *presets[RM_PRESET_COUNT] = {rm_state.argb_texture_shader};
+
+    return presets[preset];
 }
 
 

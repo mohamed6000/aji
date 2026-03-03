@@ -121,6 +121,14 @@ NB_EXTERN void rm_shader_set(RMShader *shader);
 
 NB_EXTERN void rm_shader_texture_set(RMShader *shader, u32 slot, u32 texture_id);
 
+// Render presets
+typedef enum {
+    RM_PRESET_ARGB_TEXTURE,
+    RM_PRESET_COUNT,
+} RM_Presets;
+
+NB_EXTERN RMShader *rm_render_preset_get(RM_Presets preset);
+
 // Shader states.
 
 typedef enum {
