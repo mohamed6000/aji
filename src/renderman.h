@@ -113,6 +113,10 @@ NB_EXTERN RMShader *rm_shader_create(const char *vertex_shader_source,
                                      const char *pixel_shader_source,
                                      const char *shader_name);
 
+NB_EXTERN RMShader *rm_shader_create_from_file(const char *vertex_shader_path,
+                                               const char *pixel_shader_path,
+                                               const char *shader_name);
+
 // Free the shader resources.
 NB_EXTERN void rm_shader_free(RMShader *shader);
 

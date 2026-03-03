@@ -13,6 +13,10 @@ Mouse delta
 RAW Input for Mouse deltas, screen shot key down.
 Drag and drop files window event.
 Bitmap loader.
+Hotloader/File watch system.
+More touch pointers support.
+Touch rotation/zoom/pinch.
+Unified touch pointer, mouse pointer interface.
 
 
 
@@ -30,7 +34,9 @@ D3D11 graphics driver
 D3D12 graphics driver
 Software graphics driver
 
-Vector graphics rendering
+Vector graphics rendering library
+
+UI manips rendering library
 
 Font renderer
 Mesh/Polygon font rendering
@@ -54,8 +60,9 @@ Renderer state change
 
 [X] Shaders
 [X] Textures
-Shader states
+[X] Shader states
 Shader uniforms
+Shader files
 Framebuffers
 
 
@@ -64,6 +71,10 @@ Fuel:
 
 
 CN:
+...
+
+
+Kowala:
 ...
 
 

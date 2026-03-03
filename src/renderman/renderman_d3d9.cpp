@@ -102,23 +102,22 @@ static Renderman_State rm_state;
 static bool rm_initted;
 
 
-// @Todo: One shader source.
 char rm_vertex_shader_source[] = NB_STRINGIFY(
-float4x4 wvp : register(c0);
-
-struct VS_Output {
-    float4 pos   : POSITION;
-    float2 uv    : TEXCOORD0;
-    float4 color : COLOR;
-};
-
-VS_Output main(float3 pos : POSITION, float2 uv : TEXCOORD0, float4 color : COLOR) {
-    VS_Output result;
-    result.pos   = mul(float4(pos, 1.0f), wvp);
-    result.uv    = uv;
-    result.color = color;
-    return result;
-};
+float4x4 wvp : register(c0);\n
+\n
+struct VS_Output {\n
+    float4 pos   : POSITION;\n
+    float2 uv    : TEXCOORD0;\n
+    float4 color : COLOR;\n
+};\n
+\n
+VS_Output main(float3 pos : POSITION, float2 uv : TEXCOORD0, float4 color : COLOR) {\n
+    VS_Output result;\n
+    result.pos   = mul(float4(pos, 1.0f), wvp);\n
+    result.uv    = uv;\n
+    result.color = color;\n
+    return result;\n
+}\n
 );
 
 
@@ -126,18 +125,18 @@ VS_Output main(float3 pos : POSITION, float2 uv : TEXCOORD0, float4 color : COLO
 // https://aras-p.info/blog/2016/04/08/solving-dx9-half-pixel-offset/
 
 char rm_pixel_shader_source[] = NB_STRINGIFY(
-sampler2D rm_sampler : register(s0);
-
-struct VS_Output {
-    float4 pos   : POSITION;
-    float2 uv    : TEXCOORD0;
-    float4 color : COLOR;
-};
-
-float4 main(VS_Output input) : COLOR {
-    float4 texel = tex2D(rm_sampler, input.uv);
-    return texel * input.color;
-}
+sampler2D rm_sampler : register(s0);\n
+\n
+struct VS_Output {\n
+    float4 pos   : POSITION;\n
+    float2 uv    : TEXCOORD0;\n
+    float4 color : COLOR;\n
+};\n
+\n
+float4 main(VS_Output input) : COLOR {\n
+    float4 texel = tex2D(rm_sampler, input.uv);\n
+    return texel * input.color;\n
+}\n
 );
 
 
@@ -1430,6 +1429,50 @@ rm_shader_create(const char *vertex_shader_source,
     rm_shader_state_init(&shader->state);
 
     return shader;
+}
+
+NB_EXTERN RMShader *rm_shader_create_from_file(const char *vertex_shader_path,
+                                               const char *pixel_shader_path,
+                                               const char *shader_name) {
+    char *vertex_shader_source, *pixel_shader_source;
+    FILE *file;
+    size_t size;
+    RMShader *result;
+
+    file = fopen(vertex_shader_path, "r");
+    if (file == null) return null;
+
+    fseek(file, 0, SEEK_END);
+    size = ftell(file);
+    rewind(file);
+
+    vertex_shader_source = nb_new_array(char, size + 1);
+    size = fread(vertex_shader_source, 1, size, file);
+    fclose(file);
+    vertex_shader_source[size] = 0;
+
+
+    file = fopen(pixel_shader_path, "r");
+    if (file == null) return null;
+
+    fseek(file, 0, SEEK_END);
+    size = ftell(file);
+    rewind(file);
+
+    pixel_shader_source = nb_new_array(char, size + 1);
+    size = fread(pixel_shader_source, 1, size, file);
+    fclose(file);
+    pixel_shader_source[size] = 0;
+
+
+    result = rm_shader_create(vertex_shader_source, 
+                              pixel_shader_source, 
+                              shader_name);
+
+    nb_free(vertex_shader_source);
+    nb_free(pixel_shader_source);
+
+    return result;
 }
 
 NB_EXTERN void rm_shader_free(RMShader *shader) {
