@@ -47,16 +47,22 @@ typedef struct {
 } RMStencil_State;
 
 typedef struct {
-    u32 depth_test;
+    u32 depth_func;
     u32 cull_mode;
     u32 fill_mode;
+    
     u32 blend_op;
     u32 blend_src;
     u32 blend_dest;
+
     RMStencil_State stencil[2]; // Two states: front & back.
+    
     bool color_mask[4];
     bool depth_write;
+    bool depth_test;
     bool alpha_to_coverage;
+    bool stencil_enabled;
+    bool blend_enabled;
 } RMShader_State;
 
 struct RMShader {
@@ -74,7 +80,6 @@ typedef struct {
     IDirect3DVertexDeclaration9 *d3d_vertex_layout;
     D3DPRESENT_PARAMETERS       d3d_params;
 
-    RMShader_State current_state;
     RMShader *current_shader;
     RMShader *argb_texture_shader;
 
@@ -95,7 +100,6 @@ typedef struct {
     bool has_rgba_support;
     bool has_alpha_to_coverage_support;
     bool has_twosided_stencil_support;
-    bool force_shader_rebind;
 } Renderman_State;
 
 static Renderman_State rm_state;
@@ -143,13 +147,14 @@ float4 main(VS_Output input) : COLOR {\n
 static void rm_shader_state_init(RMShader_State *state) {
     int i;
 
-    state->depth_test = 0;
-    state->cull_mode  = RM_CW;
-    state->fill_mode  = RM_FILL_SOLID;
+    state->depth_test = false;
+    state->depth_func = D3DCMP_NEVER;
+    state->cull_mode  = D3DCULL_CW;
+    state->fill_mode  = D3DFILL_SOLID;
 
-    state->blend_op   = RM_ADD;
-    state->blend_src  = RM_SRC_ALPHA;
-    state->blend_dest = RM_ONE_MINUS_SRC_ALPHA;
+    state->blend_op   = D3DBLENDOP_ADD;
+    state->blend_src  = D3DBLEND_SRCALPHA;
+    state->blend_dest = D3DBLEND_INVSRCALPHA;
 
     for (i = 0; i < 2; ++i) {
         state->stencil[i].stencil_func    = D3DCMP_ALWAYS;
@@ -168,6 +173,8 @@ static void rm_shader_state_init(RMShader_State *state) {
     state->depth_write   = true;
 
     state->alpha_to_coverage = false;
+    state->stencil_enabled   = false;
+    state->blend_enabled     = false;
 }
 
 
@@ -272,6 +279,7 @@ d3d_get_gpu_string(IDirect3DDevice9 *device) {
     return result;
 }
 
+#if 0
 static void d3d_default_device_state_set(void) {
     IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_FILLMODE,  D3DFILL_SOLID);
     IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_SHADEMODE, D3DSHADE_GOURAUD);
@@ -308,6 +316,7 @@ static void d3d_default_device_state_set(void) {
     IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_ADDRESSU,  D3DTADDRESS_CLAMP);
     IDirect3DDevice9_SetSamplerState(rm_state.d3d_device, 0, D3DSAMP_ADDRESSV,  D3DTADDRESS_CLAMP);
 }
+#endif
 
 static bool 
 d3d_immediate_mode_init(void) {
@@ -346,9 +355,9 @@ d3d_immediate_mode_init(void) {
     }
 
     rm_state.argb_texture_shader = rm_shader_create(rm_vertex_shader_source, rm_pixel_shader_source, "ARGB Texture");
-    rm_shader_set(rm_state.argb_texture_shader);
+    // rm_shader_set(rm_state.argb_texture_shader);
 
-    rm_shader_state_set_depth_test(rm_state.argb_texture_shader, 0);
+    // rm_shader_state_set_depth_test(rm_state.argb_texture_shader, 0);
 
     return true;
 }
@@ -561,13 +570,13 @@ NB_EXTERN bool rm_init(u32 window_id) {
     }
 
     rm_state.current_shader = null;
-    rm_shader_state_init(&rm_state.current_state);
+    // rm_shader_state_init(&rm_state.current_state);
 
     if (!d3d_immediate_mode_init()) {
         return false;
     }
 
-    d3d_default_device_state_set();
+    // d3d_default_device_state_set();
 
     for (u32 index = 0; index < nb_array_count(rm_state.bound_texture_ids); ++index) {
         rm_state.bound_texture_ids[index] = (u32)-1;
@@ -605,37 +614,6 @@ NB_EXTERN void rm_finish(void) {
     }
 }
 
-#if 0
-static D3DMATRIX *
-d3d_matrix_multiply(D3DMATRIX *m_out, 
-                    D3DMATRIX *m1,
-                    D3DMATRIX *m2) {
-    nb_memory_zero(m_out, size_of(D3DMATRIX));
-
-    for (int i = 0; i < 4; ++i) {
-        for (int j = 0; j < 4; ++j) {
-            // m_out->m[i][j] = 0;
-            for (int k = 0; k < 4; ++k) {
-                m_out->m[i][j] += m1->m[i][k] * m2->m[k][j];
-            }
-        }
-    }
-
-    return m_out;
-}
-
-static D3DMATRIX *
-d3d_matrix_transpose(D3DMATRIX *m_out, D3DMATRIX *m_in) {
-    for (int i = 0; i < 4; ++i) {
-        for (int j = 0; j < 4; ++j) {
-            m_out->m[i][j] = m_in->m[j][i];
-        }
-    }
-
-    return m_out;
-}
-#endif
-
 static float *
 rm_matrix_transpose(float *m_out, float *m_in) {
     for (int i = 0; i < 4; ++i) {
@@ -657,8 +635,6 @@ NB_EXTERN void rm_swap_buffers(u32 window_id) {
         rm_state.d3d_device_lost = true;
     }
 }
-
-static void rm_shader_state_set(RMShader_State *state);
 
 static void d3d_reset_device(void) {
     HRESULT hr;
@@ -688,20 +664,9 @@ static void d3d_reset_device(void) {
     }
 
 
-    d3d_default_device_state_set();
-
-    rm_state.force_shader_rebind = true;
-    
-    if (rm_state.current_shader)
-        rm_shader_state_set(&rm_state.current_shader->state);
-    else {
-        rm_shader_set(null);
-    }
+    // d3d_default_device_state_set();
 
     rm_state.current_shader = null;
-
-    rm_state.force_shader_rebind = false;
-
     for (u32 index = 0; index < nb_array_count(rm_state.bound_texture_ids); ++index) {
         rm_state.bound_texture_ids[index] = (u32)-1;
     }
@@ -821,8 +786,6 @@ NB_EXTERN void rm_immediate_frame_end(void) {
             IDirect3DDevice9_SetVertexShaderConstantF(rm_state.d3d_device, 
                                                       0, 
                                                       transposed, 4);
-
-            // rm_shader_set(rm_state.argb_texture_shader);
 
             UINT num_primitives = rm_state.num_immediate_vertices / 3;
             IDirect3DDevice9_DrawPrimitive(rm_state.d3d_device,
@@ -1484,6 +1447,7 @@ NB_EXTERN void rm_shader_free(RMShader *shader) {
     nb_free(shader);
 }
 
+#if 0
 static void 
 rm_shader_state_set(RMShader_State *state) {
     static u32 d3d9_fill_modes[3] = {D3DFILL_SOLID, D3DFILL_WIREFRAME, D3DFILL_POINT};
@@ -1557,6 +1521,7 @@ rm_shader_state_set(RMShader_State *state) {
 
     rm_state.current_state = *state;
 }
+#endif
 
 NB_EXTERN void rm_shader_set(RMShader *shader) {
     if (shader == rm_state.current_shader) return;
@@ -1564,9 +1529,6 @@ NB_EXTERN void rm_shader_set(RMShader *shader) {
     rm_state.current_shader = shader;
 
     if (shader == null) {
-        RMShader_State state;
-        rm_shader_state_init(&state);
-        rm_shader_state_set(&state);
         IDirect3DDevice9_SetVertexShader(rm_state.d3d_device, null);
         IDirect3DDevice9_SetPixelShader(rm_state.d3d_device, null);
         return;
@@ -1574,8 +1536,6 @@ NB_EXTERN void rm_shader_set(RMShader *shader) {
 
     IDirect3DDevice9_SetVertexShader(rm_state.d3d_device, shader->vs);
     IDirect3DDevice9_SetPixelShader(rm_state.d3d_device, shader->ps);
-
-    rm_shader_state_set(&shader->state);
 }
 
 NB_EXTERN void rm_shader_texture_set(RMShader *shader, u32 slot, u32 texture_id) {
@@ -1600,7 +1560,7 @@ NB_EXTERN void rm_shader_texture_set(RMShader *shader, u32 slot, u32 texture_id)
     }
 }
 
-NB_EXTERN RMShader *rm_render_preset_get(RM_Presets preset) {
+NB_EXTERN RMShader *rm_render_presets_get(RM_Presets preset) {
     RMShader *presets[RM_PRESET_COUNT] = {rm_state.argb_texture_shader};
 
     return presets[preset];
@@ -1609,99 +1569,137 @@ NB_EXTERN RMShader *rm_render_preset_get(RM_Presets preset) {
 
 NB_EXTERN void 
 rm_shader_state_set_depth_test(RMShader *shader, u32 depth_test) {
+    static u32 d3d_cmp_funcs[] = {
+        0, D3DCMP_NEVER, D3DCMP_LESS, D3DCMP_EQUAL, D3DCMP_LESSEQUAL,
+        D3DCMP_GREATER, D3DCMP_NOTEQUAL, D3DCMP_GREATEREQUAL, D3DCMP_ALWAYS,
+    };
+    u32 depth_func = 0;
+
+    assert(depth_test < nb_array_count(d3d_cmp_funcs));
+
+    shader->state.depth_test = depth_test != 0;
+    if (shader->state.depth_test)
+        depth_func = d3d_cmp_funcs[depth_test];
+
     // Only apply changes if the shader is currently bound.
     if (shader == rm_state.current_shader) {
-        if (rm_state.current_state.depth_test != depth_test) {
-            IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ZENABLE, (depth_test != 0));
-            if (depth_test != 0) {
-                IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ZFUNC, depth_test);
-            }
-            printf("rm_shader_state_set_depth_test\n");
-            rm_state.current_state.depth_test = depth_test;
+        IDirect3DDevice9_SetRenderState(rm_state.d3d_device, 
+                                        D3DRS_ZENABLE, 
+                                        shader->state.depth_test);
+        if (shader->state.depth_test) {
+            IDirect3DDevice9_SetRenderState(rm_state.d3d_device, 
+                                            D3DRS_ZFUNC, 
+                                            depth_func);
         }
+        printf("rm_shader_state_set_depth_test\n");
     }
 
-    shader->state.depth_test = depth_test;
+    shader->state.depth_func = depth_func;
 }
 
 NB_EXTERN void rm_shader_state_set_cull_mode(RMShader *shader, u32 cull_mode) {
+    static u32 d3d_cull_modes[] = {D3DCULL_NONE, D3DCULL_CW, D3DCULL_CCW};
+    assert(cull_mode < nb_array_count(d3d_cull_modes));
+    u32 d3d_cull_mode = d3d_cull_modes[cull_mode];
+
     // Only apply changes if the shader is currently bound.
     if (shader == rm_state.current_shader) {
-        if (cull_mode != rm_state.current_state.cull_mode) {
-            IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_CULLMODE, D3DCULL_NONE + cull_mode);
-            rm_state.current_state.cull_mode = cull_mode;
-            printf("rm_shader_state_set_cull_mode\n");
-        }
+        IDirect3DDevice9_SetRenderState(rm_state.d3d_device, 
+                                        D3DRS_CULLMODE, 
+                                        d3d_cull_mode);
+        printf("rm_shader_state_set_cull_mode\n");
     }
 
-    shader->state.cull_mode = cull_mode;
+    shader->state.cull_mode = d3d_cull_mode;
 }
 
 NB_EXTERN void rm_shader_state_set_fill_mode(RMShader *shader, u32 fill_mode) {
     static u32 d3d9_fill_modes[3] = {D3DFILL_SOLID, D3DFILL_WIREFRAME, D3DFILL_POINT};
+    assert(fill_mode < nb_array_count(d3d9_fill_modes));
+    u32 d3d_fill_mode = d3d9_fill_modes[fill_mode];
 
     // Only apply changes if the shader is currently bound.
     if (shader == rm_state.current_shader) {
-        if (fill_mode != rm_state.current_state.fill_mode) {
-            IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_FILLMODE, d3d9_fill_modes[fill_mode]);
-            rm_state.current_state.fill_mode = fill_mode;
-            printf("rm_shader_state_set_fill_mode\n");
-        }
+        IDirect3DDevice9_SetRenderState(rm_state.d3d_device, 
+                                        D3DRS_FILLMODE, 
+                                        d3d_fill_mode);
+        printf("rm_shader_state_set_fill_mode\n");
     }
 
-    shader->state.fill_mode = fill_mode;
+    shader->state.fill_mode = d3d_fill_mode;
 }
 
 NB_EXTERN void 
-rm_shader_state_set_blend_mode(RMShader *shader, u32 blend_op, u32 blend_src, u32 blend_dest) {
-    if (shader == rm_state.current_shader) {
-        if (blend_op   != rm_state.current_state.blend_op ||
-            blend_src  != rm_state.current_state.blend_src ||
-            blend_dest != rm_state.current_state.blend_dest) {
-            // Enable blending.
-            IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ALPHABLENDENABLE, (blend_op != 0));
-            if (blend_op) {
-                assert(blend_src  > 0); // Specified blend op but not the blend src.
-                assert(blend_dest > 0); // Specified blend op but not the blend dest.
+rm_shader_state_set_blend_mode(RMShader *shader, 
+                               bool enable,
+                               u32 blend_op, 
+                               u32 blend_src, 
+                               u32 blend_dest) {
+    static u32 d3d_blend_ops[] = {0, D3DBLENDOP_ADD, D3DBLENDOP_SUBTRACT,
+    D3DBLENDOP_REVSUBTRACT, D3DBLENDOP_MIN, D3DBLENDOP_MAX};
+    static u32 d3d_blend_modes[] = {0, D3DBLEND_ZERO , D3DBLEND_ONE, 
+        D3DBLEND_SRCCOLOR, D3DBLEND_INVSRCCOLOR, D3DBLEND_SRCALPHA,
+        D3DBLEND_INVSRCALPHA, D3DBLEND_DESTALPHA, D3DBLEND_INVDESTALPHA,
+        D3DBLEND_DESTCOLOR, D3DBLEND_INVDESTCOLOR};
+    u32 d3d_blend_op = 0, d3d_blend_src = 0, d3d_blend_dest = 0;
 
-                IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_SRCBLEND, blend_src);
-                IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_DESTBLEND, blend_dest);
+    if (enable) {
+        assert(blend_op   < nb_array_count(d3d_blend_ops));
+        assert(blend_src  < nb_array_count(d3d_blend_modes));
+        assert(blend_dest < nb_array_count(d3d_blend_modes));
 
-                IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_BLENDOP, blend_op);
-            }
-            printf("rm_shader_state_set_blend_mode\n");
-
-            rm_state.current_state.blend_op   = blend_op;
-            rm_state.current_state.blend_src  = blend_src;
-            rm_state.current_state.blend_dest = blend_dest;
-        }
+        d3d_blend_op   = d3d_blend_ops[blend_op];
+        d3d_blend_src  = d3d_blend_modes[blend_src];
+        d3d_blend_dest = d3d_blend_modes[blend_dest];
     }
 
-    shader->state.blend_op   = blend_op;
-    shader->state.blend_src  = blend_src;
-    shader->state.blend_dest = blend_dest;
+    if (shader == rm_state.current_shader) {
+        // Enable blending.
+        IDirect3DDevice9_SetRenderState(rm_state.d3d_device, 
+                                        D3DRS_ALPHABLENDENABLE, 
+                                        enable);
+        if (enable) {
+            assert(d3d_blend_src  > 0); // Specified blend op but not the blend src.
+            assert(d3d_blend_dest > 0); // Specified blend op but not the blend dest.
+
+            IDirect3DDevice9_SetRenderState(rm_state.d3d_device, 
+                                            D3DRS_SRCBLEND, 
+                                            d3d_blend_src);
+            IDirect3DDevice9_SetRenderState(rm_state.d3d_device, 
+                                            D3DRS_DESTBLEND, 
+                                            d3d_blend_dest);
+
+            IDirect3DDevice9_SetRenderState(rm_state.d3d_device, 
+                                            D3DRS_BLENDOP, 
+                                            d3d_blend_op);
+        }
+        printf("rm_shader_state_set_blend_mode\n");
+    }
+
+    shader->state.blend_enabled = enable;
+    shader->state.blend_op   = d3d_blend_op;
+    shader->state.blend_src  = d3d_blend_src;
+    shader->state.blend_dest = d3d_blend_dest;
 }
 
 NB_EXTERN void 
 rm_shader_state_set_alpha_to_coverage(RMShader *shader, bool alpha_to_coverage) {
     if (shader == rm_state.current_shader) {
-        if (alpha_to_coverage != rm_state.current_state.alpha_to_coverage) {
-            if (rm_state.has_alpha_to_coverage_support) {
-                if (alpha_to_coverage) {
-                    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ADAPTIVETESS_Y,
-                                                    (D3DFORMAT)MAKEFOURCC('A', 'T', 'O', 'C'));
+        if (rm_state.has_alpha_to_coverage_support) {
+            if (alpha_to_coverage) {
+                IDirect3DDevice9_SetRenderState(rm_state.d3d_device,
+                    D3DRS_ADAPTIVETESS_Y,
+                    (D3DFORMAT)MAKEFOURCC('A', 'T', 'O', 'C'));
 
-                    // AMD code has not been tested.
-                    // IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_POINTSIZE, MAKEFOURCC('A','2','M','1'));
-                } else {
-                    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ADAPTIVETESS_Y,
-                                                    D3DFMT_UNKNOWN);
-                }
-
-                printf("rm_shader_state_set_alpha_to_coverage\n");
-
-                rm_state.current_state.alpha_to_coverage = alpha_to_coverage;
+                // AMD code has not been tested.
+                // IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_POINTSIZE, MAKEFOURCC('A','2','M','1'));
+            } else {
+                IDirect3DDevice9_SetRenderState(rm_state.d3d_device, 
+                    D3DRS_ADAPTIVETESS_Y,
+                    D3DFMT_UNKNOWN);
             }
+
+            printf("rm_shader_state_set_alpha_to_coverage\n");
         }
     }
 
@@ -1715,27 +1713,20 @@ rm_shader_state_set_mask(RMShader *shader,
     DWORD mask_flags = 0;
 
     if (shader == rm_state.current_shader) {
-        if (red   != rm_state.current_state.color_mask[0] ||
-            green != rm_state.current_state.color_mask[1] ||
-            blue  != rm_state.current_state.color_mask[2] ||
-            alpha != rm_state.current_state.color_mask[3] ||
-            depth != rm_state.current_state.depth_write) {
-            IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_ZWRITEENABLE, depth);
+        IDirect3DDevice9_SetRenderState(rm_state.d3d_device, 
+                                        D3DRS_ZWRITEENABLE, 
+                                        depth);
 
-            if (red)   mask_flags |= D3DCOLORWRITEENABLE_RED;
-            if (green) mask_flags |= D3DCOLORWRITEENABLE_GREEN;
-            if (blue)  mask_flags |= D3DCOLORWRITEENABLE_BLUE;
-            if (alpha) mask_flags |= D3DCOLORWRITEENABLE_ALPHA;
-            IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_COLORWRITEENABLE, mask_flags);
+        if (red)   mask_flags |= D3DCOLORWRITEENABLE_RED;
+        if (green) mask_flags |= D3DCOLORWRITEENABLE_GREEN;
+        if (blue)  mask_flags |= D3DCOLORWRITEENABLE_BLUE;
+        if (alpha) mask_flags |= D3DCOLORWRITEENABLE_ALPHA;
+        
+        IDirect3DDevice9_SetRenderState(rm_state.d3d_device,
+                                        D3DRS_COLORWRITEENABLE, 
+                                        mask_flags);
 
-            printf("rm_shader_state_set_mask\n");
-
-            rm_state.current_state.color_mask[0] = red;
-            rm_state.current_state.color_mask[1] = green;
-            rm_state.current_state.color_mask[2] = blue;
-            rm_state.current_state.color_mask[3] = alpha;
-            rm_state.current_state.depth_write   = depth;
-        }
+        printf("rm_shader_state_set_mask\n");
     }
 
     shader->state.color_mask[0] = red;
@@ -1750,7 +1741,8 @@ rm_shader_state_set_mask(RMShader *shader,
 // of has_twosided_stencil_support = false, we should fallback to
 // traditional 2-pass method: CW, CCW...
 //
-NB_EXTERN void rm_shader_state_set_stencil(RMShader *shader, 
+NB_EXTERN void rm_shader_state_set_stencil(RMShader *shader,
+                                           bool enable, 
                                            bool front, 
                                            u32 stencil_func, 
                                            u32 reference,
@@ -1781,7 +1773,7 @@ NB_EXTERN void rm_shader_state_set_stencil(RMShader *shader,
         D3DSTENCILOP_INCR,
         D3DSTENCILOP_DECR,
     };
-    u32 d3d_func, d3d_stencil_fail, d3d_depth_fail, d3d_success;
+    u32 d3d_func = 0, d3d_stencil_fail = 0, d3d_depth_fail = 0, d3d_success = 0;
     int index;
 
     assert(stencil_func < nb_array_count(d3d_stencil_func));
@@ -1798,67 +1790,77 @@ NB_EXTERN void rm_shader_state_set_stencil(RMShader *shader,
     if (!front) index = 1;
 
     if (shader == rm_state.current_shader) {
-        if (d3d_func != rm_state.current_state.stencil[index].stencil_func            ||
-            reference != rm_state.current_state.stencil[index].reference              ||
-            read_mask != rm_state.current_state.stencil[index].read_mask              ||
-            write_mask != rm_state.current_state.stencil[index].write_mask            ||
-            d3d_stencil_fail != rm_state.current_state.stencil[index].stencil_fail_op ||
-            d3d_depth_fail != rm_state.current_state.stencil[index].depth_fail_op     ||
-            d3d_success != rm_state.current_state.stencil[index].success_op) {
+        // Enable stencil testing.
+        IDirect3DDevice9_SetRenderState(rm_state.d3d_device, 
+                                        D3DRS_STENCILENABLE, 
+                                        enable);
 
-            // Enable stencil testing.
-            IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_STENCILENABLE, (stencil_func != 0));
+        if (rm_state.has_twosided_stencil_support) {
+            IDirect3DDevice9_SetRenderState(rm_state.d3d_device,
+                                            D3DRS_TWOSIDEDSTENCILMODE, 
+                                            enable);
+        }
 
-            if (rm_state.has_twosided_stencil_support) {
-                IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_TWOSIDEDSTENCILMODE, (stencil_func != 0));
-            }
+        if (enable) {
+            // Set the comparison reference value.
+            IDirect3DDevice9_SetRenderState(rm_state.d3d_device, 
+                                            D3DRS_STENCILREF, 
+                                            reference);
 
-            if (stencil_func != 0) {
-                // Set the comparison reference value.
-                IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_STENCILREF, reference);
+            // Specify a stencil mask.
+            IDirect3DDevice9_SetRenderState(rm_state.d3d_device, 
+                                            D3DRS_STENCILMASK, 
+                                            read_mask);
 
-                // Specify a stencil mask.
-                IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_STENCILMASK, read_mask);
+            // Specify a stencil write mask.
+            IDirect3DDevice9_SetRenderState(rm_state.d3d_device,
+                                            D3DRS_STENCILWRITEMASK, 
+                                            write_mask);
 
-                IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_STENCILWRITEMASK, write_mask);
 
+            if (front) {
+                // Specify the stencil comparison function.
+                IDirect3DDevice9_SetRenderState(rm_state.d3d_device,
+                                                D3DRS_STENCILFUNC, 
+                                                d3d_func);
 
-                if (front) {
-                    // Specify the stencil comparison function.
-                    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_STENCILFUNC, d3d_func);
+                // If stencil test fails.
+                IDirect3DDevice9_SetRenderState(rm_state.d3d_device, 
+                                                D3DRS_STENCILFAIL, 
+                                                d3d_stencil_fail);
 
-                    // If stencil test fails.
-                    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_STENCILFAIL, d3d_stencil_fail);
+                // If stencil test passes and z-test fails.
+                IDirect3DDevice9_SetRenderState(rm_state.d3d_device, 
+                                                D3DRS_STENCILZFAIL, 
+                                                d3d_depth_fail);
 
-                    // If stencil test passes and z-test fails.
-                    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_STENCILZFAIL, d3d_depth_fail);
+                // if both stencil and z-tests pass.
+                IDirect3DDevice9_SetRenderState(rm_state.d3d_device, 
+                                                D3DRS_STENCILPASS, 
+                                                d3d_success);
+            } else if (rm_state.has_twosided_stencil_support) {
+                // Specify the stencil comparison function.
+                IDirect3DDevice9_SetRenderState(rm_state.d3d_device, 
+                                                D3DRS_CCW_STENCILFUNC, 
+                                                d3d_func);
 
-                    // if both stencil and z-tests pass.
-                    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_STENCILPASS, d3d_success);
-                } else if (rm_state.has_twosided_stencil_support) {
-                    // Specify the stencil comparison function.
-                    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_CCW_STENCILFUNC, d3d_func);
+                // If stencil test fails.
+                IDirect3DDevice9_SetRenderState(rm_state.d3d_device, 
+                                                D3DRS_CCW_STENCILFAIL, 
+                                                d3d_stencil_fail);
 
-                    // If stencil test fails.
-                    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_CCW_STENCILFAIL, d3d_stencil_fail);
+                // If stencil test passes and z-test fails.
+                IDirect3DDevice9_SetRenderState(rm_state.d3d_device, 
+                                                D3DRS_CCW_STENCILZFAIL, 
+                                                d3d_depth_fail);
 
-                    // If stencil test passes and z-test fails.
-                    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_CCW_STENCILZFAIL, d3d_depth_fail);
-
-                    // if both stencil and z-tests pass.
-                    IDirect3DDevice9_SetRenderState(rm_state.d3d_device, D3DRS_CCW_STENCILPASS, d3d_success);
-                }
+                // if both stencil and z-tests pass.
+                IDirect3DDevice9_SetRenderState(rm_state.d3d_device, 
+                                                D3DRS_CCW_STENCILPASS, 
+                                                d3d_success);
             }
 
             printf("rm_shader_state_set_stencil\n");
-
-            rm_state.current_state.stencil[index].stencil_func    = d3d_func;
-            rm_state.current_state.stencil[index].reference       = reference;
-            rm_state.current_state.stencil[index].read_mask       = read_mask;
-            rm_state.current_state.stencil[index].write_mask      = write_mask;
-            rm_state.current_state.stencil[index].stencil_fail_op = d3d_stencil_fail;
-            rm_state.current_state.stencil[index].depth_fail_op   = d3d_depth_fail;
-            rm_state.current_state.stencil[index].success_op      = d3d_success;
         }
     }
 
@@ -1869,4 +1871,5 @@ NB_EXTERN void rm_shader_state_set_stencil(RMShader *shader,
     shader->state.stencil[index].stencil_fail_op = d3d_stencil_fail;
     shader->state.stencil[index].depth_fail_op   = d3d_depth_fail;
     shader->state.stencil[index].success_op      = d3d_success;
+    shader->state.stencil_enabled = enable;
 }

@@ -71,7 +71,7 @@ int main(void) {
     bool is_fullscreen = false;
 
     BInput_State *input = bender_get_input_state();
-    // RMShader *argb_texture_shader = rm_render_preset_get(RM_PRESET_ARGB_TEXTURE);
+    RMShader *argb_texture_shader = rm_render_presets_get(RM_PRESET_ARGB_TEXTURE);
 
     if (id != -1) {
         bool ap_running = true;
@@ -182,14 +182,15 @@ int main(void) {
 
             rm_begin_rendering_2d((float)render_target_width, (float)render_target_height);
 
-            RMShader *shader = color_shader;
+            RMShader *shader = argb_texture_shader;
+            rm_shader_set(shader);
 
+            rm_shader_state_set_depth_test(shader, 0);
             rm_shader_state_set_cull_mode(shader, RM_CW);
-            rm_shader_state_set_blend_mode(shader, RM_ADD, RM_SRC_ALPHA, RM_ONE_MINUS_SRC_ALPHA);
+            rm_shader_state_set_blend_mode(shader, true, RM_ADD, RM_SRC_ALPHA, RM_ONE_MINUS_SRC_ALPHA);
             
             rm_shader_texture_set(shader, 0, texture_id);
 
-            rm_shader_set(shader);
 
             rm_immediate_quad(mx, my, mx+10.0f, my+10.0f, 0, 1, 0, 1);
 

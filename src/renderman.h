@@ -131,7 +131,7 @@ typedef enum {
     RM_PRESET_COUNT,
 } RM_Presets;
 
-NB_EXTERN RMShader *rm_render_preset_get(RM_Presets preset);
+NB_EXTERN RMShader *rm_render_presets_get(RM_Presets preset);
 
 // Shader states.
 
@@ -148,8 +148,8 @@ typedef enum {
 
 typedef enum {
     // RM_NONE = 0,  // Do not cull back faces.
-    RM_CW,        // Cull back faces with clockwise vertices.
-    RM_CCW,       // Cull back faces with counterclockwise vertices.
+    RM_CW = 1,       // Cull back faces with clockwise vertices.
+    RM_CCW,          // Cull back faces with counterclockwise vertices.
 } RM_Winding;
 
 typedef enum {
@@ -183,8 +183,8 @@ NB_EXTERN void rm_shader_state_set_depth_test(RMShader *shader, u32 depth_test);
 NB_EXTERN void rm_shader_state_set_cull_mode(RMShader *shader, u32 cull_mode);
 NB_EXTERN void rm_shader_state_set_fill_mode(RMShader *shader, u32 fill_mode);
 
-// If blend_op is 0, the blending is disabled and you can pass 0 to the rest of the params.
-NB_EXTERN void rm_shader_state_set_blend_mode(RMShader *shader, 
+NB_EXTERN void rm_shader_state_set_blend_mode(RMShader *shader,
+                                              bool enable, 
                                               u32 blend_op, 
                                               u32 blend_src, 
                                               u32 blend_dest);
@@ -215,6 +215,7 @@ enum {
 
 // Enables stencil if stencil_func != 0.
 NB_EXTERN void rm_shader_state_set_stencil(RMShader *shader, 
+                                           bool enable, 
                                            bool front, 
                                            u32 stencil_func, 
                                            u32 reference,
