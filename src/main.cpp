@@ -187,7 +187,10 @@ int main(void) {
 
             rm_shader_state_set_depth_test(shader, 0);
             rm_shader_state_set_cull_mode(shader, RM_CW);
+            rm_shader_state_set_fill_mode(shader, RM_FILL_SOLID);
             rm_shader_state_set_blend_mode(shader, true, RM_ADD, RM_SRC_ALPHA, RM_ONE_MINUS_SRC_ALPHA);
+            rm_shader_state_set_alpha_to_coverage(shader, true);
+            rm_shader_state_set_mask(shader, true, true, true, true, true);
             
             rm_shader_texture_set(shader, 0, texture_id);
 

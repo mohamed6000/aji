@@ -29,6 +29,22 @@ typedef enum {
     RM_GRAPHICS_CARD_INTEL,
 } RM_Graphics_Card_Type;
 
+typedef enum {
+    RM_SC_NONE = 0,
+    
+    RM_SC_DEPTH_TEST = 0x1,
+    RM_SC_CULL_MODE  = 0x2,
+    RM_SC_FILL_MODE  = 0x4,
+    RM_SC_BLEND_MODE = 0x8,
+    RM_SC_ALPHA_TO_COVERAGE = 0x10,
+    RM_SC_COLOR_MASK        = 0x20,
+    RM_SC_DEPTH_STENCIL     = 0x40,
+
+    RM_SC_ALL_RENDER_STATES = RM_SC_DEPTH_TEST|RM_SC_CULL_MODE|RM_SC_FILL_MODE|
+                              RM_SC_BLEND_MODE|RM_SC_ALPHA_TO_COVERAGE|
+                              RM_SC_COLOR_MASK|RM_SC_DEPTH_STENCIL,
+} RM_State_Change;
+
 typedef struct {
     IDirect3DTexture9 *pointer;
     u32 min_filter;
@@ -79,6 +95,8 @@ typedef struct {
     IDirect3DVertexBuffer9      *immediate_vb;
     IDirect3DVertexDeclaration9 *d3d_vertex_layout;
     D3DPRESENT_PARAMETERS       d3d_params;
+
+    u32 state_flags;
 
     RMShader *current_shader;
     RMShader *argb_texture_shader;
@@ -591,6 +609,10 @@ NB_EXTERN bool rm_init(u32 window_id) {
 
     IDirect3DDevice9_SetViewport(rm_state.d3d_device, &vp);
 
+    // We make the state dirty to bind all 
+    // of our states on the first frame.
+    rm_state.state_flags = RM_SC_ALL_RENDER_STATES;
+
 
     nb_logger_push_mode(old_mode);
     nb_logger_push_ident(old_ident);
@@ -666,6 +688,7 @@ static void d3d_reset_device(void) {
 
     // d3d_default_device_state_set();
 
+    rm_state.state_flags = RM_SC_ALL_RENDER_STATES;
     rm_state.current_shader = null;
     for (u32 index = 0; index < nb_array_count(rm_state.bound_texture_ids); ++index) {
         rm_state.bound_texture_ids[index] = (u32)-1;
@@ -1541,8 +1564,13 @@ NB_EXTERN void rm_shader_set(RMShader *shader) {
 NB_EXTERN void rm_shader_texture_set(RMShader *shader, u32 slot, u32 texture_id) {
     RM_Texture9 *t9;
 
-    assert(texture_id != -1);
     assert(slot != -1);
+
+    if (texture_id == -1) {
+        IDirect3DDevice9_SetTexture(rm_state.d3d_device, slot, null);
+        rm_state.bound_texture_ids[slot] = texture_id;
+        return;
+    }
 
     if (shader == rm_state.current_shader) {
         if (rm_state.bound_texture_ids[slot] != texture_id) {
@@ -1574,27 +1602,37 @@ rm_shader_state_set_depth_test(RMShader *shader, u32 depth_test) {
         D3DCMP_GREATER, D3DCMP_NOTEQUAL, D3DCMP_GREATEREQUAL, D3DCMP_ALWAYS,
     };
     u32 depth_func = 0;
+    bool depth_enabled = false;
 
     assert(depth_test < nb_array_count(d3d_cmp_funcs));
 
-    shader->state.depth_test = depth_test != 0;
-    if (shader->state.depth_test)
+    depth_enabled = (depth_test != 0);
+    if (depth_enabled)
         depth_func = d3d_cmp_funcs[depth_test];
 
+    if ((depth_enabled != shader->state.depth_test) ||
+        (depth_func != shader->state.depth_func)) {
+        rm_state.state_flags |= RM_SC_DEPTH_TEST;
+    }
+
     // Only apply changes if the shader is currently bound.
-    if (shader == rm_state.current_shader) {
+    if ((shader == rm_state.current_shader) &&
+        (rm_state.state_flags & RM_SC_DEPTH_TEST)) {
         IDirect3DDevice9_SetRenderState(rm_state.d3d_device, 
                                         D3DRS_ZENABLE, 
-                                        shader->state.depth_test);
-        if (shader->state.depth_test) {
+                                        depth_enabled);
+        if (depth_enabled) {
             IDirect3DDevice9_SetRenderState(rm_state.d3d_device, 
                                             D3DRS_ZFUNC, 
                                             depth_func);
         }
         printf("rm_shader_state_set_depth_test\n");
+
+        rm_state.state_flags &= ~RM_SC_DEPTH_TEST;
     }
 
     shader->state.depth_func = depth_func;
+    shader->state.depth_test = depth_enabled;
 }
 
 NB_EXTERN void rm_shader_state_set_cull_mode(RMShader *shader, u32 cull_mode) {
@@ -1602,12 +1640,18 @@ NB_EXTERN void rm_shader_state_set_cull_mode(RMShader *shader, u32 cull_mode) {
     assert(cull_mode < nb_array_count(d3d_cull_modes));
     u32 d3d_cull_mode = d3d_cull_modes[cull_mode];
 
+    if (d3d_cull_mode != shader->state.cull_mode)
+        rm_state.state_flags |= RM_SC_CULL_MODE;
+
     // Only apply changes if the shader is currently bound.
-    if (shader == rm_state.current_shader) {
+    if ((shader == rm_state.current_shader) &&
+        (rm_state.state_flags & RM_SC_CULL_MODE)) {
         IDirect3DDevice9_SetRenderState(rm_state.d3d_device, 
                                         D3DRS_CULLMODE, 
                                         d3d_cull_mode);
         printf("rm_shader_state_set_cull_mode\n");
+
+        rm_state.state_flags &= ~RM_SC_CULL_MODE;
     }
 
     shader->state.cull_mode = d3d_cull_mode;
@@ -1618,12 +1662,18 @@ NB_EXTERN void rm_shader_state_set_fill_mode(RMShader *shader, u32 fill_mode) {
     assert(fill_mode < nb_array_count(d3d9_fill_modes));
     u32 d3d_fill_mode = d3d9_fill_modes[fill_mode];
 
+    if (d3d_fill_mode != shader->state.fill_mode)
+        rm_state.state_flags |= RM_SC_FILL_MODE;
+
     // Only apply changes if the shader is currently bound.
-    if (shader == rm_state.current_shader) {
+    if ((shader == rm_state.current_shader) && 
+        (rm_state.state_flags & RM_SC_FILL_MODE)) {
         IDirect3DDevice9_SetRenderState(rm_state.d3d_device, 
                                         D3DRS_FILLMODE, 
                                         d3d_fill_mode);
         printf("rm_shader_state_set_fill_mode\n");
+
+        rm_state.state_flags &= ~RM_SC_FILL_MODE;
     }
 
     shader->state.fill_mode = d3d_fill_mode;
@@ -1653,7 +1703,15 @@ rm_shader_state_set_blend_mode(RMShader *shader,
         d3d_blend_dest = d3d_blend_modes[blend_dest];
     }
 
-    if (shader == rm_state.current_shader) {
+    if ((enable != shader->state.blend_enabled)    ||
+        (d3d_blend_op != shader->state.blend_op)   ||
+        (d3d_blend_src != shader->state.blend_src) ||
+        (d3d_blend_dest != shader->state.blend_dest)) {
+        rm_state.state_flags |= RM_SC_BLEND_MODE;
+    }
+
+    if ((shader == rm_state.current_shader) &&
+        (rm_state.state_flags & RM_SC_BLEND_MODE)) {
         // Enable blending.
         IDirect3DDevice9_SetRenderState(rm_state.d3d_device, 
                                         D3DRS_ALPHABLENDENABLE, 
@@ -1674,6 +1732,8 @@ rm_shader_state_set_blend_mode(RMShader *shader,
                                             d3d_blend_op);
         }
         printf("rm_shader_state_set_blend_mode\n");
+
+        rm_state.state_flags &= ~RM_SC_BLEND_MODE;
     }
 
     shader->state.blend_enabled = enable;
@@ -1684,8 +1744,12 @@ rm_shader_state_set_blend_mode(RMShader *shader,
 
 NB_EXTERN void 
 rm_shader_state_set_alpha_to_coverage(RMShader *shader, bool alpha_to_coverage) {
+    if (alpha_to_coverage != shader->state.alpha_to_coverage)
+        rm_state.state_flags |= RM_SC_ALPHA_TO_COVERAGE;
+
     if (shader == rm_state.current_shader) {
-        if (rm_state.has_alpha_to_coverage_support) {
+        if (rm_state.has_alpha_to_coverage_support && 
+            (rm_state.state_flags & RM_SC_ALPHA_TO_COVERAGE)) {
             if (alpha_to_coverage) {
                 IDirect3DDevice9_SetRenderState(rm_state.d3d_device,
                     D3DRS_ADAPTIVETESS_Y,
@@ -1700,6 +1764,8 @@ rm_shader_state_set_alpha_to_coverage(RMShader *shader, bool alpha_to_coverage) 
             }
 
             printf("rm_shader_state_set_alpha_to_coverage\n");
+
+            rm_state.state_flags &= ~RM_SC_ALPHA_TO_COVERAGE;
         }
     }
 
@@ -1712,7 +1778,16 @@ rm_shader_state_set_mask(RMShader *shader,
                          bool depth) {
     DWORD mask_flags = 0;
 
-    if (shader == rm_state.current_shader) {
+    if ((red   != shader->state.color_mask[0]) ||
+        (green != shader->state.color_mask[1]) ||
+        (blue  != shader->state.color_mask[2]) ||
+        (alpha != shader->state.color_mask[3]) ||
+        (depth != shader->state.depth_write)) {
+        rm_state.state_flags |= RM_SC_COLOR_MASK;
+    }
+
+    if ((shader == rm_state.current_shader) &&
+        (rm_state.state_flags & RM_SC_COLOR_MASK)) {
         IDirect3DDevice9_SetRenderState(rm_state.d3d_device, 
                                         D3DRS_ZWRITEENABLE, 
                                         depth);
@@ -1727,6 +1802,8 @@ rm_shader_state_set_mask(RMShader *shader,
                                         mask_flags);
 
         printf("rm_shader_state_set_mask\n");
+
+        rm_state.state_flags &= ~RM_SC_COLOR_MASK;
     }
 
     shader->state.color_mask[0] = red;
