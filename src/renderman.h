@@ -179,6 +179,7 @@ typedef enum {
     RM_MAX,
 } RM_Blend_Op;
 
+// Set depth_test to 0 or an RM_Composite.
 NB_EXTERN void rm_shader_state_set_depth_test(RMShader *shader, u32 depth_test);
 NB_EXTERN void rm_shader_state_set_cull_mode(RMShader *shader, u32 cull_mode);
 NB_EXTERN void rm_shader_state_set_fill_mode(RMShader *shader, u32 fill_mode);
@@ -213,7 +214,6 @@ enum {
     RM_SO_DECR_WRAP,
 } RM_Stencil_Op;
 
-// Enables stencil if stencil_func != 0.
 NB_EXTERN void rm_shader_state_set_stencil(RMShader *shader, 
                                            bool enable, 
                                            bool front, 

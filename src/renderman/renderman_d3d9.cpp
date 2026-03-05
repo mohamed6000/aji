@@ -859,6 +859,11 @@ NB_INLINE void rm_put_vertex(Immediate_Vertex *dest,
 NB_EXTERN void 
 rm_immediate_quad(float x0, float y0, float x1, float y1,
                   float r, float g, float b, float a) {
+    if (rm_state.num_immediate_vertices > MAX_IMMEDIATE_VERTICES - 6) {
+        nb_write_string("rm_immediate_frame_end\n", false);
+        rm_immediate_frame_end();
+    }
+
     Immediate_Vertex *dest = rm_state.immediate_vertices + rm_state.num_immediate_vertices;
 
     rm_put_vertex(dest,   x0, y0, 0,  0, 0,  r, g, b, a);

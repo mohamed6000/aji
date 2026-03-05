@@ -56,7 +56,7 @@ Render triangles
 Render coordinate axes
 Render points (represented as small crosses or spheres)
 Render group, commands, fbo, shader
-Renderer state change
+[X] Renderer state change
 
 [X] Shaders
 [X] Textures
