@@ -85,6 +85,9 @@ u8 piece_shapes[PIECE_COUNT][4][4] = {
 u8 play_field[PLAY_FIELD_HEIGHT][PLAY_FIELD_WIDTH];
 u32 block_size = 32;
 
+s32 line_indices[32];
+s32 line_indices_count = 0;
+
 inline void play_field_to_right_handed_coords(s32 x, s32 y, 
     s32 *x_return, s32 *y_return) {
     *x_return = x * block_size;
@@ -159,14 +162,17 @@ int main(void) {
         }
     }
 
-    u8 piece_id = PIECE_I;
-    s32 piece_x = 6;
+    u8 piece_id = rand() % 7;
+    s32 piece_x = PLAY_FIELD_WIDTH / 2;
     s32 piece_y = 0;
     s32 piece_rotation = 0;
 
     s32 counter_fin = 20;
     s32 counter_current = 0;
     bool move_down = false;
+    bool game_over = false;
+    bool is_line_filled = false;
+    float global_line_alpha = 1.0f;
 
     if (id != -1) {
         bool ap_running = true;
@@ -234,49 +240,100 @@ int main(void) {
             }
 
 
-            if (input->button_states[B_KEY_ARROW_LEFT] & B_KEY_STATE_START) {
-                if (piece_test_occupancy(piece_id, piece_x - 1, piece_y, piece_rotation))
-                    piece_x -= 1;
-            }
-            if (input->button_states[B_KEY_ARROW_RIGHT] & B_KEY_STATE_START) {
-                if (piece_test_occupancy(piece_id, piece_x + 1, piece_y, piece_rotation))
-                    piece_x += 1;
-            }
-            if (input->button_states[B_KEY_ARROW_DOWN] & B_KEY_STATE_START) {
-                if (piece_test_occupancy(piece_id, piece_x, piece_y + 1, piece_rotation))
-                    piece_y += 1;
-            }
+            if (!game_over) {
+                if (input->button_states[B_KEY_ARROW_LEFT] & B_KEY_STATE_START) {
+                    if (piece_test_occupancy(piece_id, piece_x - 1, piece_y, piece_rotation))
+                        piece_x -= 1;
+                }
+                if (input->button_states[B_KEY_ARROW_RIGHT] & B_KEY_STATE_START) {
+                    if (piece_test_occupancy(piece_id, piece_x + 1, piece_y, piece_rotation))
+                        piece_x += 1;
+                }
+                if (input->button_states[B_KEY_ARROW_DOWN] & B_KEY_STATE_START) {
+                    if (piece_test_occupancy(piece_id, piece_x, piece_y + 1, piece_rotation))
+                        piece_y += 1;
+                }
 
-            if (input->button_states['R'] & B_KEY_STATE_START) {
-                if (piece_test_occupancy(piece_id, piece_x, piece_y, piece_rotation + 1))
-                    piece_rotation = (piece_rotation + 1) % 4;
-            }
+                if (input->button_states['R'] & B_KEY_STATE_START) {
+                    if (piece_test_occupancy(piece_id, piece_x, piece_y, piece_rotation + 1))
+                        piece_rotation = (piece_rotation + 1) % 4;
+                }
 
-            counter_current += 1;
-            move_down = (counter_current == counter_fin);
+                counter_current += 1;
+                move_down = (counter_current == counter_fin);
 
-            if (move_down) {
-                if (piece_test_occupancy(piece_id, piece_x, piece_y + 1, piece_rotation))
-                    piece_y += 1;
-                else {
-                    // Place piece in play field.
-                    for (s32 y = 0; y < 4; ++y) {
-                        for (s32 x = 0; x < 4; ++x) {
-                            s32 rx = 0, ry = 0;
-                            piece_rotate(x, y, piece_rotation, &rx, &ry);
+                if (move_down) {
+                    if (piece_test_occupancy(piece_id, piece_x, piece_y + 1, piece_rotation))
+                        piece_y += 1;
+                    else {
+                        // Place piece in play field.
+                        for (s32 y = 0; y < 4; ++y) {
+                            for (s32 x = 0; x < 4; ++x) {
+                                s32 rx = 0, ry = 0;
+                                piece_rotate(x, y, piece_rotation, &rx, &ry);
 
-                            if (piece_shapes[piece_id][ry][rx] != 0)
-                                play_field[piece_y + y][piece_x + x] = (piece_id + 1);
+                                if (piece_shapes[piece_id][ry][rx] != 0)
+                                    play_field[piece_y + y][piece_x + x] = (piece_id + 1);
+                            }
+                        }
+
+                        // Check lines.
+                        for (s32 y = 0; y < 4; ++y) {
+                            if (piece_y + y < PLAY_FIELD_HEIGHT - 1) {
+                                bool full_line = true;
+
+                                for (s32 x = 1; x < PLAY_FIELD_WIDTH - 1; ++x) {
+                                    full_line &= (play_field[piece_y + y][x] != 0);
+                                }
+
+                                if (full_line) {
+                                    for (s32 x = 1; x < PLAY_FIELD_WIDTH - 1; ++x) {
+                                        play_field[piece_y + y][x] = 8;
+                                    }
+
+                                    is_line_filled = true;
+                                    line_indices[line_indices_count] = piece_y + y;
+                                    line_indices_count += 1;
+                                }
+                            }
+                        }
+
+                        // Reset piece.
+                        piece_id = rand() % 7;
+                        piece_x = PLAY_FIELD_WIDTH / 2;
+                        piece_y = 0;
+                        piece_rotation = 0;
+
+                        // Run out of space.
+                        if (!piece_test_occupancy(piece_id, piece_x, piece_y, piece_rotation)) {
+                            game_over = true;
+                            nb_write_string("GAME OVER\n", false);
                         }
                     }
 
-                    piece_id = rand() % 7;
-                    piece_x = PLAY_FIELD_WIDTH / 2;
-                    piece_y = 0;
-                    piece_rotation = 0;
+                    counter_current = 0;
                 }
+            }
 
-                counter_current = 0;
+            if (is_line_filled) {
+                global_line_alpha -= 0.033f;
+                if (global_line_alpha <= 0) {
+                    is_line_filled = false;
+                    global_line_alpha = 1;
+
+                    for (s32 index = 0; index < line_indices_count; ++index) {
+                        s32 row = line_indices[index];
+                        for (s32 x = 1; x < PLAY_FIELD_WIDTH - 1; ++x) {
+                            for (s32 y = row; y > 0; --y) {
+                                play_field[y][x] = play_field[y-1][x];
+                            }
+
+                            play_field[0][x] = 0;
+                        }
+                    }
+
+                    line_indices_count = 0;
+                }
             }
 
 
