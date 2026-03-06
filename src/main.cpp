@@ -2,6 +2,7 @@
 #include "bender.h"
 #include "renderman.h"
 
+#include <stdlib.h>
 
 enum Piece_Types {
     PIECE_I,
@@ -15,7 +16,7 @@ enum Piece_Types {
     PIECE_COUNT,
 };
 
-float piece_colors[PIECE_COUNT][4] = {
+float piece_colors[PIECE_COUNT+1][4] = {
     // { 0.678f, 0.847f, 0.902f, 1 },
     { 0.004f, 0.902f, 0.996f, 1 },
     { 0.094f, 0.004f, 1,      1 },
@@ -24,86 +25,100 @@ float piece_colors[PIECE_COUNT][4] = {
     { 0.4f,   0.992f, 0,      1 },
     { 0.996f, 0.063f, 0.235f, 1 },
     { 0.722f, 0.008f, 0.992f, 1 },
+
+    { 1, 1, 1, 1 }, // Border color.
 };
 
 u8 piece_shapes[PIECE_COUNT][4][4] = {
     {
+        {0, 0, 1, 0},
+        {0, 0, 1, 0},
+        {0, 0, 1, 0},
+        {0, 0, 1, 0},
+    },
+
+    {
+        {0, 0, 1, 0},
+        {0, 0, 1, 0},
+        {0, 1, 1, 0},
         {0, 0, 0, 0},
-        {0, 0, 0, 0},
-        {1, 1, 1, 1},
+    },
+
+    {
+        {0, 1, 0, 0},
+        {0, 1, 0, 0},
+        {0, 1, 1, 0},
         {0, 0, 0, 0},
     },
 
     {
         {0, 0, 0, 0},
-        {2, 0, 0, 0},
-        {2, 2, 2, 0},
+        {0, 1, 1, 0},
+        {0, 1, 1, 0},
         {0, 0, 0, 0},
     },
 
     {
-        {0, 0, 0, 0},
-        {0, 0, 3, 0},
-        {3, 3, 3, 0},
-        {0, 0, 0, 0},
-    },
-
-    {
-        {4, 4, 0, 0},
-        {4, 4, 0, 0},
-        {0, 0, 0, 0},
+        {0, 1, 0, 0},
+        {0, 1, 1, 0},
+        {0, 0, 1, 0},
         {0, 0, 0, 0},
     },
 
     {
-        {0, 5, 5, 0},
-        {5, 5, 0, 0},
-        {0, 0, 0, 0},
-        {0, 0, 0, 0},
-    },
-
-    {
-        {6, 6, 0, 0},
-        {0, 6, 6, 0},
-        {0, 0, 0, 0},
+        {0, 0, 1, 0},
+        {0, 1, 1, 0},
+        {0, 1, 0, 0},
         {0, 0, 0, 0},
     },
 
     {
-        {0, 7, 0, 0},
-        {7, 7, 7, 0},
-        {0, 0, 0, 0},
+        {0, 0, 1, 0},
+        {0, 1, 1, 0},
+        {0, 0, 1, 0},
         {0, 0, 0, 0},
     },
 };
 
-u8 play_field[40][10];
+#define PLAY_FIELD_WIDTH 12
+#define PLAY_FIELD_HEIGHT 21
+u8 play_field[PLAY_FIELD_HEIGHT][PLAY_FIELD_WIDTH];
 u32 block_size = 32;
-u8 piece_id = PIECE_I;
 
 inline void play_field_to_right_handed_coords(s32 x, s32 y, 
     s32 *x_return, s32 *y_return) {
     *x_return = x * block_size;
-    *y_return = (39 * block_size) - (y * block_size);
+    *y_return = ((PLAY_FIELD_HEIGHT-1) * block_size) - (y * block_size);
 }
 
-inline u8 get_play_field_block(s32 x, s32 y) {
-    u8 result = 0;
-    if (x >= 0 && x < 10 && y >= 0 && y < 40) {
-        result = play_field[y][x];
+inline void piece_rotate(s32 x, s32 y, s32 r, s32 *rx, s32 *ry) {
+    switch (r % 4) {
+        case 0: *rx = x;     *ry = y;     break;  // 0
+        case 1: *rx = 3 - y; *ry = x;     break;  // 90
+        case 2: *rx = 3 - x; *ry = 3 - y; break;  // 180
+        case 3: *rx = y;     *ry = 3 - x; break;  // 270
     }
-
-    return result;
 }
 
-inline u8 get_piece_block(u8 piece, s32 x, s32 y) {
-    u8 result = 0;
+inline bool piece_test_occupancy(s32 piece_id, s32 piece_x, s32 piece_y, s32 rotation) {
+    for (s32 y = 0; y < 4; ++y) {
+        for (s32 x = 0; x < 4; ++x) {
+            s32 rx = 0, ry = 0;
+            piece_rotate(x, y, rotation, &rx, &ry);
 
-    if (x >= 0 && x < 4 && y >= 0 && y < 4) {
-        result = piece_shapes[piece][y][x];
+            if ((piece_x + x) >= 0 && (piece_x + x) < PLAY_FIELD_WIDTH && 
+                (piece_y + y) >= 0 && (piece_y + y) < PLAY_FIELD_HEIGHT) {
+
+                u8 local_block  = piece_shapes[piece_id][ry][rx];
+                u8 global_block = play_field[piece_y+y][piece_x+x];
+                
+                if (local_block != 0 && global_block != 0)
+                    return false;
+            }
+        }
     }
 
-    return result;
+    return true;
 }
 
 
@@ -113,7 +128,7 @@ inline u8 get_piece_block(u8 piece, s32 x, s32 y) {
 //
 
 int main(void) {
-    u32 id = bender_create_window("AJI", 640, block_size*20, -1, -1, 0, 
+    u32 id = bender_create_window("AJI", 640, block_size*PLAY_FIELD_HEIGHT, -1, -1, 0, 
                                   0, B_WINDOW_BACKGROUND_COLOR);
 
     rm_init(id);
@@ -135,12 +150,23 @@ int main(void) {
     BInput_State *input = bender_get_input_state();
     RMShader *argb_texture_shader = rm_render_presets_get(RM_PRESET_ARGB_TEXTURE);
 
-    s32 move_dx = 0;
+    for (s32 y = 0; y < PLAY_FIELD_HEIGHT; ++y) {
+        for (s32 x = 0; x < PLAY_FIELD_WIDTH; ++x) {
+            if ((x == 0) || (x == PLAY_FIELD_WIDTH-1) || (y == PLAY_FIELD_HEIGHT-1))
+                play_field[y][x] = 8;
+            else
+                play_field[y][x] = 0;
+        }
+    }
 
-    s32 piece_x = 5;
-    s32 piece_y = 19;
-    float move_y = (float)piece_y;
-    float move_down_speed = 1.0f;
+    u8 piece_id = PIECE_I;
+    s32 piece_x = 6;
+    s32 piece_y = 0;
+    s32 piece_rotation = 0;
+
+    s32 counter_fin = 20;
+    s32 counter_current = 0;
+    bool move_down = false;
 
     if (id != -1) {
         bool ap_running = true;
@@ -149,8 +175,6 @@ int main(void) {
 
             float mx = (float)input->mouse_x;
             float my = (float)(render_target_height - input->mouse_y);
-
-            move_down_speed = 1;
 
             BEvent event;
             while (bender_get_next_event(input, &event)) {
@@ -191,14 +215,8 @@ int main(void) {
                         bender_toggle_fullscreen(id, is_fullscreen);
                     }
 
-                    if (event.key_pressed && event.key_code == B_KEY_ARROW_LEFT) {
-                        move_dx = -1;
-                    }
-                    if (event.key_pressed && event.key_code == B_KEY_ARROW_RIGHT) {
-                        move_dx = 1;
-                    }
-                    if (event.key_pressed && event.key_code == B_KEY_ARROW_DOWN) {
-                        move_down_speed = 6;
+                    if (event.key_pressed && event.key_code == 'P') {
+                        piece_id = (piece_id + 1) % PIECE_COUNT;
                     }
                 }
 
@@ -216,71 +234,49 @@ int main(void) {
             }
 
 
-            move_y += 0.025f * move_down_speed;
-            piece_y = (s32)move_y;
-
-            bool place_in_field = false;
-            bool can_move_piece = false;
-
-            for (s32 y = 0; y < 4; ++y) {
-                for (s32 x = 0; x < 4; ++x) {
-                    s32 test_x = piece_x + x;
-                    s32 test_y = piece_y + y;
-                    u8 block = get_piece_block(piece_id, x, y);
-                    if (block) {
-                        if ((test_x + move_dx) < 0) {
-                            can_move_piece = false;
-                            piece_x = 0;
-                            move_dx = 0;
-                            // break;
-                        }
-
-                        if ((test_x + move_dx) > 9) {
-                            can_move_piece = false;
-                            piece_x = 9 - x;
-                            move_dx = 0;
-                            // break;
-                        }
-
-                        if (get_play_field_block(test_x + move_dx, test_y) == 0) {
-                            can_move_piece = true;
-                        } else {
-                            can_move_piece = false;
-                        }
-
-                        if (test_y > 39) {
-                            piece_y = 39 - y;
-                            place_in_field = true;
-                            // break;
-                        }
-
-                        if (get_play_field_block(test_x, test_y + 1) != 0) {
-                            place_in_field = true;
-                            // move_y = 0;
-                            break;
-                        }
-                    }
-                }
+            if (input->button_states[B_KEY_ARROW_LEFT] & B_KEY_STATE_START) {
+                if (piece_test_occupancy(piece_id, piece_x - 1, piece_y, piece_rotation))
+                    piece_x -= 1;
+            }
+            if (input->button_states[B_KEY_ARROW_RIGHT] & B_KEY_STATE_START) {
+                if (piece_test_occupancy(piece_id, piece_x + 1, piece_y, piece_rotation))
+                    piece_x += 1;
+            }
+            if (input->button_states[B_KEY_ARROW_DOWN] & B_KEY_STATE_START) {
+                if (piece_test_occupancy(piece_id, piece_x, piece_y + 1, piece_rotation))
+                    piece_y += 1;
             }
 
-            if (can_move_piece) {
-                piece_x += move_dx;
+            if (input->button_states['R'] & B_KEY_STATE_START) {
+                if (piece_test_occupancy(piece_id, piece_x, piece_y, piece_rotation + 1))
+                    piece_rotation = (piece_rotation + 1) % 4;
             }
-            move_dx = 0;
 
-            if (place_in_field) {
-                for (s32 y = 0; y < 4; ++y) {
-                    for (s32 x = 0; x < 4; ++x) {
-                        u8 block = get_piece_block(piece_id, x, y);
-                        if (block)
-                            play_field[piece_y+y][piece_x+x] = block;
+            counter_current += 1;
+            move_down = (counter_current == counter_fin);
+
+            if (move_down) {
+                if (piece_test_occupancy(piece_id, piece_x, piece_y + 1, piece_rotation))
+                    piece_y += 1;
+                else {
+                    // Place piece in play field.
+                    for (s32 y = 0; y < 4; ++y) {
+                        for (s32 x = 0; x < 4; ++x) {
+                            s32 rx = 0, ry = 0;
+                            piece_rotate(x, y, piece_rotation, &rx, &ry);
+
+                            if (piece_shapes[piece_id][ry][rx] != 0)
+                                play_field[piece_y + y][piece_x + x] = (piece_id + 1);
+                        }
                     }
+
+                    piece_id = rand() % 7;
+                    piece_x = PLAY_FIELD_WIDTH / 2;
+                    piece_y = 0;
+                    piece_rotation = 0;
                 }
 
-                piece_x = 5;
-                piece_y = 19;
-                move_y = (float)piece_y;
-                piece_id = (piece_id + 1) % PIECE_COUNT;
+                counter_current = 0;
             }
 
 
@@ -303,40 +299,23 @@ int main(void) {
 
             rm_immediate_quad(mx, my, mx+10.0f, my+10.0f, 0, 1, 0, 1);
 
-            // Draw play field grid.
-            float offset_x = (render_target_width * 0.5f) - ((10 * block_size) * 0.5f);
+            float offset_x = (render_target_width * 0.5f) - ((PLAY_FIELD_WIDTH * block_size) * 0.5f);
 
-            for (u32 y = 0; y < 20; ++y) {
-                for (u32 x = 0; x < 10; ++x) {
-                    u8 block = get_play_field_block(x, 20 + y);
-                    if (block) {
-                        float *c = piece_colors[block-1];
-                        s32 x_coord = 0, y_coord = 0;
-                        play_field_to_right_handed_coords(x, 20 + y, &x_coord, &y_coord);
-
-                        float x0 = offset_x + (float)x_coord;
-                        float y0 = (float)y_coord;
-                        float x1 = x0 + block_size;
-                        float y1 = y0 + block_size;
-                        rm_immediate_quad(x0, y0, x1, y1, c[0], c[1], c[2], c[3]);
-                    }
-                }
-            }
-
-
-            // Draw controlled pieces.
             {
                 float *c = piece_colors[piece_id];
                 for (s32 y = 0; y < 4; ++y) {
                     for (s32 x = 0; x < 4; ++x) {
-                        u8 block = get_piece_block(piece_id, x, y);
+                        s32 rx = 0, ry = 0;
+                        piece_rotate(x, y, piece_rotation, &rx, &ry);
+                        
+                        u8 block = piece_shapes[piece_id][ry][rx];
                         if (block) {
                             s32 x_coord = 0, y_coord = 0;
                             play_field_to_right_handed_coords(piece_x + x, piece_y + y, &x_coord, &y_coord);
 
-                            float x0 = offset_x + (float)x_coord;
-                            float y0 = (float)y_coord;
+                            float x0 = offset_x + x_coord;
                             float x1 = x0 + block_size;
+                            float y0 = (float)y_coord;
                             float y1 = y0 + block_size;
 
                             rm_immediate_quad(x0, y0, x1, y1, c[0], c[1], c[2], c[3]);
@@ -345,12 +324,31 @@ int main(void) {
                 }
             }
 
+            for (s32 y = 0; y < PLAY_FIELD_HEIGHT; ++y) {
+                for (s32 x = 0; x < PLAY_FIELD_WIDTH; ++x) {
+                    u8 block = play_field[y][x];
+                    if (block) {
+                        float *c = piece_colors[block-1];
+                        s32 x_coord = 0, y_coord = 0;
+                        play_field_to_right_handed_coords(x, y, &x_coord, &y_coord);
+
+                        float x0 = offset_x + x_coord;
+                        float x1 = x0 + block_size;
+                        float y0 = (float)y_coord;
+                        float y1 = y0 + block_size;
+
+                        rm_immediate_quad(x0, y0, x1, y1, c[0], c[1], c[2], c[3]);
+                    }
+                }
+            }
+
+
             // Hor grid lines.
             {
                 float x0 = offset_x;
-                float x1 = x0 + block_size * 10;
+                float x1 = x0 + block_size * PLAY_FIELD_WIDTH;
                 
-                for (u32 y = 0; y < 20 + 1; ++y) {
+                for (u32 y = 0; y < PLAY_FIELD_HEIGHT + 1; ++y) {
                     float y0 = (float)y * block_size;
 
                     rm_immediate_quad(x0, y0, x1, y0 + 1,  0, 0, 0, 1);
@@ -360,9 +358,9 @@ int main(void) {
             // Ver grid lines.
             {
                 float y0 = 0;
-                float y1 = y0 + block_size * 20;
+                float y1 = y0 + block_size * PLAY_FIELD_HEIGHT;
 
-                for (u32 x = 0; x < 10 + 1; ++x) {
+                for (u32 x = 0; x < PLAY_FIELD_WIDTH + 1; ++x) {
                     float x0 = offset_x + (float)x * block_size;
 
                     rm_immediate_quad(x0, y0, x0 + 1, y1,  0, 0, 0, 1);
@@ -372,6 +370,7 @@ int main(void) {
             rm_immediate_frame_end();
 
             rm_swap_buffers(id);
+            bender_sleep_ms(50);
         }
     }
 
