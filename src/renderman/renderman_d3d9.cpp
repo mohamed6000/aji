@@ -1058,9 +1058,9 @@ rm_texture_create(Renderman_Format format, u32 x, u32 y, u32 z,
                         case RM_FORMAT_RGBA8:
                             dest = buffer + j * locked_rect.Pitch + i * bytes_per_pixel;
                             if ((i+j) % 2) {
-                                dest[0] = 0;
-                                dest[1] = 0;
-                                dest[2] = 0;
+                                dest[0] = 0xCC;
+                                dest[1] = 0xCC;
+                                dest[2] = 0xCC;
                                 dest[3] = 0xFF;
                             } else {
                                 dest[0] = 0xFF;

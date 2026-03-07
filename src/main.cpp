@@ -200,6 +200,8 @@ int main(void) {
 
                     render_target_width  = event.x;
                     render_target_height = event.y;
+
+                    block_size = (s32)((float)render_target_height / PLAY_FIELD_HEIGHT);
                 }
 
 /*
