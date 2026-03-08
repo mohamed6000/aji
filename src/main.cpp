@@ -131,15 +131,14 @@ inline bool piece_test_occupancy(s32 piece_id, s32 piece_x, s32 piece_y, s32 rot
 //
 
 int main(void) {
-    u32 id = bender_create_window("AJI", 640, block_size*PLAY_FIELD_HEIGHT, -1, -1, 0, 
-                                  0, B_WINDOW_BACKGROUND_COLOR);
+    u32 id = bender_create_window("AJI", 640, block_size*PLAY_FIELD_HEIGHT, -1, -1, 0, 0);
 
     rm_init(id);
 
-    RMShader *color_shader = rm_shader_create_from_file("data/shaders/color_vs.hlsl",
-                                                        "data/shaders/color_ps.hlsl",
-                                                        "Color Shader");
-    if (!color_shader) return 0;
+    RMShader *block_shader = rm_shader_create_from_file("data/shaders/basic_vertex.hlsl",
+                                                        "data/shaders/block_shader.hlsl",
+                                                        "Block Shader");
+    if (!block_shader) return 0;
 
     u32 texture_id = rm_texture_create(RM_FORMAT_RGBA8, 4, 4, 1, false, false, null);
     if (texture_id == -1) return 0;
@@ -151,7 +150,7 @@ int main(void) {
     bool is_fullscreen = false;
 
     BInput_State *input = bender_get_input_state();
-    RMShader *argb_texture_shader = rm_render_presets_get(RM_PRESET_ARGB_TEXTURE);
+    // RMShader *argb_texture_shader = rm_render_presets_get(RM_PRESET_ARGB_TEXTURE);
 
     for (s32 y = 0; y < PLAY_FIELD_HEIGHT; ++y) {
         for (s32 x = 0; x < PLAY_FIELD_WIDTH; ++x) {
@@ -344,7 +343,7 @@ int main(void) {
 
             rm_begin_rendering_2d((float)render_target_width, (float)render_target_height);
 
-            RMShader *shader = argb_texture_shader;
+            RMShader *shader = block_shader;
             rm_shader_set(shader);
 
             rm_shader_state_set_depth_test(shader, 0);

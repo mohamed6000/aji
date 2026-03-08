@@ -21,7 +21,7 @@ BInput_State b_input_state;
 #endif
 
 #if COMPILER_CL
-#pragma comment(lib, "Gdi32.lib")    // For CreateSolidBrush.
+// #pragma comment(lib, "Gdi32.lib")    // For CreateSolidBrush.
 #pragma comment(lib, "Shell32.lib")  // For ExtractIconW.
 #endif
 
@@ -88,6 +88,7 @@ b_get_window_handle(u32 index) {
     return result;
 }
 
+/*
 NB_INLINE u32 b_float_to_u32_color_channel(float f) {
     u32 u = (u32)(f * 255);
     if (u < 0)   u = 0;
@@ -95,6 +96,7 @@ NB_INLINE u32 b_float_to_u32_color_channel(float f) {
 
     return u;
 }
+*/
 
 s32 b_w32_vk_codes[B_KEY_CODE_COUNT];
 u16 b_w32_key_codes[256];
@@ -1179,8 +1181,7 @@ bender_create_window(const char *title,
                      s32 window_x, 
                      s32 window_y, 
                      u32 window_parent_index, 
-                     u32 window_creation_flags, 
-                     const float background_color[3]) {
+                     u32 window_creation_flags) {
     u32 result = (u32)-1;
 
     if (!b_initted) {
@@ -1199,11 +1200,11 @@ bender_create_window(const char *title,
         }
 
         // CreateSolidBrush takes a BGR color.
-        u32 r = b_float_to_u32_color_channel(background_color[0]);
-        u32 g = b_float_to_u32_color_channel(background_color[1]);
-        u32 b = b_float_to_u32_color_channel(background_color[2]);
+        // u32 r = b_float_to_u32_color_channel(background_color[0]);
+        // u32 g = b_float_to_u32_color_channel(background_color[1]);
+        // u32 b = b_float_to_u32_color_channel(background_color[2]);
 
-        HBRUSH brush = CreateSolidBrush((b << 16) | (g << 8) | r);
+        // HBRUSH brush = CreateSolidBrush((b << 16) | (g << 8) | r);
 
         WNDCLASSEXW wc = {};
         wc.cbSize        = size_of(WNDCLASSEXW);
@@ -1211,7 +1212,7 @@ bender_create_window(const char *title,
         wc.hInstance     = b_w32_instance;
         wc.hIcon         = icon;
         wc.hCursor       = LoadCursorW(null, (PWSTR)IDC_ARROW);
-        wc.hbrBackground = brush;
+        wc.hbrBackground = null;
         wc.lpszClassName = BENDER_DEFAULT_WINDOW_CLASS_NAME;
 
         wc.lpfnWndProc   = b_w32_main_window_callback;

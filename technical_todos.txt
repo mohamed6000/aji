@@ -87,3 +87,11 @@ NB:
 C dynamic array
 Print unicode in windows console (UTF-16)
 Debug info for memory allocations
+nb_math.h ?
+
+
+
+Add an application platform layer similar to bender but without the GUI 
+stuff, so that it can be used to develop command line apps/servers
+and general programming having setting/config files functionalities, timing,
+dll handling, file watcher/hotloader? (Possibly named Genesis?).

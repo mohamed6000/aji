@@ -8,8 +8,6 @@
 
 #include "nb.h"
 
-const float B_WINDOW_BACKGROUND_COLOR[3] = {0.15f, 0.15f, 0.15f};
-
 struct BEvent;
 
 NB_EXTERN u32 
@@ -17,8 +15,7 @@ bender_create_window(const char *title, s32 width, s32 height,
                      s32 NB_DEFAULT_VALUE(window_x, -1), 
                      s32 NB_DEFAULT_VALUE(window_y, -1), 
                      u32 NB_DEFAULT_VALUE(window_parent_index, 0), 
-                     u32 NB_DEFAULT_VALUE(window_creation_flags, 0), 
-                     const float NB_DEFAULT_VALUE(background_color[3], B_WINDOW_BACKGROUND_COLOR));
+                     u32 NB_DEFAULT_VALUE(window_creation_flags, 0));
 
 NB_EXTERN void bender_update_window_events(void);
 
