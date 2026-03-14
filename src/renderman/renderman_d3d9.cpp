@@ -1,5 +1,14 @@
 #include "renderman.h"
 
+// Enable extra D3D debugging in debug builds if using the debug DirectX runtime.  
+// This makes D3D objects work well in the debugger watch window, but slows down 
+// performance slightly.
+#if defined(NB_DEBUG) || defined(DEBUG) | defined(_DEBUG)
+#ifndef D3D_DEBUG_INFO
+#define D3D_DEBUG_INFO
+#endif
+#endif
+
 #include <d3d9.h>
 
 #pragma warning(push)
@@ -95,6 +104,7 @@ typedef struct {
     IDirect3DVertexBuffer9      *immediate_vb;
     IDirect3DVertexDeclaration9 *d3d_vertex_layout;
     D3DPRESENT_PARAMETERS       d3d_params;
+    D3DCAPS9                    d3d_caps;
 
     u32 state_flags;
 
@@ -112,6 +122,7 @@ typedef struct {
     float pixels_to_proj_matrix[4][4];
 
     RM_Graphics_Card_Type graphics_card_type;
+    u32 available_texture_memory;
     
     bool d3d_device_lost;
     bool vertex_hw_processing_enabled;
@@ -458,18 +469,17 @@ NB_EXTERN bool rm_init(u32 window_id) {
     D3DFORMAT format = tested_formats[1];
 
     // Check the device capabilities.
-    D3DCAPS9 caps = {0};
-    hr = IDirect3D9_GetDeviceCaps(rm_state.d3d9, adapter, D3DDEVTYPE_HAL, &caps);
+    hr = IDirect3D9_GetDeviceCaps(rm_state.d3d9, adapter, D3DDEVTYPE_HAL, &rm_state.d3d_caps);
     if (FAILED(hr)) {
         Log("Failed to IDirect3D9_GetDeviceCaps.");
         Log("%s", d3d_hresult_to_message(hr));
         return false;
     }
     
-    rm_state.vertex_hw_processing_enabled = (caps.DevCaps & D3DDEVCAPS_HWTRANSFORMANDLIGHT) != 0;
-    rm_state.has_twosided_stencil_support = (caps.DevCaps & D3DSTENCILCAPS_TWOSIDED) != 0;
+    rm_state.vertex_hw_processing_enabled = (rm_state.d3d_caps.DevCaps & D3DDEVCAPS_HWTRANSFORMANDLIGHT) != 0;
+    rm_state.has_twosided_stencil_support = (rm_state.d3d_caps.DevCaps & D3DSTENCILCAPS_TWOSIDED) != 0;
 
-    HWND hwnd = (HWND)b_get_window_handle(window_id);
+    HWND hwnd = (HWND)bender_get_window_handle(window_id);
 
     RECT client_rect;
     GetClientRect(hwnd, &client_rect);
@@ -586,6 +596,10 @@ NB_EXTERN bool rm_init(u32 window_id) {
     if (hr == D3D_OK) {
         rm_state.has_alpha_to_coverage_support = true;
     }
+
+    rm_state.available_texture_memory = IDirect3DDevice9_GetAvailableTextureMem(rm_state.d3d_device);
+    nb_log_print(NB_LOG_NONE, "D3D9", "Available Texture Memory: %u MB",
+                 rm_state.available_texture_memory/1024/1024);
 
     rm_state.current_shader = null;
     // rm_shader_state_init(&rm_state.current_state);
@@ -1323,6 +1337,11 @@ rm_shader_create(const char *vertex_shader_source,
         shader_name = "Unnamed";
     }
 
+    UINT compile_flags = 0;
+#if NB_DEBUG
+    compile_flags |= D3DCOMPILE_DEBUG|D3DCOMPILE_SKIP_OPTIMIZATION;
+#endif
+
     // Vertex shader.
     hr = D3DCompile(vertex_shader_source, 
                     nb_string_length(vertex_shader_source),
@@ -1331,7 +1350,7 @@ rm_shader_create(const char *vertex_shader_source,
                     /*pInclude=*/null,
                     "main",
                     "vs_3_0",
-                    0,
+                    compile_flags,
                     0,
                     &compiled_shader,
                     &shader_error);
@@ -1374,7 +1393,7 @@ rm_shader_create(const char *vertex_shader_source,
                     /*pInclude=*/null,
                     "main",
                     "ps_3_0",
-                    0,
+                    compile_flags,
                     0,
                     &compiled_shader,
                     &shader_error);

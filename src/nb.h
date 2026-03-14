@@ -342,11 +342,11 @@ typedef u8  b8;   // For consistency.
 #define nb_int_to_pointer(Type, n) (Type *)((uintptr_t)(n))
 
 #ifndef M_PI
-#define M_PI 3.14159265358979323846
+#define M_PI 3.14159265358979323846f
 #endif
 
 #ifndef TAU
-#define TAU 6.283185307179586476925
+#define TAU 6.283185307179586476925f
 #endif
 
 

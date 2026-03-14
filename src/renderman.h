@@ -8,35 +8,39 @@
 
 #include "nb.h"
 
-NB_EXTERN bool rm_init(u32 window_id);
+#if LANGUAGE_CPP
+extern "C" {
+#endif
+
+bool rm_init(u32 window_id);
 
 // Present the frame buffer to the specified window.
 // (The window must be set for rendering)
-NB_EXTERN void rm_swap_buffers(u32 window_id);
+void rm_swap_buffers(u32 window_id);
 
 // Resize the rendering buffer.
-NB_EXTERN void rm_backbuffer_resize(s32 width, s32 height);
+void rm_backbuffer_resize(s32 width, s32 height);
 
 // Clear the current render target to the specified color.
-NB_EXTERN void rm_clear_render_target(float r, float g, float b, float a,
-                                      bool NB_DEFAULT_VALUE(depth, false),
-                                      bool NB_DEFAULT_VALUE(stencil, false));
+void rm_clear_render_target(float r, float g, float b, float a,
+                            bool NB_DEFAULT_VALUE(depth, false),
+                            bool NB_DEFAULT_VALUE(stencil, false));
 
 
 
 // Pushes a right handed orthographic matrix for rendering.
-NB_EXTERN void rm_begin_rendering_2d(float render_target_width, 
-                                     float render_target_height);
+void rm_begin_rendering_2d(float render_target_width, 
+                           float render_target_height);
 
 // Draws the entire frame.
-NB_EXTERN void rm_immediate_frame_end(void);
+void rm_immediate_frame_end(void);
 
 // Sets the current drawing view.
-NB_EXTERN void rm_viewport_set(float x0, float y0, float x1, float y1);
+void rm_viewport_set(float x0, float y0, float x1, float y1);
 
 // Pushes a quad to the immediate vertex buffer.
-NB_EXTERN void rm_immediate_quad(float x0, float y0, float x1, float y1,
-                                 float r, float g, float b, float a);
+void rm_immediate_quad(float x0, float y0, float x1, float y1,
+                       float r, float g, float b, float a);
 
 
 
@@ -96,11 +100,11 @@ NB_INLINE u32 rm_get_format_size(Renderman_Format format) {
 
 #define RM_CREATE_CUBE_MAP (u32)-1
 
-NB_EXTERN u32 rm_texture_create(Renderman_Format format, u32 x, u32 y, u32 z, bool filter, bool wrap, void *data);
-NB_EXTERN void rm_texture_free(u32 texture_id);
-NB_EXTERN void rm_texture_update(u32 texture_id, Renderman_Format format, 
-                                 u32 x_offset, u32 y_offset, u32 z_offset, 
-                                 u32 x, u32 y, u32 z, void *data);
+u32 rm_texture_create(Renderman_Format format, u32 x, u32 y, u32 z, bool filter, bool wrap, void *data);
+void rm_texture_free(u32 texture_id);
+void rm_texture_update(u32 texture_id, Renderman_Format format, 
+                       u32 x_offset, u32 y_offset, u32 z_offset, 
+                       u32 x, u32 y, u32 z, void *data);
 
 
 // Shaders.
@@ -109,21 +113,21 @@ typedef struct RMShader RMShader;
 
 // Compiles and creates a shader object from vertex and pixel shader text sources.
 // This uses the default bound allocator.
-NB_EXTERN RMShader *rm_shader_create(const char *vertex_shader_source,
-                                     const char *pixel_shader_source,
+RMShader *rm_shader_create(const char *vertex_shader_source,
+                           const char *pixel_shader_source,
+                           const char *shader_name);
+
+RMShader *rm_shader_create_from_file(const char *vertex_shader_path,
+                                     const char *pixel_shader_path,
                                      const char *shader_name);
 
-NB_EXTERN RMShader *rm_shader_create_from_file(const char *vertex_shader_path,
-                                               const char *pixel_shader_path,
-                                               const char *shader_name);
-
 // Free the shader resources.
-NB_EXTERN void rm_shader_free(RMShader *shader);
+void rm_shader_free(RMShader *shader);
 
 // Bind the current shader.
-NB_EXTERN void rm_shader_set(RMShader *shader);
+void rm_shader_set(RMShader *shader);
 
-NB_EXTERN void rm_shader_texture_set(RMShader *shader, u32 slot, u32 texture_id);
+void rm_shader_texture_set(RMShader *shader, u32 slot, u32 texture_id);
 
 // Render presets
 typedef enum {
@@ -131,7 +135,7 @@ typedef enum {
     RM_PRESET_COUNT,
 } RM_Presets;
 
-NB_EXTERN RMShader *rm_render_presets_get(RM_Presets preset);
+RMShader *rm_render_presets_get(RM_Presets preset);
 
 // Shader states.
 
@@ -158,6 +162,7 @@ typedef enum {
     RM_FILL_POINT,
 } RM_Fill;
 
+// @Todo: Blend_Mode.
 typedef enum {
     RM_ZERO = 1,
     RM_ONE,
@@ -180,28 +185,27 @@ typedef enum {
 } RM_Blend_Op;
 
 // Set depth_test to 0 or an RM_Composite.
-NB_EXTERN void rm_shader_state_set_depth_test(RMShader *shader, u32 depth_test);
-NB_EXTERN void rm_shader_state_set_cull_mode(RMShader *shader, u32 cull_mode);
-NB_EXTERN void rm_shader_state_set_fill_mode(RMShader *shader, u32 fill_mode);
+void rm_shader_state_set_depth_test(RMShader *shader, u32 depth_test);
+void rm_shader_state_set_cull_mode(RMShader *shader, u32 cull_mode);
+void rm_shader_state_set_fill_mode(RMShader *shader, u32 fill_mode);
 
-NB_EXTERN void rm_shader_state_set_blend_mode(RMShader *shader,
-                                              bool enable, 
-                                              u32 blend_op, 
-                                              u32 blend_src, 
-                                              u32 blend_dest);
+void rm_shader_state_set_blend_mode(RMShader *shader,
+                                    bool enable, 
+                                    u32 blend_op, 
+                                    u32 blend_src, 
+                                    u32 blend_dest);
 
 // Enable Alpha To Coverage for MSAA, if it's supported by the GPU.
-NB_EXTERN void
-rm_shader_state_set_alpha_to_coverage(RMShader *shader, 
-                                      bool alpha_to_coverage);
+void rm_shader_state_set_alpha_to_coverage(RMShader *shader, 
+                                           bool alpha_to_coverage);
 
 // Enable/disable writing of frame buffer color components.
-NB_EXTERN void rm_shader_state_set_mask(RMShader *shader, 
-                                        bool red, 
-                                        bool green, 
-                                        bool blue, 
-                                        bool alpha, 
-                                        bool depth);
+void rm_shader_state_set_mask(RMShader *shader, 
+                              bool red, 
+                              bool green, 
+                              bool blue, 
+                              bool alpha, 
+                              bool depth);
 
 enum {
     RM_SO_KEEP = 1,
@@ -214,15 +218,19 @@ enum {
     RM_SO_DECR_WRAP,
 } RM_Stencil_Op;
 
-NB_EXTERN void rm_shader_state_set_stencil(RMShader *shader, 
-                                           bool enable, 
-                                           bool front, 
-                                           u32 stencil_func, 
-                                           u32 reference,
-                                           u32 read_mask,
-                                           u32 write_mask,
-                                           u32 stencil_fail_op,
-                                           u32 depth_fail_op,
-                                           u32 success_op);
+void rm_shader_state_set_stencil(RMShader *shader, 
+                                 bool enable, 
+                                 bool front, 
+                                 u32 stencil_func, 
+                                 u32 reference,
+                                 u32 read_mask,
+                                 u32 write_mask,
+                                 u32 stencil_fail_op,
+                                 u32 depth_fail_op,
+                                 u32 success_op);
+
+#if LANGUAGE_CPP
+}
+#endif
 
 #endif  // RENDERMAN_INCLUDE_H

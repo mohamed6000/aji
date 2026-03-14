@@ -8,35 +8,35 @@
 
 #include "nb.h"
 
+#if LANGUAGE_CPP
+extern "C" {
+#endif
+
 struct BEvent;
 
-NB_EXTERN u32 
-bender_create_window(const char *title, s32 width, s32 height, 
-                     s32 NB_DEFAULT_VALUE(window_x, -1), 
-                     s32 NB_DEFAULT_VALUE(window_y, -1), 
-                     u32 NB_DEFAULT_VALUE(window_parent_index, 0), 
-                     u32 NB_DEFAULT_VALUE(window_creation_flags, 0));
+u32 bender_create_window(const char *title, s32 width, s32 height, 
+                         s32 NB_DEFAULT_VALUE(window_x, -1), 
+                         s32 NB_DEFAULT_VALUE(window_y, -1), 
+                         u32 NB_DEFAULT_VALUE(window_parent_index, 0), 
+                         u32 NB_DEFAULT_VALUE(window_creation_flags, 0));
 
-NB_EXTERN void bender_update_window_events(void);
+void bender_update_window_events(void);
 
-NB_EXTERN void 
-bender_get_window_size(u32 window_id, 
-                       s32 *width_return, 
-                       s32 *height_return);
+void bender_get_window_size(u32 window_id, 
+                            s32 *width_return, 
+                            s32 *height_return);
 
-NB_EXTERN void 
-bender_get_mouse_pointer_position(u32 window_id, 
-                                  s32 *x_return, 
-                                  s32 *y_return);
+void bender_get_mouse_pointer_position(u32 window_id, 
+                                       s32 *x_return, 
+                                       s32 *y_return);
 
-NB_EXTERN void 
-bender_get_mouse_pointer_position_right_handed(u32 window_id, 
-                                               s32 *x_return, 
-                                               s32 *y_return);
+void bender_get_mouse_pointer_position_right_handed(u32 window_id, 
+                                                    s32 *x_return, 
+                                                    s32 *y_return);
 
-NB_EXTERN void bender_sleep_ms(u32 ms);
+void bender_sleep_ms(u32 ms);
 
-NB_EXTERN void bender_toggle_fullscreen(u32 window_id, bool want_fullscreen);
+void bender_toggle_fullscreen(u32 window_id, bool want_fullscreen);
 
 enum Bender_States {
     B_STATE_NONE,
@@ -46,9 +46,9 @@ enum Bender_States {
     B_STATE_IGNORE,
 };
 
-NB_EXTERN void bender_messagebox_info(const char *title, const char *message);
-NB_EXTERN bool bender_messagebox_confirm(const char *title, const char *message);
-NB_EXTERN u32  bender_messagebox_abort(const char *title, const char *message);
+void bender_messagebox_info(const char *title, const char *message);
+bool bender_messagebox_confirm(const char *title, const char *message);
+u32  bender_messagebox_abort(const char *title, const char *message);
 
 enum Bender_Window_Creation_Flags {
     B_WINDOW_CREATE_NONE          = 0x0,
@@ -59,8 +59,7 @@ enum Bender_Window_Creation_Flags {
 
 
 // Event system.
-typedef enum 
-BEvent_Type NB_ENUM_TYPE(u8) {
+typedef enum BEvent_Type {
     B_EVENT_NONE          = 0,
     B_EVENT_QUIT          = 1,
     B_EVENT_WINDOW_RESIZE = 2,
@@ -336,7 +335,7 @@ bender_get_input_button_state(BKey_Code key_code) {
 
 
 // Helper functions (Useful for other APIs or engines).
-NB_EXTERN void *b_get_window_handle(u32 index);
+void *bender_get_window_handle(u32 index);
 
 NB_INLINE bool 
 bender_get_next_event(BInput_State *input, BEvent *event) {
@@ -352,8 +351,11 @@ bender_get_next_event(BInput_State *input, BEvent *event) {
 
 
 // These helpers are implemented for specific platforms.
-NB_EXTERN char *
-b_w32_wide_to_utf8(wchar_t *s, size_t src_length, 
-                   NB_Allocator NB_DEFAULT_VALUE(allocator, NB_GET_ALLOCATOR()));
+char *b_w32_wide_to_utf8(wchar_t *s, size_t src_length, 
+                         NB_Allocator NB_DEFAULT_VALUE(allocator, NB_GET_ALLOCATOR()));
+
+#if LANGUAGE_CPP
+}
+#endif
 
 #endif  // BENDER_INCLUDE_H

@@ -76,8 +76,7 @@ b_get_window_record(u32 index) {
     return result;
 }
 
-NB_EXTERN void *
-b_get_window_handle(u32 index) {
+void *bender_get_window_handle(u32 index) {
     void *result = null;
 
     Bender_Window_Record *record = b_get_window_record(index);
@@ -87,16 +86,6 @@ b_get_window_handle(u32 index) {
 
     return result;
 }
-
-/*
-NB_INLINE u32 b_float_to_u32_color_channel(float f) {
-    u32 u = (u32)(f * 255);
-    if (u < 0)   u = 0;
-    if (u > 255) u = 255;
-
-    return u;
-}
-*/
 
 s32 b_w32_vk_codes[B_KEY_CODE_COUNT];
 u16 b_w32_key_codes[256];
@@ -198,10 +187,9 @@ b_w32_process_raw_input(HRAWINPUT handle) {
 #endif
 }
 
-NB_EXTERN char *
-b_w32_wide_to_utf8(wchar_t *s, 
-                   size_t src_length, 
-                   NB_Allocator allocator) {
+char *b_w32_wide_to_utf8(wchar_t *s, 
+                         size_t src_length, 
+                         NB_Allocator allocator) {
     if (!s) return null;
 
     char *result = null;
@@ -800,7 +788,7 @@ static void b_w32_init_input_system(void) {
 }
 #endif
 
-NB_EXTERN bool bender_init(void) {
+bool bender_init(void) {
     if (b_initted) return true;
 
     b_w32_instance = GetModuleHandleW(null);
@@ -1174,18 +1162,17 @@ NB_EXTERN bool bender_init(void) {
     return b_initted;
 }
 
-NB_EXTERN u32 
-bender_create_window(const char *title, 
-                     s32 width, 
-                     s32 height, 
-                     s32 window_x, 
-                     s32 window_y, 
-                     u32 window_parent_index, 
-                     u32 window_creation_flags) {
+u32 bender_create_window(const char *title, 
+                         s32 width, 
+                         s32 height, 
+                         s32 window_x, 
+                         s32 window_y, 
+                         u32 window_parent_index, 
+                         u32 window_creation_flags) {
     u32 result = (u32)-1;
 
     if (!b_initted) {
-        // If we didn't call b_init at startup, now is the time.
+        // If we didn't call bender_init at startup, now is the time.
         bender_init();
 
         // Load the first icon resource.
@@ -1198,13 +1185,6 @@ bender_create_window(const char *title,
 
             icon = ExtractIconW(b_w32_instance, exe_path, 0); // 0 means first icon.
         }
-
-        // CreateSolidBrush takes a BGR color.
-        // u32 r = b_float_to_u32_color_channel(background_color[0]);
-        // u32 g = b_float_to_u32_color_channel(background_color[1]);
-        // u32 b = b_float_to_u32_color_channel(background_color[2]);
-
-        // HBRUSH brush = CreateSolidBrush((b << 16) | (g << 8) | r);
 
         WNDCLASSEXW wc = {};
         wc.cbSize        = size_of(WNDCLASSEXW);
@@ -1378,7 +1358,7 @@ bender_create_window(const char *title,
     return result;
 }
 
-NB_EXTERN void bender_update_window_events(void) {
+void bender_update_window_events(void) {
 #if 0
     for (s64 index = 0; index < events_this_frame.count; index++) {
         Event *it = &events_this_frame[index];
@@ -1450,10 +1430,9 @@ NB_EXTERN void bender_update_window_events(void) {
     }
 }
 
-NB_EXTERN void 
-bender_get_window_size(u32 window_id, 
-                       s32 *width_return, 
-                       s32 *height_return) {
+void bender_get_window_size(u32 window_id, 
+                            s32 *width_return, 
+                            s32 *height_return) {
     assert(width_return  != null);
     assert(height_return != null);
 
@@ -1466,10 +1445,9 @@ bender_get_window_size(u32 window_id,
     *height_return = rect.bottom - rect.top;
 }
 
-NB_EXTERN void 
-bender_get_mouse_pointer_position(u32 window_id, 
-                                  s32 *x_return, 
-                                  s32 *y_return) {
+void bender_get_mouse_pointer_position(u32 window_id, 
+                                       s32 *x_return, 
+                                       s32 *y_return) {
     assert(x_return != null);
     assert(y_return != null);
 
@@ -1491,8 +1469,7 @@ bender_get_mouse_pointer_position(u32 window_id,
 
 #if 0
 // @Cutnpaste from get_mouse_pointer_position
-NB_EXTERN void 
-bender_get_mouse_pointer_position(s32 *x_return, s32 *y_return) {
+void bender_get_mouse_pointer_position(s32 *x_return, s32 *y_return) {
     UNUSED(x_return);
     UNUSED(y_return);
     POINT p;
@@ -1511,10 +1488,9 @@ bender_get_mouse_pointer_position(s32 *x_return, s32 *y_return) {
 #endif
 
 // @Cutnpaste from get_mouse_pointer_position
-NB_EXTERN void 
-bender_get_mouse_pointer_position_right_handed(u32 window_id, 
-                                               s32 *x_return, 
-                                               s32 *y_return) {
+void bender_get_mouse_pointer_position_right_handed(u32 window_id, 
+                                                    s32 *x_return, 
+                                                    s32 *y_return) {
     assert(x_return != null);
     assert(y_return != null);
 
@@ -1542,7 +1518,7 @@ bender_get_mouse_pointer_position_right_handed(u32 window_id,
 
 #if 0
 // @Cutnpaste from get_mouse_pointer_position_right_handed
-NB_EXTERN void bender_get_mouse_pointer_position_right_handed(s32 *x_return, s32 *y_return) {
+void bender_get_mouse_pointer_position_right_handed(s32 *x_return, s32 *y_return) {
     POINT p;
     BOOL success = GetCursorPos(&p);
     if (!success) {
@@ -1564,7 +1540,7 @@ NB_EXTERN void bender_get_mouse_pointer_position_right_handed(s32 *x_return, s32
 }
 #endif
 
-NB_EXTERN void bender_sleep_ms(u32 ms) {
+void bender_sleep_ms(u32 ms) {
     Sleep((DWORD)ms);
 }
 
@@ -1585,8 +1561,7 @@ static void b_w32_set_screen_mode(s32 w, s32 h, bool reset) {
 }
 #endif
 
-NB_EXTERN void 
-bender_toggle_fullscreen(u32 window_id, bool want_fullscreen) {
+void bender_toggle_fullscreen(u32 window_id, bool want_fullscreen) {
     Bender_Window_Record *record = b_get_window_record(window_id);
     HWND hwnd = record->handle;
 
@@ -1664,8 +1639,7 @@ b_w32_find_minimum_display_mode(DEVMODEW *mode,
     return false;
 }
 
-NB_EXTERN void 
-bender_init_display_modes(u32 target_adapter_index) {
+void bender_init_display_modes(u32 target_adapter_index) {
     bool target_mode_found = false;
 
     DISPLAY_DEVICEW adapter = { size_of(DISPLAY_DEVICEW) };
@@ -1795,16 +1769,14 @@ bender_init_display_modes(u32 target_adapter_index) {
 }
 #endif
 
-NB_EXTERN void 
-bender_messagebox_info(const char *title, const char *message) {
+void bender_messagebox_info(const char *title, const char *message) {
     WCHAR *wide_title   = nb_w32_utf8_to_wide(title, nb_temporary_allocator);
     WCHAR *wide_message = nb_w32_utf8_to_wide(message, nb_temporary_allocator);
 
     MessageBoxW(null, wide_message, wide_title, MB_OK|MB_ICONINFORMATION);
 }
 
-NB_EXTERN bool 
-bender_messagebox_confirm(const char *title, const char *message) {
+bool bender_messagebox_confirm(const char *title, const char *message) {
     WCHAR *wide_title   = nb_w32_utf8_to_wide(title, nb_temporary_allocator);
     WCHAR *wide_message = nb_w32_utf8_to_wide(message, nb_temporary_allocator);
 
@@ -1812,8 +1784,7 @@ bender_messagebox_confirm(const char *title, const char *message) {
     return (result == IDYES);
 }
 
-NB_EXTERN u32 
-bender_messagebox_abort(const char *title, const char *message) {
+u32 bender_messagebox_abort(const char *title, const char *message) {
     WCHAR *wide_title   = nb_w32_utf8_to_wide(title, nb_temporary_allocator);
     WCHAR *wide_message = nb_w32_utf8_to_wide(message, nb_temporary_allocator);
 
