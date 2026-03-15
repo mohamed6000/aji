@@ -17,9 +17,11 @@
 #pragma warning(pop)
 
 #if COMPILER_CL
-#pragma comment(lib, "d3d9.lib")
-#pragma comment(lib, "d3dcompiler.lib")
+// #pragma comment(lib, "d3d9.lib")
+// #pragma comment(lib, "d3dcompiler.lib")
 #endif
+
+typedef IDirect3D9 * WINAPI Direct3DCreate9PROC(UINT SDKVersion);
 
 #include "dxerr.h"
 
@@ -99,6 +101,11 @@ struct RMShader {
 };
 
 typedef struct {
+    HMODULE d3d_module;
+    HMODULE d3d_compiler_module;
+    Direct3DCreate9PROC *direct3d_create9;
+    pD3DCompile          d3d_compile;
+
     IDirect3D9                  *d3d9;
     IDirect3DDevice9            *d3d_device;
     IDirect3DVertexBuffer9      *immediate_vb;
@@ -457,7 +464,19 @@ NB_EXTERN bool rm_init(u32 window_id) {
     const char *old_ident = nb_logger_push_ident("D3D9");
     u32 old_mode = nb_logger_push_mode(NB_LOG_ERROR);
 
-    rm_state.d3d9 = Direct3DCreate9(D3D_SDK_VERSION);
+    rm_state.d3d_module = LoadLibraryW(L"d3d9.dll");
+    if (!rm_state.d3d_module) {
+        Log("Failed to load d3d9.");
+        return false;
+    }
+
+    rm_state.direct3d_create9 = (Direct3DCreate9PROC *)GetProcAddress(rm_state.d3d_module, "Direct3DCreate9");
+    if (!rm_state.direct3d_create9) {
+        Log("Failed to get Direct3DCreate9.");
+        return false;
+    }
+
+    rm_state.d3d9 = rm_state.direct3d_create9(D3D_SDK_VERSION);
     if (!rm_state.d3d9) {
         Log("Failed to Direct3DCreate9.");
         return false;
@@ -600,6 +619,24 @@ NB_EXTERN bool rm_init(u32 window_id) {
     rm_state.available_texture_memory = IDirect3DDevice9_GetAvailableTextureMem(rm_state.d3d_device);
     nb_log_print(NB_LOG_NONE, "D3D9", "Available Texture Memory: %u MB",
                  rm_state.available_texture_memory/1024/1024);
+
+
+    rm_state.d3d_compiler_module = LoadLibraryW(L"d3dcompiler_47.dll");
+    if (!rm_state.d3d_compiler_module) {
+        Log("Failed to load d3dcompiler_47.dll, attemting to load d3dcompiler_43.dll");
+        rm_state.d3d_compiler_module = LoadLibraryW(L"d3dcompiler_43.dll");
+        if (!rm_state.d3d_compiler_module) {
+            Log("Failed to load d3dcompiler_43.dll");
+            return false;
+        }
+    }
+
+    rm_state.d3d_compile = (pD3DCompile)GetProcAddress(rm_state.d3d_compiler_module, "D3DCompile");
+    if (!rm_state.d3d_compile) {
+        Log("Failed to get D3DCompile.");
+        return false;
+    }
+
 
     rm_state.current_shader = null;
     // rm_shader_state_init(&rm_state.current_state);
@@ -1343,7 +1380,7 @@ rm_shader_create(const char *vertex_shader_source,
 #endif
 
     // Vertex shader.
-    hr = D3DCompile(vertex_shader_source, 
+    hr = rm_state.d3d_compile(vertex_shader_source, 
                     nb_string_length(vertex_shader_source),
                     /*pSourceName=*/shader_name, 
                     /*pDefines=*/null,
@@ -1386,7 +1423,7 @@ rm_shader_create(const char *vertex_shader_source,
     // Pixel shader.
     compiled_shader = null;
     shader_error    = null;
-    hr = D3DCompile(pixel_shader_source, 
+    hr = rm_state.d3d_compile(pixel_shader_source, 
                     nb_string_length(pixel_shader_source),
                     /*pSourceName=*/shader_name, 
                     /*pDefines=*/null,
