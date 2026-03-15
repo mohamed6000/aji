@@ -21,7 +21,7 @@
 // #pragma comment(lib, "d3dcompiler.lib")
 #endif
 
-typedef IDirect3D9 * WINAPI Direct3DCreate9PROC(UINT SDKVersion);
+typedef IDirect3D9 * WINAPI Direct3DCreate9_PROC(UINT SDKVersion);
 
 #include "dxerr.h"
 
@@ -103,7 +103,7 @@ struct RMShader {
 typedef struct {
     HMODULE d3d_module;
     HMODULE d3d_compiler_module;
-    Direct3DCreate9PROC *direct3d_create9;
+    Direct3DCreate9_PROC *direct3d_create9;
     pD3DCompile          d3d_compile;
 
     IDirect3D9                  *d3d9;
@@ -470,7 +470,7 @@ NB_EXTERN bool rm_init(u32 window_id) {
         return false;
     }
 
-    rm_state.direct3d_create9 = (Direct3DCreate9PROC *)GetProcAddress(rm_state.d3d_module, "Direct3DCreate9");
+    rm_state.direct3d_create9 = (Direct3DCreate9_PROC *)GetProcAddress(rm_state.d3d_module, "Direct3DCreate9");
     if (!rm_state.direct3d_create9) {
         Log("Failed to get Direct3DCreate9.");
         return false;

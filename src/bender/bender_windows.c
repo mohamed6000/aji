@@ -22,7 +22,7 @@ BInput_State b_input_state;
 
 #if COMPILER_CL
 // #pragma comment(lib, "Gdi32.lib")    // For CreateSolidBrush.
-#pragma comment(lib, "Shell32.lib")  // For ExtractIconW.
+// #pragma comment(lib, "Shell32.lib")  // For ExtractIconW.
 #endif
 
 
@@ -46,13 +46,28 @@ static u32 b_w32_high_surrogate;
 static int b_w32_mouse_abs_x = 0;
 static int b_w32_mouse_abs_y = 0;
 
+// https://learn.microsoft.com/en-us/windows/win32/tablet/system-events-and-mouse-messages?redirectedfrom=MSDN
+#define B_MOUSEEVENTF_FROMTOUCH      0xFF515700
+#define B_MOUSEEVENTF_FROMTOUCH_MASK 0xFFFFFF00
+#define B_IsTouchEvent(dw) (((dw) & B_MOUSEEVENTF_FROMTOUCH_MASK) == B_MOUSEEVENTF_FROMTOUCH)
+
+#include <shellapi.h>
+
 #define B_MAX_TOUCH_POINT_INPUT_COUNT 4
 static TOUCHINPUT b_w32_touch_inputs[B_MAX_TOUCH_POINT_INPUT_COUNT];
+
+typedef HICON WINAPI W32_ExtractIconW_PROC(_Reserved_ HINSTANCE hInst, _In_ LPCWSTR pszExeFileName, UINT nIconIndex);
+
+static HMODULE w32_shell32_module;
+static W32_ExtractIconW_PROC *w32_extract_icon_w;
 
 // static DEVMODEW b_w32_target_device_mode;
 // static WCHAR b_w32_target_device_name[32];
 // #define BENDER_TARGET_FREQUENCY_MIN 59
 // #define BENDER_TARGET_FREQUENCY_MAX 60
+
+static s32 b_w32_vk_codes[B_KEY_CODE_COUNT];
+static u16 b_w32_key_codes[256];
 
 NB_INLINE void b_push_event(BEvent event) {
     assert(b_input_state.event_count < nb_array_count(b_input_state.events_this_frame));
@@ -86,9 +101,6 @@ void *bender_get_window_handle(u32 index) {
 
     return result;
 }
-
-s32 b_w32_vk_codes[B_KEY_CODE_COUNT];
-u16 b_w32_key_codes[256];
 
 NB_INLINE u16 
 b_w32_get_key_code(WPARAM vk_code, bool extended) {
@@ -220,12 +232,6 @@ char *b_w32_wide_to_utf8(wchar_t *s,
 }
 
 
-// https://learn.microsoft.com/en-us/windows/win32/tablet/system-events-and-mouse-messages?redirectedfrom=MSDN
-#define B_MOUSEEVENTF_FROMTOUCH      0xFF515700
-#define B_MOUSEEVENTF_FROMTOUCH_MASK 0xFFFFFF00
-#define B_IsTouchEvent(dw) (((dw)&B_MOUSEEVENTF_FROMTOUCH_MASK) == B_MOUSEEVENTF_FROMTOUCH)
-
-#include <shellapi.h>
 
 static LRESULT CALLBACK 
 b_w32_main_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
@@ -1183,7 +1189,23 @@ u32 bender_create_window(const char *title,
             WCHAR exe_path[MAX_PATH];
             GetModuleFileNameW(null, exe_path, MAX_PATH);
 
-            icon = ExtractIconW(b_w32_instance, exe_path, 0); // 0 means first icon.
+            if (!w32_shell32_module) {
+                w32_shell32_module = LoadLibraryW(L"Shell32.dll");
+                if (!w32_shell32_module) {
+                    nb_log_print(NB_LOG_ERROR, "Bender", "Failed to load Shell32.dll");
+                }
+            }
+
+            if (!w32_extract_icon_w && w32_shell32_module) {
+                w32_extract_icon_w = (W32_ExtractIconW_PROC *)GetProcAddress(w32_shell32_module, "ExtractIconW");
+                if (!w32_extract_icon_w) {
+                    nb_log_print(NB_LOG_ERROR, "Bender", "Failed to get ExtractIconW");
+                }
+            }
+
+            if (w32_extract_icon_w) {
+                icon = w32_extract_icon_w(b_w32_instance, exe_path, 0); // 0 means first icon.
+            }
         }
 
         WNDCLASSEXW wc = {};
